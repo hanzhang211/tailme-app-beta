@@ -16,7 +16,7 @@ const feedAmt = (w: number) => {
   return "400–550g / 次";
 };
 
-const isHungry = (bt, dt) => {
+const isHungry = (bt: string, dt: string) => {
   const now = new Date(), m = now.getHours()*60+now.getMinutes();
   const [bh,bm] = bt.split(":").map(Number);
   const [dh,dm] = dt.split(":").map(Number);
