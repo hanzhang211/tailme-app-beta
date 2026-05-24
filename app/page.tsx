@@ -7,7 +7,7 @@ const BREEDS = ["腊肠犬","柴犬","柯基","金毛","拉布拉多","边牧","
   "杜宾","萨摩耶","罗威纳","伯恩山","斗牛犬","灵缇","纽芬兰","牛头梗","可卡","其他"];
 
 const feedAmt = (w: number) => {
-  const n = parseFloat(w)||5;
+  const n = w || 5;
   if(n<3) return "50–70g / 次";
   if(n<5) return "70–90g / 次";
   if(n<10) return "100–140g / 次";
