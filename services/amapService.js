@@ -1,8 +1,9 @@
 /**
  * services/amapService.js
  *
- * 高德 JSAPI v2.0
- * 加载方式：script.onload + 轮询 window.AMap（不使用 callback 参数）
+ * 高德 JSAPI v2.0 — 使用官方 @amap/amap-jsapi-loader 初始化
+ *
+ * 前置：npm install @amap/amap-jsapi-loader
  *
  * 环境变量：
  *   NEXT_PUBLIC_AMAP_KEY
@@ -16,10 +17,12 @@ export function loadAMap() {
     return Promise.reject(new Error("AMap 只能在浏览器中使用"));
   }
 
+  /* 已加载完成 */
   if (window.AMap && typeof window.AMap.Map === "function") {
     return Promise.resolve(window.AMap);
   }
 
+  /* 复用进行中的 Promise */
   if (_promise) return _promise;
 
   const key  = process.env.NEXT_PUBLIC_AMAP_KEY;
@@ -29,70 +32,41 @@ export function loadAMap() {
     return Promise.reject(new Error("缺少 NEXT_PUBLIC_AMAP_KEY"));
   }
 
-  _promise = new Promise((resolve, reject) => {
+  /* 必须在 AMapLoader.load() 之前设置 */
+  if (code) {
+    window._AMapSecurityConfig = { securityJsCode: code };
+  }
 
-    /* 1. 注入安全密钥（必须在 script 之前） */
-    if (code) {
-      window._AMapSecurityConfig = { securityJsCode: code };
-    }
-
-    /* 2. 防止重复插入 */
-    const exists = document.querySelector("script[data-amap-key]");
-    if (!exists) {
-      const script = document.createElement("script");
-      script.setAttribute("data-amap-key", key);
-      script.src =
-        "https://webapi.amap.com/maps?v=2.0" +
-        "&key=" + key +
-        "&plugin=AMap.Geolocation,AMap.PlaceSearch,AMap.Scale,AMap.ToolBar";
-
-      script.onerror = (e) => {
-        _promise = null;
-        reject(new Error(
-          "高德脚本加载失败（onerror）。" +
-          "请检查：域名白名单 / Key 类型是否为 Web端(JS API) / 网络。" +
-          "\nsrc=" + script.src
-        ));
-      };
-
-      document.head.appendChild(script);
-    }
-
-    /* 3. script.onload 后轮询 window.AMap，最多 10 秒 */
-    const startTime = Date.now();
-    const TIMEOUT   = 10000;
-    const INTERVAL  = 100;
-
-    function poll() {
-      if (window.AMap && typeof window.AMap.Map === "function") {
-        resolve(window.AMap);
-        return;
-      }
-
-      const elapsed = Date.now() - startTime;
-      if (elapsed >= TIMEOUT) {
-        _promise = null;
-        reject(new Error(
-          "高德 JSAPI 脚本已加载但 window.AMap 在 " + TIMEOUT / 1000 + "s 内未就绪。\n" +
-          "window.AMap = " + JSON.stringify(window.AMap) + "\n" +
-          "window._AMapSecurityConfig = " + JSON.stringify(window._AMapSecurityConfig ?? null) + "\n" +
-          "Key 前6位: " + key.slice(0, 6)
-        ));
-        return;
-      }
-
-      setTimeout(poll, INTERVAL);
-    }
-
-    /* 稍微等一帧再开始轮询，让 script 有机会执行 */
-    setTimeout(poll, 0);
-  });
+  _promise = import("@amap/amap-jsapi-loader")
+    .then((mod) => {
+      const AMapLoader = mod.default ?? mod;
+      return AMapLoader.load({
+        key,
+        version: "2.0",
+        plugins: [
+          "AMap.Geolocation",
+          "AMap.PlaceSearch",
+          "AMap.Scale",
+          "AMap.ToolBar",
+        ],
+      });
+    })
+    .then((AMap) => {
+      /* 挂到 window，方便 MapTab 的 useEffect 直接访问 */
+      window.AMap = AMap;
+      return AMap;
+    })
+    .catch((err) => {
+      _promise = null;
+      throw new Error("高德地图加载失败：" + (err?.message || String(err)));
+    });
 
   return _promise;
 }
 
 /* ═══════════════════════════════════════════════════════════
    获取用户位置
+   GPS → IP 定位 → 上海市中心（兜底）
 ═══════════════════════════════════════════════════════════ */
 export function getMyLocation(AMap) {
   return new Promise((resolve) => {
@@ -172,7 +146,7 @@ export async function searchPetPOI(AMap, location) {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   分类
+   分类（客户端过滤，不重新搜索）
 ═══════════════════════════════════════════════════════════ */
 export const CATEGORIES = [
   { id: "all",      label: "全部",     icon: "🐾", test: () => true },
