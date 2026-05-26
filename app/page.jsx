@@ -106,10 +106,12 @@ const AI_RES = {
    THEME
 ══════════════════════════════════════════════════════════════ */
 const C = {
-  pri:"#FF7A5A", grad:"linear-gradient(135deg,#FF7A5A 0%,#FFB347 100%)",
-  bg:"#FFFBF4", card:"#FFFFFF", text:"#1A1006", sub:"#9B8B76",
-  light:"#FFF8ED", border:"#F0E8D8",
+  pri:"#000000", grad:"#000000",
+  bg:"#FFFFFF", card:"#FFFFFF", text:"#1A1006", sub:"#8A8F98",
+  light:"#F7F8FA", border:"#ECEEF2",
 };
+// 保留橙色仅用于宠物头像（视觉焦点），通过 PET_GRAD 常量引用
+const PET_GRAD = "linear-gradient(135deg,#FF7A5A 0%,#FFB347 100%)";
 const cardStyle = { background:C.card, borderRadius:20, padding:16, marginBottom:12, boxShadow:"0 2px 14px rgba(0,0,0,0.05)" };
 const btnStyle  = (active) => ({
   background: active ? C.grad : "#F7F8FA", color: active ? "#fff" : "#3B4252",
@@ -127,11 +129,26 @@ function Logo({ size = 52 }) {
   );
 }
 
+// 装饰用纯爪印（无轨道），可控颜色
+function PawIcon({ size = 16, color = "#000000" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}
+         xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
+         style={{ display:"inline-block", verticalAlign:"middle" }}>
+      <ellipse cx="6" cy="8" rx="2" ry="2.6" />
+      <ellipse cx="10.5" cy="5" rx="2.2" ry="3" />
+      <ellipse cx="14.5" cy="5" rx="2.2" ry="3" />
+      <ellipse cx="19" cy="8" rx="2" ry="2.6" />
+      <path d="M 7 14 Q 5 18, 8 21 Q 12.5 23, 17 21 Q 20 18, 18 14 Q 16 11.5, 12.5 11.5 Q 9 11.5, 7 14 Z" />
+    </svg>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════
    SHARED WIDGETS
 ══════════════════════════════════════════════════════════════ */
 const Label = ({ children, style }) => (
-  <div style={{ fontSize:12, fontWeight:600, color:"#5A4A35", marginBottom:8, ...style }}>{children}</div>
+  <div style={{ fontSize:12, fontWeight:600, color:"#3B4252", marginBottom:8, ...style }}>{children}</div>
 );
 const Inp = (props) => (
   <input {...props} style={{ width:"100%", borderRadius:16, padding:"12px 14px", fontSize:14,
@@ -499,7 +516,7 @@ function HomeTab({ pet }) {
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
           <div style={{ position:"relative" }}>
             <div style={{ width:108, height:108, borderRadius:"50%",
-                          background:C.grad,
+                          background:PET_GRAD,
                           display:"flex", alignItems:"center", justifyContent:"center",
                           fontSize:60, animation:"float 3s ease-in-out infinite",
                           boxShadow:"0 8px 24px rgba(255,122,90,0.25)" }}>
@@ -596,7 +613,7 @@ function HomeTab({ pet }) {
               <button key={key} onClick={() => handleUpload(key)}
                 style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center",
                          padding:"12px 6px", borderRadius:16,
-                         background:uplType === key ? "#FFF3E0" : H_SURFACE,
+                         background:uplType === key ? "#F0F0F0" : H_SURFACE,
                          border:`1.5px solid ${uplType === key ? C.pri : H_BORDER}`,
                          cursor:"pointer", transition:"all .2s" }}>
                 <span style={{ fontSize:24 }}>{em}</span>
@@ -693,14 +710,14 @@ function CommunityTab({ pet }) {
             <button key={g} onClick={() => setAg(g)}
               style={{ flexShrink:0, padding:"6px 14px", borderRadius:20, fontSize:12, fontWeight:600,
                        cursor:"pointer", transition:"all .2s",
-                       background:ag===g ? C.grad : C.light, color:ag===g ? "white" : "#5A4A35",
+                       background:ag===g ? C.grad : C.light, color:ag===g ? "white" : "#3B4252",
                        border:`1.5px solid ${ag===g ? "transparent" : C.border}` }}>
               {g}
             </button>
           ))}
         </div>
       </div>
-      <div style={{ background:"#FFF8ED", padding:"7px 18px", borderBottom:`1px solid ${C.border}`,
+      <div style={{ background:"#F7F8FA", padding:"7px 18px", borderBottom:`1px solid ${C.border}`,
                     flexShrink:0, display:"flex", alignItems:"center", gap:10 }}>
         <span style={{ fontSize:13, fontWeight:700, color:C.text }}>🐕 {ag}</span>
         <span style={{ fontSize:11, color:C.sub }}>{CHATS[ag]?.count.toLocaleString()} 人在群里</span>
@@ -709,7 +726,7 @@ function CommunityTab({ pet }) {
         {(msgs[ag] || []).map((msg) => (
           <div key={msg.id} style={{ display:"flex", gap:10, marginBottom:14,
                                      flexDirection:msg.own ? "row-reverse" : "row" }}>
-            <div style={{ width:34, height:34, borderRadius:"50%", background:"#FFF3E0",
+            <div style={{ width:34, height:34, borderRadius:"50%", background:"#F0F0F0",
                           display:"flex", alignItems:"center", justifyContent:"center",
                           fontSize:16, flexShrink:0 }}>
               {msg.av}
@@ -723,7 +740,7 @@ function CommunityTab({ pet }) {
                             boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
                 {msg.m}
               </div>
-              <div style={{ fontSize:10, color:"#C0A890", marginTop:3, paddingLeft:4, paddingRight:4 }}>{msg.t}</div>
+              <div style={{ fontSize:10, color:"#8A8F98", marginTop:3, paddingLeft:4, paddingRight:4 }}>{msg.t}</div>
             </div>
           </div>
         ))}
@@ -755,10 +772,12 @@ function SocialTab() {
   return (
     <div style={{ height:"100%", overflowY:"auto", background:C.bg }}>
       <div style={{ background:"white", padding:"52px 18px 16px" }}>
-        <div style={{ fontSize:20, fontWeight:800, color:C.text }}>🐾 附近狗狗</div>
+        <div style={{ fontSize:20, fontWeight:800, color:C.text, display:"flex", alignItems:"center", gap:8 }}>
+          <PawIcon size={20} color="#000000" /> 附近狗狗
+        </div>
         <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>找到附近的狗友，一起遛弯</div>
       </div>
-      <div style={{ margin:"12px 14px 0", background:C.light, border:`1px solid #FFE4B5`,
+      <div style={{ margin:"12px 14px 0", background:C.light, border:`1px solid #E5E7EB`,
                     borderRadius:16, padding:"10px 14px", display:"flex", gap:8 }}>
         <span style={{ fontSize:14 }}>ℹ️</span>
         <div style={{ fontSize:11, color:C.sub, lineHeight:1.65 }}>
@@ -771,7 +790,7 @@ function SocialTab() {
           <div key={dog.id} style={{ ...cardStyle }}>
             <div style={{ display:"flex", gap:12 }}>
               <div style={{ width:60, height:60, borderRadius:18,
-                            background:"linear-gradient(135deg,#FFF3E0,#FFE4B5)",
+                            background:"linear-gradient(135deg,#F0F0F0,#E5E7EB)",
                             display:"flex", alignItems:"center", justifyContent:"center",
                             fontSize:32, flexShrink:0 }}>
                 {dog.av}
@@ -796,7 +815,7 @@ function SocialTab() {
                   {b.ok ? "✓" : "✗"} {b.lbl}
                 </span>
               ))}
-              <span style={{ fontSize:11, background:"#FFF8ED", color:C.pri, padding:"4px 10px", borderRadius:20 }}>
+              <span style={{ fontSize:11, background:"#F7F8FA", color:C.pri, padding:"4px 10px", borderRadius:20 }}>
                 💝 {dog.likes}
               </span>
             </div>
@@ -809,8 +828,9 @@ function SocialTab() {
               : <button onClick={() => setInv((p) => new Set([...p, dog.id]))}
                   style={{ marginTop:12, width:"100%", padding:"12px 0", borderRadius:14,
                            background:C.grad, color:"white", fontSize:13, fontWeight:700,
-                           border:"none", cursor:"pointer" }}>
-                  🐾 邀请一起散步
+                           border:"none", cursor:"pointer",
+                           display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                  <PawIcon size={16} color="#FFFFFF" /> 邀请一起散步
                 </button>}
           </div>
         ))}
@@ -888,10 +908,10 @@ export default function AppRoot() {
   };
 
   const shell = (content, scroll = false) => (
-    <div style={{ background:"linear-gradient(155deg,#FFE8D4 0%,#FFD6E8 100%)", minHeight:"100vh",
+    <div style={{ background:"#FFFFFF", minHeight:"100vh",
                   display:"flex", justifyContent:"center", alignItems:"flex-start" }}>
       <div style={{ width:"100%", maxWidth:430, height:"100vh", position:"relative",
-                    background:C.bg, overflow:"hidden", boxShadow:"0 0 80px rgba(255,122,90,0.18)" }}>
+                    background:C.bg, overflow:"hidden", boxShadow:"0 0 80px rgba(0,0,0,0.08)" }}>
         {scroll
           ? <div style={{ height:"100%", overflowY:"auto" }}>{content}</div>
           : content}
@@ -919,9 +939,14 @@ export default function AppRoot() {
             style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center",
                      justifyContent:"center", gap:2, border:"none", background:"transparent",
                      cursor:"pointer", transition:"all .15s", paddingTop:4 }}>
-            <div style={{ fontSize:20, lineHeight:1, filter:tab===i ? "none" : "grayscale(1) opacity(0.5)" }}>{t.icon}</div>
+            <div style={{ fontSize:20, lineHeight:1, height:20, display:"flex", alignItems:"center",
+                          filter: t.label === "狗友" ? "none" : (tab===i ? "none" : "grayscale(1) opacity(0.5)") }}>
+              {t.label === "狗友"
+                ? <PawIcon size={20} color={tab===i ? "#000000" : "#C5C8CE"} />
+                : t.icon}
+            </div>
             <div style={{ fontSize:10, fontWeight:tab===i ? 700 : 500,
-                          color:tab===i ? C.pri : "#C0A890", transition:"color .15s" }}>{t.label}</div>
+                          color:tab===i ? C.pri : "#8A8F98", transition:"color .15s" }}>{t.label}</div>
             {tab === i && <div style={{ width:18, height:2.5, borderRadius:4, background:C.grad, marginTop:1 }}/>}
           </button>
         ))}

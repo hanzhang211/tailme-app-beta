@@ -28,13 +28,13 @@ import {
 
 /* ── theme ─────────────────────────────────────────────── */
 const C = {
-  pri:    "#FF7A5A",
-  grad:   "linear-gradient(135deg,#FF7A5A 0%,#FFB347 100%)",
-  bg:     "#FFFBF4",
+  pri:    "#000000",
+  grad:   "#000000",
+  bg:     "#FFFFFF",
   text:   "#1A1006",
   sub:    "#9B8B76",
-  light:  "#FFF8ED",
-  border: "#F0E8D8",
+  light:  "#F7F8FA",
+  border: "#ECEEF2",
   err:    "#FFF0F0",
   errT:   "#C0392B",
 };
@@ -50,9 +50,9 @@ const ME_MARKER = `
   </div>`;
 
 const poiMarker = (icon) =>
-  `<div style="width:32px;height:32px;border-radius:50%;background:#FF7A5A;
+  `<div style="width:32px;height:32px;border-radius:50%;background:#000000;
     border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;
-    font-size:13px;cursor:pointer;box-shadow:0 3px 8px rgba(255,122,90,0.5)">${icon}</div>`;
+    font-size:13px;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,0.4)">${icon}</div>`;
 
 /* ════════════════════════════════════════════════════════
    MapTab
@@ -229,7 +229,7 @@ export default function MapTab() {
                        fontWeight:600, cursor:"pointer", whiteSpace:"nowrap",
                        transition:"all .18s",
                        background: on ? C.grad : C.light,
-                       color:      on ? "#fff" : "#5A4A35",
+                       color:      on ? "#fff" : "#3B4252",
                        border:     `1.5px solid ${on ? "transparent" : C.border}` }}>
               {cat.icon} {cat.label}
             </button>
@@ -250,7 +250,7 @@ export default function MapTab() {
           <div style={{ position:"absolute", inset:0, display:"flex",
                         flexDirection:"column", alignItems:"center",
                         justifyContent:"center", gap:8,
-                        background:"rgba(255,251,244,0.88)", zIndex:5 }}>
+                        background:"rgba(255,255,255,0.92)", zIndex:5 }}>
             <div style={{ fontSize:24, animation:"tm-spin 1.2s linear infinite" }}>⟳</div>
             <div style={{ fontSize:12, color:C.sub }}>加载地图底图...</div>
           </div>
@@ -280,7 +280,7 @@ export default function MapTab() {
         {/* 定位来源角标 */}
         {mapPhase === "ready" && location?.source === "default" && (
           <div style={{ position:"absolute", bottom:8, left:8, zIndex:5,
-                        background:"rgba(255,122,90,0.88)", color:"#fff",
+                        background:"rgba(0,0,0,0.78)", color:"#fff",
                         borderRadius:10, padding:"3px 10px",
                         fontSize:10, fontWeight:600 }}>
             GPS 失败 · 已显示上海
@@ -383,7 +383,7 @@ function PoiCard({ poi, icon, selected, onSelect }) {
                transition:"border-color .15s" }}>
 
       <div style={{ width:44, height:44, borderRadius:13, flexShrink:0,
-                    background: selected ? "#FFF3E0" : C.light,
+                    background: selected ? "#F0F0F0" : C.light,
                     display:"flex", alignItems:"center",
                     justifyContent:"center", fontSize:20 }}>
         {icon}
@@ -400,7 +400,7 @@ function PoiCard({ poi, icon, selected, onSelect }) {
         </div>
         {type && (
           <div style={{ marginTop:6 }}>
-            <span style={{ fontSize:10, background:"#FFF3E0", color:C.pri,
+            <span style={{ fontSize:10, background:"#F0F0F0", color:C.pri,
                            padding:"2px 8px", borderRadius:20, fontWeight:500 }}>
               {type}
             </span>
@@ -450,7 +450,7 @@ function PoiDetail({ poi, onClose }) {
 
           {type && (
             <span style={{ display:"inline-block", fontSize:11,
-                           background:"#FFF3E0", color:C.pri,
+                           background:"#F0F0F0", color:C.pri,
                            padding:"3px 10px", borderRadius:20,
                            marginBottom:16, fontWeight:600 }}>
               {type}
