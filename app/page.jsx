@@ -106,7 +106,7 @@ const AI_RES = {
    THEME
 ══════════════════════════════════════════════════════════════ */
 const C = {
-  pri:"#000000", grad:"#000000",
+  pri:"#556B4F", grad:"#556B4F",
   bg:"#FFFFFF", card:"#FFFFFF", text:"#1A1006", sub:"#8A8F98",
   light:"#F7F8FA", border:"#ECEEF2",
 };
@@ -130,7 +130,7 @@ function Logo({ size = 52 }) {
 }
 
 // 装饰用纯爪印（无轨道），可控颜色
-function PawIcon({ size = 16, color = "#000000" }) {
+function PawIcon({ size = 16, color = "#556B4F" }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color}
          xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
@@ -231,7 +231,7 @@ function PhoneLogin({ onLogin }) {
       <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:4 }}>爪爪日记</div>
       <div style={{ fontSize:12, color:P_SUB, marginBottom:36 }}>TailMe · 让陪伴更懂你</div>
 
-      <div style={{ width:"100%", background:"white", border:"2.5px solid #000000",
+      <div style={{ width:"100%", background:"white", border:"2.5px solid #556B4F",
                     borderRadius:28, padding:"28px 24px",
                     boxShadow:"0 16px 44px rgba(0,0,0,0.14)" }}>
         {step === 1 ? (
@@ -259,7 +259,7 @@ function PhoneLogin({ onLogin }) {
             <button
               onClick={handleSendCode}
               style={{ marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14,
-                       fontWeight:700, background:isValidPhone ? "#000000" : P_SURFACE,
+                       fontWeight:700, background:isValidPhone ? "#556B4F" : P_SURFACE,
                        color:isValidPhone ? "white" : P_SUB,
                        border:isValidPhone ? "none" : `1px solid ${P_BORDER}`,
                        cursor:isValidPhone ? "pointer" : "default", transition:"all .2s" }}>
@@ -296,7 +296,7 @@ function PhoneLogin({ onLogin }) {
               onClick={handleVerify}
               disabled={loading || code.length < 6}
               style={{ marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14,
-                       fontWeight:700, background:!loading && code.length >= 6 ? "#000000" : P_SURFACE,
+                       fontWeight:700, background:!loading && code.length >= 6 ? "#556B4F" : P_SURFACE,
                        color:!loading && code.length >= 6 ? "white" : P_SUB,
                        border:!loading && code.length >= 6 ? "none" : `1px solid ${P_BORDER}`,
                        cursor:!loading && code.length >= 6 ? "pointer" : "default",
@@ -360,14 +360,14 @@ function Onboarding({ userId, onComplete }) {
         <div style={{ display:"flex", gap:6, marginBottom:4 }}>
           {[1,2,3].map((i) => (
             <div key={i} style={{ flex:1, height:4, borderRadius:4, transition:"background .3s",
-                                   background: i <= step ? "#000000" : O_BORDER }} />
+                                   background: i <= step ? "#556B4F" : O_BORDER }} />
           ))}
         </div>
         <div style={{ textAlign:"center", fontSize:11, color:O_SUB }}>第 {step} / 3 步</div>
       </div>
 
       <div style={{ flex:1, padding:"0 18px 20px" }}>
-        <div style={{ background:"white", border:"2.5px solid #000000", borderRadius:28, padding:"22px 20px",
+        <div style={{ background:"white", border:"2.5px solid #556B4F", borderRadius:28, padding:"22px 20px",
                       boxShadow:"0 16px 44px rgba(0,0,0,0.14)" }}>
           {step === 1 && <>
             <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>你的毛孩子叫什么？</div>
@@ -426,7 +426,7 @@ function Onboarding({ userId, onComplete }) {
 
         <button onClick={next} disabled={!ok || saving}
           style={{ marginTop:14, width:"100%", padding:"15px 0", borderRadius:20, fontSize:14, fontWeight:700,
-                   background:ok && !saving ? "#000000" : O_SURFACE, color:ok && !saving ? "white" : O_SUB,
+                   background:ok && !saving ? "#556B4F" : O_SURFACE, color:ok && !saving ? "white" : O_SUB,
                    border:ok && !saving ? "none" : `1px solid ${O_BORDER}`,
                    cursor:ok && !saving ? "pointer" : "default", transition:"all .2s" }}>
           {saving ? "保存中..." : step < 3 ? "继续 →" : `开始和 ${f.name || "它"} 的旅程 🐾`}
@@ -526,7 +526,7 @@ function HomeTab({ pet }) {
             {hungry && (
               <div style={{ position:"absolute", top:-6, right:-6, background:C.pri, borderRadius:20,
                             padding:"3px 9px", fontSize:10, fontWeight:700, color:"white",
-                            boxShadow:"0 2px 10px rgba(255,122,90,0.35)" }}>
+                            boxShadow:"0 2px 10px rgba(85,107,79,0.35)" }}>
                 😋 饿了
               </div>
             )}
@@ -775,7 +775,7 @@ function SocialTab() {
     <div style={{ height:"100%", overflowY:"auto", background:C.bg }}>
       <div style={{ background:"white", padding:"52px 18px 16px" }}>
         <div style={{ fontSize:20, fontWeight:800, color:C.text, display:"flex", alignItems:"center", gap:8 }}>
-          <PawIcon size={20} color="#000000" /> 附近狗狗
+          <PawIcon size={20} color="#556B4F" /> 附近狗狗
         </div>
         <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>找到附近的狗友，一起遛弯</div>
       </div>
@@ -944,7 +944,7 @@ export default function AppRoot() {
             <div style={{ fontSize:20, lineHeight:1, height:20, display:"flex", alignItems:"center",
                           filter: t.label === "狗友" ? "none" : (tab===i ? "none" : "grayscale(1) opacity(0.5)") }}>
               {t.label === "狗友"
-                ? <PawIcon size={20} color={tab===i ? "#000000" : "#C5C8CE"} />
+                ? <PawIcon size={20} color={tab===i ? "#556B4F" : "#C5C8CE"} />
                 : t.icon}
             </div>
             <div style={{ fontSize:10, fontWeight:tab===i ? 700 : 500,

@@ -28,8 +28,8 @@ import {
 
 /* ── theme ─────────────────────────────────────────────── */
 const C = {
-  pri:    "#000000",
-  grad:   "#000000",
+  pri:    "#556B4F",
+  grad:   "#556B4F",
   bg:     "#FFFFFF",
   text:   "#1A1006",
   sub:    "#9B8B76",
@@ -50,7 +50,7 @@ const ME_MARKER = `
   </div>`;
 
 const poiMarker = (icon) =>
-  `<div style="width:32px;height:32px;border-radius:50%;background:#000000;
+  `<div style="width:32px;height:32px;border-radius:50%;background:#556B4F;
     border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;
     font-size:13px;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,0.4)">${icon}</div>`;
 
