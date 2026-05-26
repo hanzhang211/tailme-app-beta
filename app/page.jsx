@@ -493,7 +493,7 @@ function HomeTab({ pet }) {
   // HomeTab 本地白底科技风配色（仅作用于本 Tab，保留橙色作为点缀）
   const H_BG       = "#FFFFFF";
   const H_SURFACE  = "#F7F8FA";  // 浅灰填充（替代原 C.light 暖黄）
-  const H_BORDER   = "#ECEEF2";  // 冷调描边（替代原 C.border 米黄）
+  const H_BORDER   = "#000000";  // 黑色描边（细线 1px）
   const H_SUB      = "#8A8F98";  // 次级文字（替代暖灰 C.sub）
 
   return (
