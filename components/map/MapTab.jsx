@@ -3,124 +3,133 @@
 /**
  * components/map/MapTab.jsx
  *
- * 高德地图地图 Tab —— TailMe 宠物友好地图
+ * TailMe 宠物地图 Tab — 高德 JSAPI v2.0
  *
- * 功能：
- *   - 动态加载高德 JS API（无 SSR 报错）
- *   - 自动定位 → 地图渲染 → POI 周边搜索
- *   - 分类筛选（6个分类）
- *   - POI 列表 + Marker 联动
- *   - 底部弹窗详情 + "用高德地图打开"
- *   - 无真实搜索结果时显示"暂未找到"，不展示假数据
- *
- * 依赖：
- *   services/amapService.js
- *   NEXT_PUBLIC_AMAP_KEY 环境变量
+ * 初始化流程：
+ *   loadAMap (callback 模式) → getMyLocation → new AMap.Map →
+ *   searchPetPOI (11个关键词) → 渲染 Markers → 分类过滤 → 详情弹窗
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
-  loadAmapScript,
-  getUserLocation,
-  searchByCategory,
-  POI_CATEGORIES,
+  loadAMap,
+  getMyLocation,
+  searchPetPOI,
+  CATEGORIES,
   getCoords,
-  formatDistance,
-  formatTel,
-  openInAMap,
+  fmtDist,
+  fmtTel,
+  openNavigation,
 } from "@/services/amapService";
 
-/* ──────────────────────────── Theme ──────────────────────────── */
+/* ── Theme ──────────────────────────────────────────────── */
 const C = {
   pri:    "#FF7A5A",
   grad:   "linear-gradient(135deg,#FF7A5A 0%,#FFB347 100%)",
   bg:     "#FFFBF4",
-  card:   "#FFFFFF",
   text:   "#1A1006",
   sub:    "#9B8B76",
   light:  "#FFF8ED",
   border: "#F0E8D8",
 };
 
-/* ══════════════════════════════════════════════════════════════
-   MAP TAB  (主组件)
-══════════════════════════════════════════════════════════════ */
+/* ── Marker HTML ─────────────────────────────────────────── */
+/* 蓝色脉冲点 = 用户位置 */
+const ME_HTML = `
+  <div style="position:relative;width:26px;height:26px;display:flex;align-items:center;justify-content:center">
+    <div style="position:absolute;width:26px;height:26px;border-radius:50%;background:rgba(66,133,244,0.22);animation:tm-pulse 2s ease-out infinite"></div>
+    <div style="width:14px;height:14px;border-radius:50%;background:#4285F4;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(66,133,244,0.55)"></div>
+  </div>`;
+
+/* 橙色圆点 = POI */
+const mkHtml = (icon) =>
+  `<div style="width:32px;height:32px;border-radius:50%;background:#FF7A5A;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;box-shadow:0 3px 8px rgba(255,122,90,0.5)">${icon}</div>`;
+
+/* ════════════════════════════════════════════════════════════
+   MapTab（主组件）
+════════════════════════════════════════════════════════════ */
 export default function MapTab() {
-  /* ── refs ─────────────────────────────────────────────────── */
-  const containerRef  = useRef(null);  // 地图 DOM 容器
-  const mapRef        = useRef(null);  // AMap.Map 实例
-  const poiMarkersRef = useRef([]);    // POI markers（切换分类时清除）
+  const divRef   = useRef(null);   // 地图 DOM 容器
+  const mapRef   = useRef(null);   // AMap.Map 实例
+  const mksRef   = useRef([]);     // POI Markers（切换分类时清除）
 
-  /* ── 地图初始化状态 ───────────────────────────────────────── */
-  const [mapState, setMapState]   = useState("loading"); // loading | ready | error
-  const [mapError, setMapError]   = useState(null);
-  const [location, setLocation]   = useState(null);  // { lng, lat, source, city }
+  /* 阶段：init → map → search → done | error */
+  const [phase,     setPhase]     = useState("init");
+  const [errMsg,    setErrMsg]    = useState(null);
+  const [location,  setLocation]  = useState(null);
+  const [allPois,   setAllPois]   = useState(null);
+  const [activeCat, setActiveCat] = useState(CATEGORIES[0]);
+  const [selPoi,    setSelPoi]    = useState(null);
 
-  /* ── 搜索状态 ─────────────────────────────────────────────── */
-  const [activeCat, setActiveCat] = useState(POI_CATEGORIES[0]);
-  const [pois, setPois]           = useState(null); // null=未搜/加载中, []=空结果
-  const [searching, setSearching] = useState(false);
-  const [searchErr, setSearchErr] = useState(null);
+  /* 客户端分类过滤（不重新搜索） */
+  const pois = useMemo(() => {
+    if (!allPois) return null;
+    return activeCat.id === "all"
+      ? allPois
+      : allPois.filter(activeCat.test);
+  }, [allPois, activeCat]);
 
-  /* ── 详情状态 ─────────────────────────────────────────────── */
-  const [selPoi, setSelPoi] = useState(null);
-
-  /* ══════════════════════════════════════════════════════════
-     EFFECT 1 — 初始化地图（只跑一次）
-  ══════════════════════════════════════════════════════════ */
+  /* ════════════════════════════════════════════════════════
+     EFFECT — 初始化（只跑一次）
+  ════════════════════════════════════════════════════════ */
   useEffect(() => {
     let alive = true;
 
     (async () => {
       try {
-        /* 1. 加载高德脚本 */
-        const AMap = await loadAmapScript();
-        if (!alive || !containerRef.current) return;
+        /* 1. 加载高德（callback 模式，window.AMap 保证就绪）*/
+        setPhase("init");
+        const AMap = await loadAMap();
+        if (!alive || !divRef.current) return;
 
-        /* 2. 获取用户位置（GPS → IP → 上海）*/
-        const loc = await getUserLocation(AMap);
+        /* 2. 定位 */
+        const loc = await getMyLocation(AMap);
         if (!alive) return;
         setLocation(loc);
 
-        /* 3. 创建地图 */
-        const map = new AMap.Map(containerRef.current, {
+        /* 3. 创建地图
+           ⚠ divRef.current 必须有明确 height（256px），
+             AMap 内部用 getBoundingClientRect() 计算画布尺寸   */
+        const map = new AMap.Map(divRef.current, {
           zoom:          14,
-          center:        [loc.lng, loc.lat],
-          mapStyle:      "amap://styles/light",
+          center:        new AMap.LngLat(loc.lng, loc.lat),
           resizeEnable:  true,
-          features:      ["bg", "road", "building", "point"],
+          expandZoomRange: true,
+          zooms:         [4, 20],
         });
         mapRef.current = map;
+        setPhase("map");
 
-        /* 4. 用户位置 marker（暖红圆点） */
+        /* 4. 用户位置 Marker（蓝色脉冲点）*/
         new AMap.Marker({
           map,
-          position: [loc.lng, loc.lat],
-          content:  `<div style="
-            width:18px;height:18px;border-radius:50%;
-            background:#FF7A5A;border:3px solid #fff;
-            box-shadow:0 2px 10px rgba(255,122,90,0.55);
-          "></div>`,
-          anchor: "center",
-          zIndex: 200,
-          title:  "您的位置",
+          position: new AMap.LngLat(loc.lng, loc.lat),
+          content:  ME_HTML,
+          offset:   new AMap.Pixel(-13, -13),
+          zIndex:   200,
+          title:    "我的位置",
         });
 
-        if (alive) setMapState("ready");
-      } catch (err) {
+        /* 5. 搜索 POI */
+        setPhase("search");
+        const results = await searchPetPOI(AMap, loc);
+        if (!alive) return;
+
+        setAllPois(results);
+        setPhase("done");
+
+      } catch (e) {
         if (alive) {
-          setMapState("error");
-          setMapError(err.message);
+          setErrMsg(e.message);
+          setPhase("error");
         }
       }
     })();
 
     return () => {
       alive = false;
-      /* 清理 markers */
-      poiMarkersRef.current.forEach((m) => m.setMap(null));
-      poiMarkersRef.current = [];
-      /* 销毁地图实例 */
+      mksRef.current.forEach((m) => { try { m.setMap(null); } catch {} });
+      mksRef.current = [];
       if (mapRef.current) {
         try { mapRef.current.destroy(); } catch {}
         mapRef.current = null;
@@ -128,502 +137,329 @@ export default function MapTab() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ══════════════════════════════════════════════════════════
-     EFFECT 2 — 分类/位置变化时重新搜索
-  ══════════════════════════════════════════════════════════ */
+  /* ════════════════════════════════════════════════════════
+     EFFECT — 分类变化时更新 Markers
+  ════════════════════════════════════════════════════════ */
   useEffect(() => {
-    if (mapState !== "ready" || !location) return;
+    const AMap = typeof window !== "undefined" ? window.AMap : null;
+    if (!AMap || !mapRef.current || !pois) return;
 
-    let alive = true;
-    setSearching(true);
-    setSearchErr(null);
-    setPois(null);
-    setSelPoi(null);
+    /* 清除旧 Markers */
+    mksRef.current.forEach((m) => { try { m.setMap(null); } catch {} });
+    mksRef.current = [];
 
-    /* 清除上次 POI markers */
-    poiMarkersRef.current.forEach((m) => m.setMap(null));
-    poiMarkersRef.current = [];
+    /* 添加新 Markers（最多 60 个）*/
+    const icon = activeCat.icon;
+    pois.slice(0, 60).forEach((poi) => {
+      const c = getCoords(poi.location);
+      if (!c) return;
 
-    (async () => {
-      try {
-        const AMap = window.AMap;
-        const results = await searchByCategory(AMap, activeCat, location);
-        if (!alive) return;
+      const mk = new AMap.Marker({
+        map:      mapRef.current,
+        position: new AMap.LngLat(c.lng, c.lat),
+        content:  mkHtml(icon),
+        offset:   new AMap.Pixel(-16, -16),
+        zIndex:   100,
+        title:    poi.name,
+      });
 
-        setPois(results);
+      /* IIFE 固定每个 marker 自己的 poi 引用 */
+      ((p) => mk.on("click", () => {
+        setSelPoi(p);
+        const cc = getCoords(p.location);
+        if (cc) mapRef.current?.setCenter(new AMap.LngLat(cc.lng, cc.lat));
+      }))(poi);
 
-        /* 为每个 POI 添加 marker */
-        results.slice(0, 40).forEach((poi) => {
-          const coords = getCoords(poi.location);
-          if (!coords) return;
+      mksRef.current.push(mk);
+    });
+  }, [pois, activeCat.icon]);
 
-          const marker = new AMap.Marker({
-            map:      mapRef.current,
-            position: [coords.lng, coords.lat],
-            content:  `<div style="
-              width:32px;height:32px;border-radius:50%;
-              background:#fff;border:2.5px solid #FF7A5A;
-              display:flex;align-items:center;justify-content:center;
-              font-size:14px;
-              box-shadow:0 2px 8px rgba(0,0,0,0.18);
-              cursor:pointer;
-            ">${activeCat.icon}</div>`,
-            anchor: "center",
-            zIndex:  100,
-            title:   poi.name,
-          });
-
-          marker.on("click", () => setSelPoi(poi));
-          poiMarkersRef.current.push(marker);
-        });
-      } catch (err) {
-        if (alive) setSearchErr(err.message);
-      } finally {
-        if (alive) setSearching(false);
-      }
-    })();
-
-    return () => { alive = false; };
-  }, [mapState, location, activeCat]);
-
-  /* ── 点击地图空白关闭详情 ──────────────────────────────────── */
-  useEffect(() => {
-    if (!mapRef.current || !selPoi) return;
-    const handler = () => setSelPoi(null);
-    mapRef.current.on("click", handler);
-    return () => mapRef.current?.off("click", handler);
-  }, [selPoi]);
-
-  /* ══════════════════════════════════════════════════════════
+  /* ════════════════════════════════════════════════════════
      RENDER
-  ══════════════════════════════════════════════════════════ */
-  return (
-    <div style={{
-      height: "100%", display: "flex", flexDirection: "column",
-      background: C.bg, position: "relative", overflow: "hidden",
-    }}>
+  ════════════════════════════════════════════════════════ */
+  const loading = phase === "init" || phase === "map" || phase === "search";
 
-      {/* ── 顶部标题栏 ───────────────────────────────────────── */}
-      <div style={{ background: "white", padding: "52px 18px 12px", flexShrink: 0 }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: C.text }}>
-          🗺️ 宠物友好地图
+  const PHASE_MSG = {
+    init:   "加载高德地图中...",
+    map:    "正在定位...",
+    search: "搜索附近宠物地点（11个关键词）...",
+  };
+
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column",
+                  background:C.bg, position:"relative", overflow:"hidden" }}>
+
+      {/* ─── 顶部标题 ──────────────────────────────────────── */}
+      <div style={{ background:"#fff", padding:"52px 18px 12px", flexShrink:0 }}>
+        <div style={{ fontSize:20, fontWeight:800, color:C.text }}>🗺️ 宠物友好地图</div>
+        <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>
+          {!location ? "正在定位..." :
+            location.source === "gps"
+              ? `📍 当前位置${location.city ? ` · ${location.city}` : ""}`
+              : "📍 GPS 失败 · 已定位至上海市中心"}
         </div>
-        <LocationHint state={mapState} location={location} />
       </div>
 
-      {/* ── 分类筛选栏 ───────────────────────────────────────── */}
-      <CategoryFilter
-        categories={POI_CATEGORIES}
-        active={activeCat}
-        onChange={(cat) => {
-          setActiveCat(cat);
-          setSelPoi(null);
-        }}
-      />
+      {/* ─── 分类筛选 ──────────────────────────────────────── */}
+      <div style={{ background:"#fff", borderBottom:`1px solid ${C.border}`,
+                    padding:"8px 14px", display:"flex", gap:8,
+                    overflowX:"auto", scrollbarWidth:"none", flexShrink:0 }}>
+        {CATEGORIES.map((cat) => {
+          const on = activeCat.id === cat.id;
+          return (
+            <button key={cat.id}
+              onClick={() => { setActiveCat(cat); setSelPoi(null); }}
+              style={{
+                flexShrink:0, padding:"7px 15px", borderRadius:20,
+                fontSize:12, fontWeight:600, cursor:"pointer",
+                whiteSpace:"nowrap", transition:"all .18s",
+                background: on ? C.grad : C.light,
+                color:      on ? "#fff" : "#5A4A35",
+                border:     `1.5px solid ${on ? "transparent" : C.border}`,
+              }}>
+              {cat.icon} {cat.label}
+            </button>
+          );
+        })}
+      </div>
 
-      {/* ── 地图区域 ─────────────────────────────────────────── */}
-      <div style={{ flexShrink: 0, height: 240, position: "relative", background: "#E4EDE4" }}>
-        {/* 高德地图挂载容器 */}
-        <div
-          ref={containerRef}
-          style={{ width: "100%", height: "100%" }}
-        />
+      {/* ─── 地图容器 ──────────────────────────────────────────
+          ⚠ height 必须是明确像素值，不能是 "100%" 或 flex:1。
+          AMap 初始化时调用 getBoundingClientRect() 测量宽高，
+          如果为 0 则底图不绘制（白屏）。                         */}
+      <div style={{ position:"relative", flexShrink:0, height:256, background:"#e8ede8" }}>
+        <div ref={divRef} style={{ width:"100%", height:"100%" }} />
 
-        {/* 加载遮罩 */}
-        {mapState === "loading" && (
-          <div style={{
-            position: "absolute", inset: 0, display: "flex",
-            flexDirection: "column", alignItems: "center", justifyContent: "center",
-            background: "rgba(255,251,244,0.88)", gap: 8,
-          }}>
-            <div style={{ fontSize: 26, animation: "tm-spin 1.2s linear infinite" }}>⟳</div>
-            <div style={{ fontSize: 12, color: C.sub }}>地图加载中...</div>
-          </div>
-        )}
-
-        {/* 错误遮罩 */}
-        {mapState === "error" && (
-          <div style={{
-            position: "absolute", inset: 0, display: "flex",
-            flexDirection: "column", alignItems: "center", justifyContent: "center",
-            background: C.bg, padding: 20, gap: 10,
-          }}>
-            <div style={{ fontSize: 32 }}>⚠️</div>
-            <div style={{ fontSize: 13, color: "#D94040", textAlign: "center", lineHeight: 1.5 }}>
-              {mapError || "地图加载失败"}
-            </div>
-            <div style={{ fontSize: 11, color: C.sub, textAlign: "center" }}>
-              请检查 NEXT_PUBLIC_AMAP_KEY 配置
-            </div>
+        {/* loading / error 遮罩 */}
+        {(loading || phase === "error") && (
+          <div style={{ position:"absolute", inset:0, display:"flex",
+                        flexDirection:"column", alignItems:"center",
+                        justifyContent:"center", gap:10,
+                        background: phase==="error" ? C.bg : "rgba(255,251,244,0.86)",
+                        padding:20 }}>
+            {phase === "error" ? (
+              <>
+                <div style={{ fontSize:30 }}>⚠️</div>
+                <div style={{ fontSize:13, color:"#D94040", textAlign:"center",
+                              lineHeight:1.6, maxWidth:280 }}>
+                  {errMsg}
+                </div>
+                <div style={{ fontSize:11, color:C.sub, textAlign:"center", lineHeight:1.6 }}>
+                  请到高德控制台 → 我的应用 → 白名单<br/>
+                  添加 <b>localhost:3000</b> 或线上域名
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize:24, animation:"tm-spin 1.2s linear infinite" }}>⟳</div>
+                <div style={{ fontSize:12, color:C.sub }}>{PHASE_MSG[phase]}</div>
+              </>
+            )}
           </div>
         )}
 
         {/* 定位来源角标 */}
-        {mapState === "ready" && location?.source === "default" && (
-          <div style={{
-            position: "absolute", bottom: 8, left: 8,
-            background: "rgba(255,122,90,0.9)", color: "white",
-            borderRadius: 12, padding: "3px 10px", fontSize: 10, fontWeight: 600,
-          }}>
-            📍 定位失败 · 已显示上海市中心
+        {phase === "done" && location?.source === "default" && (
+          <div style={{ position:"absolute", bottom:8, left:8,
+                        background:"rgba(255,122,90,0.9)", color:"#fff",
+                        borderRadius:10, padding:"3px 10px", fontSize:10, fontWeight:600 }}>
+            GPS 失败 · 已显示上海
           </div>
         )}
       </div>
 
-      {/* ── POI 列表 ─────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "10px 14px 80px" }}>
+      {/* ─── POI 列表 ──────────────────────────────────────── */}
+      <div style={{ flex:1, overflowY:"auto", padding:"10px 14px 88px" }}>
 
-        {/* 搜索状态提示 */}
-        <div style={{
-          fontSize: 11, color: C.sub, marginBottom: 10,
-          fontWeight: 600, display: "flex", alignItems: "center", gap: 6,
-        }}>
-          {searching ? (
-            <>
-              <span style={{ animation: "tm-spin 1s linear infinite", display: "inline-block" }}>⟳</span>
-              搜索{activeCat.label}中...
-            </>
-          ) : searchErr ? (
-            <span style={{ color: "#D94040" }}>⚠️ {searchErr}</span>
-          ) : pois === null ? (
-            "等待地图就绪..."
-          ) : (
-            `找到 ${pois.length} 个${activeCat.id === "all" ? "宠物相关" : activeCat.label}地点`
-          )}
+        {/* 状态提示 */}
+        <div style={{ fontSize:11, color:C.sub, marginBottom:10,
+                      fontWeight:600, display:"flex", alignItems:"center",
+                      gap:6, minHeight:20 }}>
+          {phase === "search" ? (
+            <><span style={{ animation:"tm-spin 1s linear infinite", display:"inline-block" }}>⟳</span>
+              搜索中（11个关键词）...</>
+          ) : phase === "done" && pois !== null ? (
+            <><span style={{ color:C.pri }}>●</span>
+              {activeCat.id === "all"
+                ? `共 ${pois.length} 个宠物相关地点`
+                : `${activeCat.label}：${pois.length} 个地点`}</>
+          ) : null}
         </div>
 
-        {/* 无结果 */}
-        {!searching && pois !== null && pois.length === 0 && !searchErr && (
-          <EmptyState category={activeCat} />
+        {/* 空结果 */}
+        {phase === "done" && pois?.length === 0 && (
+          <EmptyState cat={activeCat} hasOthers={(allPois?.length ?? 0) > 0} />
         )}
 
-        {/* POI 卡片列表 */}
+        {/* 卡片 */}
         {(pois || []).map((poi) => (
-          <PoiCard
-            key={poi.id}
-            poi={poi}
-            icon={activeCat.icon}
+          <PoiCard key={poi.id} poi={poi} icon={activeCat.icon}
             selected={selPoi?.id === poi.id}
             onSelect={() => {
               setSelPoi(poi);
-              /* 地图移动到 marker */
-              const coords = getCoords(poi.location);
-              if (coords && mapRef.current) {
-                mapRef.current.setCenter([coords.lng, coords.lat]);
-              }
-            }}
-          />
+              const c = getCoords(poi.location);
+              const AMap = window.AMap;
+              if (c && mapRef.current && AMap)
+                mapRef.current.setCenter(new AMap.LngLat(c.lng, c.lat));
+            }} />
         ))}
       </div>
 
-      {/* ── 详情底部弹窗 ─────────────────────────────────────── */}
+      {/* ─── 详情底部弹窗 ───────────────────────────────────── */}
       {selPoi && (
-        <PoiDetailSheet
-          poi={selPoi}
-          onClose={() => setSelPoi(null)}
-        />
+        <PoiDetail poi={selPoi} onClose={() => setSelPoi(null)} />
       )}
 
-      {/* ── 动画 keyframes ───────────────────────────────────── */}
       <style>{`
-        @keyframes tm-spin {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
-        }
-        /* 隐藏滚动条（移动端） */
-        ::-webkit-scrollbar { display: none; }
+        @keyframes tm-spin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes tm-pulse { 0%{transform:scale(1);opacity:.8} 100%{transform:scale(2.4);opacity:0} }
+        @keyframes tm-up    { from{transform:translateY(100%)} to{transform:translateY(0)} }
       `}</style>
     </div>
   );
 }
 
-/* ══════════════════════════════════════════════════════════════
-   SUB-COMPONENT: LocationHint
-══════════════════════════════════════════════════════════════ */
-function LocationHint({ state, location }) {
-  if (state === "loading") {
-    return <div style={{ fontSize: 12, color: C.sub, marginTop: 2 }}>正在定位...</div>;
-  }
-  if (state === "error") {
-    return <div style={{ fontSize: 12, color: "#D94040", marginTop: 2 }}>地图加载失败</div>;
-  }
-  if (!location) return null;
-
-  return (
-    <div style={{ fontSize: 12, color: C.sub, marginTop: 2 }}>
-      {location.source === "gps"
-        ? `📍 已获取当前位置${location.city ? ` · ${location.city}` : ""}`
-        : "📍 默认显示上海市中心"}
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════
-   SUB-COMPONENT: CategoryFilter
-══════════════════════════════════════════════════════════════ */
-function CategoryFilter({ categories, active, onChange }) {
-  return (
-    <div style={{
-      background: "white",
-      borderBottom: `1px solid ${C.border}`,
-      padding: "8px 14px",
-      display: "flex",
-      gap: 8,
-      overflowX: "auto",
-      scrollbarWidth: "none",
-      flexShrink: 0,
-    }}>
-      {categories.map((cat) => {
-        const isActive = active.id === cat.id;
-        return (
-          <button
-            key={cat.id}
-            onClick={() => onChange(cat)}
-            style={{
-              flexShrink: 0,
-              padding: "6px 14px",
-              borderRadius: 20,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all .2s",
-              whiteSpace: "nowrap",
-              background: isActive
-                ? "linear-gradient(135deg,#FF7A5A 0%,#FFB347 100%)"
-                : C.light,
-              color:  isActive ? "white" : "#5A4A35",
-              border: `1.5px solid ${isActive ? "transparent" : C.border}`,
-            }}
-          >
-            {cat.icon} {cat.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════
-   SUB-COMPONENT: PoiCard (列表卡片)
-══════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════
+   POI 列表卡片
+════════════════════════════════════════════════════════════ */
 function PoiCard({ poi, icon, selected, onSelect }) {
-  const dist     = formatDistance(poi.distance);
-  const typeLabel = poi.type ? poi.type.split(";").slice(-1)[0] : "";
+  const dist = fmtDist(poi.distance);
+  const type = poi.type?.split(";").slice(-1)[0] ?? "";
+  const addr = poi.address
+    || [poi.pname, poi.cityname, poi.adname].filter(Boolean).join("")
+    || "地址未知";
 
   return (
-    <div
-      onClick={onSelect}
-      style={{
-        background:    "white",
-        borderRadius:  18,
-        padding:       14,
-        marginBottom:  10,
-        boxShadow:     "0 2px 12px rgba(0,0,0,0.06)",
-        cursor:        "pointer",
-        display:       "flex",
-        gap:           12,
-        alignItems:    "flex-start",
-        border:        `1.5px solid ${selected ? C.pri : "transparent"}`,
-        transition:    "border-color .15s",
-      }}
-    >
-      {/* 图标 */}
-      <div style={{
-        width: 46, height: 46, borderRadius: 14,
-        background: C.light, display: "flex",
-        alignItems: "center", justifyContent: "center",
-        fontSize: 22, flexShrink: 0,
-      }}>
+    <div onClick={onSelect}
+      style={{ background:"#fff", borderRadius:18, padding:"13px 14px", marginBottom:10,
+               boxShadow:"0 2px 12px rgba(0,0,0,0.06)", cursor:"pointer",
+               border:`1.5px solid ${selected ? C.pri : "transparent"}`,
+               display:"flex", gap:12, alignItems:"flex-start", transition:"border-color .15s" }}>
+
+      <div style={{ width:44, height:44, borderRadius:13, flexShrink:0,
+                    background: selected ? "#FFF3E0" : C.light,
+                    display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>
         {icon}
       </div>
 
-      {/* 文字 */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: 14, fontWeight: 700, color: C.text,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontSize:14, fontWeight:700, color:C.text,
+                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginBottom:3 }}>
           {poi.name}
         </div>
-        <div style={{
-          fontSize: 11, color: C.sub, marginTop: 3,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>
-          📍 {poi.address || poi.adname || "地址未知"}
+        <div style={{ fontSize:11, color:C.sub,
+                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+          📍 {addr}
         </div>
-        {typeLabel && (
-          <div style={{ marginTop: 6 }}>
-            <span style={{
-              fontSize: 10, background: "#FFF3E0", color: C.pri,
-              padding: "2px 8px", borderRadius: 20, fontWeight: 500,
-            }}>
-              {typeLabel}
+        {type && (
+          <div style={{ marginTop:6 }}>
+            <span style={{ fontSize:10, background:"#FFF3E0", color:C.pri,
+                           padding:"2px 8px", borderRadius:20, fontWeight:500 }}>
+              {type}
             </span>
           </div>
         )}
       </div>
 
-      {/* 距离 */}
       {dist && (
-        <div style={{ flexShrink: 0, paddingTop: 2 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.pri }}>{dist}</div>
+        <div style={{ flexShrink:0, paddingTop:2 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:C.pri }}>{dist}</div>
         </div>
       )}
     </div>
   );
 }
 
-/* ══════════════════════════════════════════════════════════════
-   SUB-COMPONENT: PoiDetailSheet (底部详情弹窗)
-══════════════════════════════════════════════════════════════ */
-function PoiDetailSheet({ poi, onClose }) {
-  const dist      = formatDistance(poi.distance);
-  const tel       = formatTel(poi.tel);
-  const typeLabel = poi.type ? poi.type.split(";").slice(-1)[0] : "";
-  const addr      = poi.address || poi.adname || "";
+/* ════════════════════════════════════════════════════════════
+   POI 详情底部弹窗
+════════════════════════════════════════════════════════════ */
+function PoiDetail({ poi, onClose }) {
+  const dist = fmtDist(poi.distance);
+  const tel  = fmtTel(poi.tel);
+  const type = poi.type?.split(";").slice(-1)[0] ?? "";
+  const addr = poi.address
+    || [poi.pname, poi.cityname, poi.adname].filter(Boolean).join("")
+    || "";
 
   return (
-    <div
-      style={{
-        position:   "absolute",
-        inset:      0,
-        zIndex:     50,
-        background: "rgba(26,16,6,0.46)",
-        display:    "flex",
-        alignItems: "flex-end",
-      }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div style={{
-        width:         "100%",
-        background:    "white",
-        borderRadius:  "24px 24px 0 0",
-        padding:       "20px 20px 40px",
-        boxSizing:     "border-box",
-        maxHeight:     "72%",
-        overflowY:     "auto",
-      }}>
-        {/* 拖拽指示条 */}
-        <div style={{
-          width: 40, height: 4, borderRadius: 4,
-          background: "#E0D4C8", margin: "0 auto 20px",
-        }} />
+    <div style={{ position:"absolute", inset:0, zIndex:60,
+                  background:"rgba(26,16,6,0.44)", display:"flex", alignItems:"flex-end" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
 
-        {/* 名称 */}
-        <div style={{ fontSize: 18, fontWeight: 800, color: C.text, marginBottom: 8 }}>
-          {poi.name}
-        </div>
+      <div style={{ width:"100%", background:"#fff", borderRadius:"22px 22px 0 0",
+                    padding:"0 0 44px", boxSizing:"border-box",
+                    maxHeight:"74%", overflowY:"auto",
+                    animation:"tm-up .22s ease-out" }}>
 
-        {/* 分类标签 */}
-        {typeLabel && (
-          <span style={{
-            display: "inline-block", fontSize: 11,
-            background: "#FFF3E0", color: C.pri,
-            padding: "3px 10px", borderRadius: 20,
-            marginBottom: 14, fontWeight: 600,
-          }}>
-            {typeLabel}
-          </span>
-        )}
+        {/* 拖拽条 */}
+        <div style={{ width:40, height:4, borderRadius:4, background:"#E0D4C8",
+                      margin:"14px auto 18px" }} />
 
-        {/* 信息列表 */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
-          {addr && (
-            <InfoRow icon="📍" text={addr} />
+        <div style={{ padding:"0 20px" }}>
+          <div style={{ fontSize:19, fontWeight:800, color:C.text, marginBottom:6 }}>
+            {poi.name}
+          </div>
+
+          {type && (
+            <span style={{ display:"inline-block", fontSize:11, background:"#FFF3E0",
+                           color:C.pri, padding:"3px 10px", borderRadius:20,
+                           marginBottom:16, fontWeight:600 }}>
+              {type}
+            </span>
           )}
-          {dist && (
-            <InfoRow icon="📏" text={`距您约 ${dist}`} />
-          )}
-          {tel && (
-            <InfoRow
-              icon="📞"
-              text={tel}
-              link={`tel:${tel}`}
-              linkLabel="拨打"
-            />
-          )}
-        </div>
 
-        {/* 操作按钮 */}
-        <div style={{ display: "flex", gap: 10 }}>
-          <button
-            onClick={() => openInAMap(poi)}
-            style={{
-              flex:         1,
-              padding:      "14px 0",
-              borderRadius: 16,
-              background:   C.grad,
-              color:        "white",
-              fontSize:     14,
-              fontWeight:   700,
-              border:       "none",
-              cursor:       "pointer",
-            }}
-          >
-            🗺️ 用高德地图打开
-          </button>
-          <button
-            onClick={onClose}
-            style={{
-              width:        48,
-              height:       48,
-              borderRadius: 14,
-              background:   C.light,
-              border:       `1.5px solid ${C.border}`,
-              cursor:       "pointer",
-              fontSize:     16,
-              color:        C.sub,
-            }}
-          >
-            ✕
-          </button>
+          <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:22 }}>
+            {addr && <Row icon="📍" text={addr} />}
+            {dist && <Row icon="📏" text={`距您约 ${dist}`} />}
+            {tel  && <Row icon="📞" text={tel}
+                         extra={<a href={`tel:${tel}`}
+                           style={{ marginLeft:10, color:C.pri, fontWeight:700,
+                                    textDecoration:"none", fontSize:12 }}>拨打</a>} />}
+          </div>
+
+          <div style={{ display:"flex", gap:10 }}>
+            <button onClick={() => openNavigation(poi)}
+              style={{ flex:1, padding:"14px 0", borderRadius:16, background:C.grad,
+                       color:"#fff", fontSize:14, fontWeight:700, border:"none", cursor:"pointer" }}>
+              🗺️ 打开高德地图导航
+            </button>
+            <button onClick={onClose}
+              style={{ width:48, height:48, borderRadius:13, background:C.light,
+                       border:`1.5px solid ${C.border}`, cursor:"pointer",
+                       fontSize:18, color:C.sub, flexShrink:0 }}>
+              ✕
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-/* ── InfoRow helper ──────────────────────────────────────────── */
-function InfoRow({ icon, text, link, linkLabel }) {
+function Row({ icon, text, extra }) {
   return (
-    <div style={{
-      display: "flex", alignItems: "flex-start", gap: 8,
-      fontSize: 13, color: C.sub, lineHeight: 1.5,
-    }}>
-      <span style={{ flexShrink: 0 }}>{icon}</span>
-      <span style={{ flex: 1 }}>
-        {text}
-        {link && (
-          <a
-            href={link}
-            style={{ marginLeft: 10, color: C.pri, fontWeight: 600, textDecoration: "none" }}
-          >
-            {linkLabel}
-          </a>
-        )}
-      </span>
+    <div style={{ display:"flex", alignItems:"flex-start", gap:8,
+                  fontSize:13, color:"#5A4A35", lineHeight:1.5 }}>
+      <span style={{ flexShrink:0, marginTop:1 }}>{icon}</span>
+      <span style={{ flex:1 }}>{text}{extra}</span>
     </div>
   );
 }
 
-/* ══════════════════════════════════════════════════════════════
-   SUB-COMPONENT: EmptyState
-══════════════════════════════════════════════════════════════ */
-function EmptyState({ category }) {
+/* ════════════════════════════════════════════════════════════
+   空结果
+════════════════════════════════════════════════════════════ */
+function EmptyState({ cat, hasOthers }) {
   return (
-    <div style={{
-      textAlign:  "center",
-      padding:    "44px 24px",
-      color:      C.sub,
-    }}>
-      <div style={{ fontSize: 40, marginBottom: 14 }}>{category.icon}</div>
-      <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>
-        附近暂未找到{category.label === "全部" ? "宠物相关" : category.label}地点
+    <div style={{ textAlign:"center", padding:"40px 24px", color:C.sub }}>
+      <div style={{ fontSize:40, marginBottom:14 }}>{cat.icon}</div>
+      <div style={{ fontSize:14, fontWeight:700, color:C.text, marginBottom:8 }}>
+        附近暂未找到{cat.id === "all" ? "宠物相关" : cat.label}地点
       </div>
-      <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-        {category.id === "petfriendly"
-          ? "宠物友好餐厅/咖啡收录较少\n可尝试其他分类"
-          : "可尝试切换其他分类\n或稍后再试"}
+      <div style={{ fontSize:12, lineHeight:1.7 }}>
+        {hasOthers && cat.id !== "all"
+          ? "该分类无结果，可切换「全部」查看其他宠物地点"
+          : "已搜索 10km 范围，暂无相关地点\n换个位置后刷新可重新搜索"}
       </div>
     </div>
   );
