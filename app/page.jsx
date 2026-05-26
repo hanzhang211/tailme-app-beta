@@ -333,14 +333,15 @@ function Onboarding({ userId, onComplete }) {
         <div style={{ display:"flex", gap:6, marginBottom:4 }}>
           {[1,2,3].map((i) => (
             <div key={i} style={{ flex:1, height:4, borderRadius:4, transition:"background .3s",
-                                   background: i <= step ? C.pri : O_BORDER }} />
+                                   background: i <= step ? "#000000" : O_BORDER }} />
           ))}
         </div>
         <div style={{ textAlign:"center", fontSize:11, color:O_SUB }}>第 {step} / 3 步</div>
       </div>
 
       <div style={{ flex:1, padding:"0 18px 20px" }}>
-        <div style={{ background:"white", border:`1px solid ${O_BORDER}`, borderRadius:28, padding:"22px 20px" }}>
+        <div style={{ background:"white", border:"2.5px solid #000000", borderRadius:28, padding:"22px 20px",
+                      boxShadow:"0 16px 44px rgba(0,0,0,0.14)" }}>
           {step === 1 && <>
             <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>你的毛孩子叫什么？</div>
             <div style={{ fontSize:12, color:O_SUB, marginBottom:20 }}>先来认识一下 🐶</div>
