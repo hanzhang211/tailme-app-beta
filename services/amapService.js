@@ -13,6 +13,12 @@
 /* ════════════════════════════════════════════════════════════
    脚本加载（单例，callback 模式）
 ════════════════════════════════════════════════════════════ */
+if (typeof window !== "undefined") {
+  window._AMapSecurityConfig = {
+    securityJsCode:
+      process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE,
+  };
+}
 let _promise = null;
 
 export function loadAMap() {
