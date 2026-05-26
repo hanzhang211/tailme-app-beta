@@ -106,7 +106,9 @@ const AI_RES = {
    THEME
 ══════════════════════════════════════════════════════════════ */
 const C = {
-  pri:"#556B4F", grad:"#556B4F",
+  pri:"#1E3A5F",      // 主强调 / 按钮 / 选中态 (深藏青，偏黑)
+  grad:"#1E3A5F",
+  accent:"#0891B2",   // 次级 / 标签 / 文字 (青蓝)
   bg:"#FFFFFF", card:"#FFFFFF", text:"#1A1006", sub:"#8A8F98",
   light:"#F7F8FA", border:"#ECEEF2",
 };
@@ -130,7 +132,7 @@ function Logo({ size = 52 }) {
 }
 
 // 装饰用纯爪印（无轨道），可控颜色
-function PawIcon({ size = 16, color = "#556B4F" }) {
+function PawIcon({ size = 16, color = "#1E3A5F" }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color}
          xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
@@ -231,7 +233,7 @@ function PhoneLogin({ onLogin }) {
       <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:4 }}>爪爪日记</div>
       <div style={{ fontSize:12, color:P_SUB, marginBottom:36 }}>TailMe · 让陪伴更懂你</div>
 
-      <div style={{ width:"100%", background:"white", border:"2.5px solid #556B4F",
+      <div style={{ width:"100%", background:"white", border:"2.5px solid #1E3A5F",
                     borderRadius:28, padding:"28px 24px",
                     boxShadow:"0 16px 44px rgba(0,0,0,0.14)" }}>
         {step === 1 ? (
@@ -259,7 +261,7 @@ function PhoneLogin({ onLogin }) {
             <button
               onClick={handleSendCode}
               style={{ marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14,
-                       fontWeight:700, background:isValidPhone ? "#556B4F" : P_SURFACE,
+                       fontWeight:700, background:isValidPhone ? "#1E3A5F" : P_SURFACE,
                        color:isValidPhone ? "white" : P_SUB,
                        border:isValidPhone ? "none" : `1px solid ${P_BORDER}`,
                        cursor:isValidPhone ? "pointer" : "default", transition:"all .2s" }}>
@@ -277,7 +279,7 @@ function PhoneLogin({ onLogin }) {
             </div>
             <div style={{ fontSize:12, color:P_SUB, marginBottom:22 }}>
               已发送至 +86 {phone}
-              <span style={{ marginLeft:8, color:C.pri, fontWeight:600, fontSize:11 }}>
+              <span style={{ marginLeft:8, color:C.accent, fontWeight:600, fontSize:11 }}>
                 [MVP 测试码: 123456]
               </span>
             </div>
@@ -296,7 +298,7 @@ function PhoneLogin({ onLogin }) {
               onClick={handleVerify}
               disabled={loading || code.length < 6}
               style={{ marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14,
-                       fontWeight:700, background:!loading && code.length >= 6 ? "#556B4F" : P_SURFACE,
+                       fontWeight:700, background:!loading && code.length >= 6 ? "#1E3A5F" : P_SURFACE,
                        color:!loading && code.length >= 6 ? "white" : P_SUB,
                        border:!loading && code.length >= 6 ? "none" : `1px solid ${P_BORDER}`,
                        cursor:!loading && code.length >= 6 ? "pointer" : "default",
@@ -360,14 +362,14 @@ function Onboarding({ userId, onComplete }) {
         <div style={{ display:"flex", gap:6, marginBottom:4 }}>
           {[1,2,3].map((i) => (
             <div key={i} style={{ flex:1, height:4, borderRadius:4, transition:"background .3s",
-                                   background: i <= step ? "#556B4F" : O_BORDER }} />
+                                   background: i <= step ? "#1E3A5F" : O_BORDER }} />
           ))}
         </div>
         <div style={{ textAlign:"center", fontSize:11, color:O_SUB }}>第 {step} / 3 步</div>
       </div>
 
       <div style={{ flex:1, padding:"0 18px 20px" }}>
-        <div style={{ background:"white", border:"2.5px solid #556B4F", borderRadius:28, padding:"22px 20px",
+        <div style={{ background:"white", border:"2.5px solid #1E3A5F", borderRadius:28, padding:"22px 20px",
                       boxShadow:"0 16px 44px rgba(0,0,0,0.14)" }}>
           {step === 1 && <>
             <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>你的毛孩子叫什么？</div>
@@ -426,7 +428,7 @@ function Onboarding({ userId, onComplete }) {
 
         <button onClick={next} disabled={!ok || saving}
           style={{ marginTop:14, width:"100%", padding:"15px 0", borderRadius:20, fontSize:14, fontWeight:700,
-                   background:ok && !saving ? "#556B4F" : O_SURFACE, color:ok && !saving ? "white" : O_SUB,
+                   background:ok && !saving ? "#1E3A5F" : O_SURFACE, color:ok && !saving ? "white" : O_SUB,
                    border:ok && !saving ? "none" : `1px solid ${O_BORDER}`,
                    cursor:ok && !saving ? "pointer" : "default", transition:"all .2s" }}>
           {saving ? "保存中..." : step < 3 ? "继续 →" : `开始和 ${f.name || "它"} 的旅程 🐾`}
@@ -524,9 +526,9 @@ function HomeTab({ pet }) {
               🐶
             </div>
             {hungry && (
-              <div style={{ position:"absolute", top:-6, right:-6, background:C.pri, borderRadius:20,
+              <div style={{ position:"absolute", top:-6, right:-6, background:C.accent, borderRadius:20,
                             padding:"3px 9px", fontSize:10, fontWeight:700, color:"white",
-                            boxShadow:"0 2px 10px rgba(85,107,79,0.35)" }}>
+                            boxShadow:"0 2px 10px rgba(8,145,178,0.35)" }}>
                 😋 饿了
               </div>
             )}
@@ -537,7 +539,7 @@ function HomeTab({ pet }) {
           </div>
           {hungry && (
             <div style={{ marginTop:12, background:H_SURFACE, border:`1px solid ${H_BORDER}`,
-                          borderRadius:20, padding:"8px 18px", fontSize:13, color:C.pri, fontWeight:600 }}>
+                          borderRadius:20, padding:"8px 18px", fontSize:13, color:C.accent, fontWeight:600 }}>
               🍖 我有点饿啦，记得喂我哦！
             </div>
           )}
@@ -571,7 +573,7 @@ function HomeTab({ pet }) {
               <span style={{ fontSize:14, fontWeight:700, color:C.text }}>喂食计划</span>
             </div>
             <button onClick={handleSaveFeed}
-              style={{ fontSize:11, background:H_SURFACE, color:C.pri,
+              style={{ fontSize:11, background:H_SURFACE, color:C.accent,
                        border:`1px solid ${H_BORDER}`, borderRadius:20,
                        padding:"4px 13px", cursor:"pointer", fontWeight:600 }}>
               {editFeed ? "完成 ✓" : "设置"}
@@ -591,9 +593,9 @@ function HomeTab({ pet }) {
             ))}
           </div>
           <div style={{ background:H_SURFACE, border:`1px solid ${H_BORDER}`,
-                        borderLeft:`3px solid ${C.pri}`, borderRadius:14, padding:12 }}>
+                        borderLeft:`3px solid ${C.accent}`, borderRadius:14, padding:12 }}>
             <div style={{ fontSize:11, color:H_SUB }}>推荐喂食量（每次）</div>
-            <div style={{ fontSize:17, fontWeight:800, color:C.pri, marginTop:3 }}>{feedAmt(pet.weight)}</div>
+            <div style={{ fontSize:17, fontWeight:800, color:C.accent, marginTop:3 }}>{feedAmt(pet.weight)}</div>
             <div style={{ fontSize:10, color:H_SUB, marginTop:4 }}>基于体重 {pet.weight}kg 估算 · 仅供参考</div>
           </div>
           <ErrBox msg={feedError} />
@@ -605,7 +607,7 @@ function HomeTab({ pet }) {
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
             <span style={{ fontSize:18 }}>🔬</span>
             <span style={{ fontSize:14, fontWeight:700, color:C.text }}>AI 健康分析</span>
-            <span style={{ marginLeft:"auto", fontSize:10, background:H_SURFACE, color:C.pri,
+            <span style={{ marginLeft:"auto", fontSize:10, background:H_SURFACE, color:C.accent,
                            border:`1px solid ${H_BORDER}`,
                            padding:"2px 9px", borderRadius:20, fontWeight:600 }}>Beta</span>
           </div>
@@ -738,7 +740,7 @@ function CommunityTab({ pet }) {
               {!msg.own && <div style={{ fontSize:11, color:C.sub, marginBottom:3, paddingLeft:4 }}>{msg.u}</div>}
               <div style={{ padding:"10px 14px", fontSize:13, lineHeight:1.55,
                             borderRadius:msg.own ? "18px 4px 18px 18px" : "4px 18px 18px 18px",
-                            background:msg.own ? C.grad : "white", color:msg.own ? "white" : C.text,
+                            background:msg.own ? C.accent : "white", color:msg.own ? "white" : C.text,
                             boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
                 {msg.m}
               </div>
@@ -775,7 +777,7 @@ function SocialTab() {
     <div style={{ height:"100%", overflowY:"auto", background:C.bg }}>
       <div style={{ background:"white", padding:"52px 18px 16px" }}>
         <div style={{ fontSize:20, fontWeight:800, color:C.text, display:"flex", alignItems:"center", gap:8 }}>
-          <PawIcon size={20} color="#556B4F" /> 附近狗狗
+          <PawIcon size={20} color="#1E3A5F" /> 附近狗狗
         </div>
         <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>找到附近的狗友，一起遛弯</div>
       </div>
@@ -783,8 +785,8 @@ function SocialTab() {
                     borderRadius:16, padding:"10px 14px", display:"flex", gap:8 }}>
         <span style={{ fontSize:14 }}>ℹ️</span>
         <div style={{ fontSize:11, color:C.sub, lineHeight:1.65 }}>
-          正式功能上线后需上传<span style={{ color:C.pri, fontWeight:600 }}>疫苗证明</span>和
-          <span style={{ color:C.pri, fontWeight:600 }}>狗证</span>，当前为 Demo 展示阶段。
+          正式功能上线后需上传<span style={{ color:C.accent, fontWeight:600 }}>疫苗证明</span>和
+          <span style={{ color:C.accent, fontWeight:600 }}>狗证</span>，当前为 Demo 展示阶段。
         </div>
       </div>
       <div style={{ padding:"12px 14px 88px" }}>
@@ -803,7 +805,7 @@ function SocialTab() {
                   <div style={{ fontSize:11, color:C.sub }}>📍 {dog.km}km</div>
                 </div>
                 <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>{dog.breed} · {dog.age} · 主人：{dog.owner}</div>
-                <div style={{ fontSize:11, color:C.pri, fontWeight:600, marginTop:4 }}>⏰ {dog.walk} 遛弯</div>
+                <div style={{ fontSize:11, color:C.accent, fontWeight:600, marginTop:4 }}>⏰ {dog.walk} 遛弯</div>
               </div>
             </div>
             <div style={{ display:"flex", gap:6, marginTop:12, flexWrap:"wrap" }}>
@@ -817,7 +819,7 @@ function SocialTab() {
                   {b.ok ? "✓" : "✗"} {b.lbl}
                 </span>
               ))}
-              <span style={{ fontSize:11, background:"#F7F8FA", color:C.pri, padding:"4px 10px", borderRadius:20 }}>
+              <span style={{ fontSize:11, background:"#F7F8FA", color:C.accent, padding:"4px 10px", borderRadius:20 }}>
                 💝 {dog.likes}
               </span>
             </div>
@@ -944,7 +946,7 @@ export default function AppRoot() {
             <div style={{ fontSize:20, lineHeight:1, height:20, display:"flex", alignItems:"center",
                           filter: t.label === "狗友" ? "none" : (tab===i ? "none" : "grayscale(1) opacity(0.5)") }}>
               {t.label === "狗友"
-                ? <PawIcon size={20} color={tab===i ? "#556B4F" : "#C5C8CE"} />
+                ? <PawIcon size={20} color={tab===i ? "#1E3A5F" : "#C5C8CE"} />
                 : t.icon}
             </div>
             <div style={{ fontSize:10, fontWeight:tab===i ? 700 : 500,

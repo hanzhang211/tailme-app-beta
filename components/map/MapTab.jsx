@@ -28,8 +28,9 @@ import {
 
 /* ── theme ─────────────────────────────────────────────── */
 const C = {
-  pri:    "#556B4F",
-  grad:   "#556B4F",
+  pri:    "#1E3A5F",   // 强调 / 按钮 / 选中态
+  grad:   "#1E3A5F",
+  accent: "#0891B2",   // 次级 / 标签 / 文字
   bg:     "#FFFFFF",
   text:   "#1A1006",
   sub:    "#9B8B76",
@@ -50,7 +51,7 @@ const ME_MARKER = `
   </div>`;
 
 const poiMarker = (icon) =>
-  `<div style="width:32px;height:32px;border-radius:50%;background:#556B4F;
+  `<div style="width:32px;height:32px;border-radius:50%;background:#1E3A5F;
     border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;
     font-size:13px;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,0.4)">${icon}</div>`;
 
@@ -302,7 +303,7 @@ export default function MapTab() {
           ) : poiErr ? (
             <span style={{ color:C.errT }}>⚠️ POI 搜索失败</span>
           ) : pois !== null ? (
-            <><span style={{ color:C.pri }}>●</span>
+            <><span style={{ color:C.accent }}>●</span>
               {activeCat.id === "all"
                 ? `共 ${pois.length} 个宠物相关地点`
                 : `${activeCat.label}：${pois.length} 个地点`}</>
@@ -400,7 +401,7 @@ function PoiCard({ poi, icon, selected, onSelect }) {
         </div>
         {type && (
           <div style={{ marginTop:6 }}>
-            <span style={{ fontSize:10, background:"#F0F0F0", color:C.pri,
+            <span style={{ fontSize:10, background:"#F0F0F0", color:C.accent,
                            padding:"2px 8px", borderRadius:20, fontWeight:500 }}>
               {type}
             </span>
@@ -410,7 +411,7 @@ function PoiCard({ poi, icon, selected, onSelect }) {
 
       {dist && (
         <div style={{ flexShrink:0, paddingTop:2 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:C.pri }}>{dist}</div>
+          <div style={{ fontSize:13, fontWeight:700, color:C.accent }}>{dist}</div>
         </div>
       )}
     </div>
@@ -450,7 +451,7 @@ function PoiDetail({ poi, onClose }) {
 
           {type && (
             <span style={{ display:"inline-block", fontSize:11,
-                           background:"#F0F0F0", color:C.pri,
+                           background:"#F0F0F0", color:C.accent,
                            padding:"3px 10px", borderRadius:20,
                            marginBottom:16, fontWeight:600 }}>
               {type}
@@ -465,7 +466,7 @@ function PoiDetail({ poi, onClose }) {
               <Row icon="📞" text={tel}
                 extra={
                   <a href={`tel:${tel}`}
-                    style={{ marginLeft:10, color:C.pri, fontWeight:700,
+                    style={{ marginLeft:10, color:C.accent, fontWeight:700,
                              textDecoration:"none", fontSize:12 }}>
                     拨打
                   </a>
