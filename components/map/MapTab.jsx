@@ -1,23 +1,23 @@
 "use client";
 
 /**
- * components/map/MapTab.jsx
+ * components/map/MapTab.jsx  — 双 Key 架构
  *
- * 高德 JSAPI v2.0 + @amap/amap-jsapi-loader
+ * 两条独立轨道，互不阻塞：
  *
- * phase 流程：
- *   "sdk"    — AMapLoader.load() 中
- *   "locate" — getMyLocation 中
- *   "tiles"  — new AMap.Map() + 等待 complete 事件
- *   "search" — searchPetPOI 中
- *   "done"   — 全部就绪
- *   "error"  — 任意步骤失败，errMsg + errStep 记录现场
+ *   轨道 A（地图）: getMyLocation → loadMapSDK → new AMap.Map → 渲染底图
+ *                  失败 → 显示灰色占位区，POI 列表照常显示
+ *
+ *   轨道 B（POI）:  getMyLocation → searchPetPOI（REST API）→ 渲染卡片列表
+ *                  与地图 SDK 完全解耦，不依赖 window.AMap
+ *
+ * 定位只跑一次，结果共享给两条轨道。
  */
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
-  loadAMap,
   getMyLocation,
+  loadMapSDK,
   searchPetPOI,
   CATEGORIES,
   getCoords,
@@ -26,7 +26,7 @@ import {
   openNavigation,
 } from "@/services/amapService";
 
-/* ── theme ──────────────────────────────────────────────── */
+/* ── theme ─────────────────────────────────────────────── */
 const C = {
   pri:    "#FF7A5A",
   grad:   "linear-gradient(135deg,#FF7A5A 0%,#FFB347 100%)",
@@ -36,12 +36,13 @@ const C = {
   light:  "#FFF8ED",
   border: "#F0E8D8",
   err:    "#FFF0F0",
-  errTxt: "#C0392B",
+  errT:   "#C0392B",
 };
 
-/* ── marker html ─────────────────────────────────────────── */
+/* ── marker html ────────────────────────────────────────── */
 const ME_MARKER = `
-  <div style="position:relative;width:26px;height:26px;display:flex;align-items:center;justify-content:center">
+  <div style="position:relative;width:26px;height:26px;
+    display:flex;align-items:center;justify-content:center">
     <div style="position:absolute;width:26px;height:26px;border-radius:50%;
       background:rgba(66,133,244,0.22);animation:tm-pulse 2s ease-out infinite"></div>
     <div style="width:14px;height:14px;border-radius:50%;background:#4285F4;
@@ -53,152 +54,107 @@ const poiMarker = (icon) =>
     border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;
     font-size:13px;cursor:pointer;box-shadow:0 3px 8px rgba(255,122,90,0.5)">${icon}</div>`;
 
-/* ── phase labels ─────────────────────────────────────────── */
-const PHASE_LABEL = {
-  sdk:    "加载高德 SDK...",
-  locate: "获取位置中...",
-  tiles:  "渲染地图...",
-  search: "搜索附近宠物地点（11个关键词）...",
-  done:   "",
-  error:  "",
-};
-
-/* ════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════
    MapTab
-════════════════════════════════════════════════════════════ */
+════════════════════════════════════════════════════════ */
 export default function MapTab() {
-  const divRef  = useRef(null);
-  const mapRef  = useRef(null);
-  const mksRef  = useRef([]);
+  const divRef = useRef(null);
+  const mapRef = useRef(null);
+  const mksRef = useRef([]);
 
-  const [phase,     setPhase]     = useState("sdk");
-  const [errMsg,    setErrMsg]    = useState(null);
-  const [errStep,   setErrStep]   = useState(null);
-  const [location,  setLocation]  = useState(null);
-  const [allPois,   setAllPois]   = useState(null);
+  /* ── 定位状态 ─────────────────────────────────────────*/
+  const [location,  setLocation]  = useState(null);   // {lng,lat,source,city}
+  const [locating,  setLocating]  = useState(true);
+
+  /* ── 地图状态（轨道 A）────────────────────────────────*/
+  const [mapPhase, setMapPhase] = useState("loading"); // loading|ready|error
+  const [mapErr,   setMapErr]   = useState(null);
+
+  /* ── POI 状态（轨道 B）────────────────────────────────*/
+  const [allPois,    setAllPois]    = useState(null);
+  const [poiLoading, setPoiLoading] = useState(false);
+  const [poiErr,     setPoiErr]     = useState(null);
+
+  /* ── UI 状态 ─────────────────────────────────────────*/
   const [activeCat, setActiveCat] = useState(CATEGORIES[0]);
   const [selPoi,    setSelPoi]    = useState(null);
-  const [tileReady, setTileReady] = useState(false);
 
+  /* 客户端分类过滤 */
   const pois = useMemo(() => {
     if (!allPois) return null;
     return activeCat.id === "all" ? allPois : allPois.filter(activeCat.test);
   }, [allPois, activeCat]);
 
-  /* ── 初始化（只跑一次）────────────────────────────────── */
+  /* ════════════════════════════════════════════════════
+     EFFECT — 初始化（只跑一次）
+  ════════════════════════════════════════════════════ */
   useEffect(() => {
     let alive = true;
 
-    const fail = (step, err) => {
-      if (!alive) return;
-      const msg = err?.message || String(err);
-      console.error("[MapTab] step=" + step, err);
-      setErrStep(step);
-      setErrMsg(msg);
-      setPhase("error");
-    };
-
     (async () => {
-      /* ── step 1: SDK ──────────────────────────────────── */
-      setPhase("sdk");
-      let AMap;
-      try {
-        AMap = await loadAMap();
-      } catch (e) {
-        fail("SDK 加载 (AMapLoader.load)", e);
-        return;
-      }
-      if (!alive) return;
-
-      /* ── step 2: 定位 ─────────────────────────────────── */
-      setPhase("locate");
-      let loc;
-      try {
-        loc = await getMyLocation(AMap);
-      } catch (e) {
-        fail("用户定位", e);
-        return;
-      }
+      /* ── Step 1: 定位（两条轨道共用）──────────────── */
+      const loc = await getMyLocation();
       if (!alive) return;
       setLocation(loc);
+      setLocating(false);
 
-      /* ── step 3: 创建地图 + 等待瓦片 ─────────────────── */
-      setPhase("tiles");
-      if (!divRef.current) {
-        fail("地图容器", new Error("divRef.current 为 null，DOM 容器未挂载"));
-        return;
-      }
+      /* ── 轨道 A: 地图 SDK（非阻塞）────────────────── */
+      loadMapSDK()
+        .then((AMap) => {
+          if (!alive || !divRef.current) return;
+          try {
+            const map = new AMap.Map(divRef.current, {
+              zoom:            14,
+              center:          new AMap.LngLat(loc.lng, loc.lat),
+              resizeEnable:    true,
+              expandZoomRange: true,
+              zooms:           [3, 20],
+            });
+            mapRef.current = map;
 
-      let map;
-      try {
-        map = new AMap.Map(divRef.current, {
-          zoom:           14,
-          center:         new AMap.LngLat(loc.lng, loc.lat),
-          resizeEnable:   true,
-          expandZoomRange: true,
-          zooms:          [3, 20],
+            // 用户位置 marker
+            new AMap.Marker({
+              map,
+              position: new AMap.LngLat(loc.lng, loc.lat),
+              content:  ME_MARKER,
+              offset:   new AMap.Pixel(-13, -13),
+              zIndex:   200,
+            });
+
+            map.on("complete", () => {
+              if (alive) setMapPhase("ready");
+            });
+
+            // 12s 内 complete 未触发也认为地图基本可用
+            setTimeout(() => {
+              if (alive && mapPhase === "loading") setMapPhase("ready");
+            }, 12000);
+
+          } catch (e) {
+            if (alive) {
+              setMapPhase("error");
+              setMapErr("new AMap.Map() 失败: " + e.message);
+            }
+          }
+        })
+        .catch((e) => {
+          if (alive) {
+            setMapPhase("error");
+            setMapErr(e.message);
+          }
         });
-        mapRef.current = map;
+
+      /* ── 轨道 B: POI 搜索（REST API，不依赖 AMap）── */
+      setPoiLoading(true);
+      try {
+        const results = await searchPetPOI(loc.lat, loc.lng);
+        if (!alive) return;
+        setAllPois(results);
       } catch (e) {
-        fail("new AMap.Map()", e);
-        return;
+        if (alive) setPoiErr(e.message);
+      } finally {
+        if (alive) setPoiLoading(false);
       }
-
-      /* 等瓦片 complete，最多 12s */
-      await new Promise((res, rej) => {
-        const t = setTimeout(() => {
-          rej(new Error(
-            "地图瓦片 complete 事件在 12s 内未触发。\n" +
-            "可能原因：① Key/Security code 与域名不匹配  " +
-            "② 网络无法访问 webrd0?.is.autonavi.com  " +
-            "③ 容器高度为 0"
-          ));
-        }, 12000);
-
-        map.on("complete", () => {
-          clearTimeout(t);
-          if (alive) setTileReady(true);
-          res();
-        });
-
-        /* complete 不一定触发（离线/Key无效），监听 error 事件兜底 */
-        map.on("error", (e) => {
-          clearTimeout(t);
-          rej(new Error("AMap.Map error 事件：" + (e?.info || JSON.stringify(e))));
-        });
-      }).catch((e) => {
-        if (alive) fail("地图瓦片加载 (map complete)", e);
-        return Promise.reject(e);   // 让外层 catch 拦截
-      });
-
-      if (!alive) return;
-
-      /* 用户位置 marker */
-      try {
-        new AMap.Marker({
-          map,
-          position: new AMap.LngLat(loc.lng, loc.lat),
-          content:  ME_MARKER,
-          offset:   new AMap.Pixel(-13, -13),
-          zIndex:   200,
-          title:    "我的位置",
-        });
-      } catch { /* marker 失败不阻塞 */ }
-
-      /* ── step 4: 搜索 POI ─────────────────────────────── */
-      setPhase("search");
-      let results;
-      try {
-        results = await searchPetPOI(AMap, loc);
-      } catch (e) {
-        fail("POI 搜索 (searchPetPOI)", e);
-        return;
-      }
-      if (!alive) return;
-
-      setAllPois(results);
-      setPhase("done");
-
     })();
 
     return () => {
@@ -212,7 +168,7 @@ export default function MapTab() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── markers 随分类更新 ────────────────────────────────── */
+  /* ── POI markers 随分类更新 ─────────────────────────*/
   useEffect(() => {
     const AMap = window?.AMap;
     if (!AMap || !mapRef.current || !pois) return;
@@ -224,6 +180,7 @@ export default function MapTab() {
     pois.slice(0, 60).forEach((poi) => {
       const c = getCoords(poi.location);
       if (!c) return;
+
       const mk = new AMap.Marker({
         map:      mapRef.current,
         position: new AMap.LngLat(c.lng, c.lat),
@@ -241,14 +198,9 @@ export default function MapTab() {
     });
   }, [pois, activeCat.icon]);
 
-  /* ── helpers ─────────────────────────────────────────────*/
-  const isLoading = ["sdk","locate","tiles","search"].includes(phase);
-  const isError   = phase === "error";
-  const isDone    = phase === "done";
-
-  /* ════════════════════════════════════════════════════════
+  /* ════════════════════════════════════════════════════
      RENDER
-  ════════════════════════════════════════════════════════ */
+  ════════════════════════════════════════════════════ */
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column",
                   background:C.bg, position:"relative", overflow:"hidden" }}>
@@ -257,12 +209,10 @@ export default function MapTab() {
       <div style={{ background:"#fff", padding:"52px 18px 12px", flexShrink:0 }}>
         <div style={{ fontSize:20, fontWeight:800, color:C.text }}>🗺️ 宠物友好地图</div>
         <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>
-          {isError ? (
-            <span style={{ color:C.errTxt }}>⚠️ 加载失败 — 见下方错误详情</span>
-          ) : !location ? "正在定位..." :
-            location.source === "gps"
-              ? `📍 当前位置${location.city ? ` · ${location.city}` : ""}`
-              : "📍 GPS 失败 · 已定位至上海市中心"}
+          {locating ? "正在定位..." :
+           location?.source === "gps"
+             ? `📍 当前位置${location.city ? ` · ${location.city}` : ""}`
+             : "📍 GPS 失败 · 已显示上海市中心"}
         </div>
       </div>
 
@@ -276,7 +226,8 @@ export default function MapTab() {
             <button key={cat.id}
               onClick={() => { setActiveCat(cat); setSelPoi(null); }}
               style={{ flexShrink:0, padding:"7px 15px", borderRadius:20, fontSize:12,
-                       fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", transition:"all .18s",
+                       fontWeight:600, cursor:"pointer", whiteSpace:"nowrap",
+                       transition:"all .18s",
                        background: on ? C.grad : C.light,
                        color:      on ? "#fff" : "#5A4A35",
                        border:     `1.5px solid ${on ? "transparent" : C.border}` }}>
@@ -286,114 +237,118 @@ export default function MapTab() {
         })}
       </div>
 
-      {/* 地图容器
-          ⚠ height 必须是明确像素值。
-          AMap 在 new AMap.Map() 时调用 getBoundingClientRect()，
-          高度为 0 则底图不绘制。                               */}
-      <div style={{ position:"relative", flexShrink:0, height:256, background:"#e8ede8" }}>
+      {/* 地图区域（高度固定 256px，失败时显示占位）
+          ⚠ 必须是明确像素高度，AMap 初始化时需要非零尺寸  */}
+      <div style={{ position:"relative", flexShrink:0, height:256,
+                    background: mapPhase === "error" ? C.err : "#e8ede8" }}>
 
-        {/* AMap 挂载点 */}
+        {/* AMap 挂载 div */}
         <div ref={divRef} style={{ width:"100%", height:"100%" }} />
 
-        {/* 瓦片加载中遮罩 */}
-        {(isLoading && !tileReady) && (
-          <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column",
-                        alignItems:"center", justifyContent:"center",
-                        background:"rgba(255,251,244,0.88)", gap:8, zIndex:10 }}>
-            <div style={{ fontSize:26, animation:"tm-spin 1.2s linear infinite" }}>⟳</div>
-            <div style={{ fontSize:12, color:C.sub, textAlign:"center", maxWidth:220 }}>
-              {PHASE_LABEL[phase] || "加载中..."}
-            </div>
+        {/* 地图加载中 */}
+        {mapPhase === "loading" && (
+          <div style={{ position:"absolute", inset:0, display:"flex",
+                        flexDirection:"column", alignItems:"center",
+                        justifyContent:"center", gap:8,
+                        background:"rgba(255,251,244,0.88)", zIndex:5 }}>
+            <div style={{ fontSize:24, animation:"tm-spin 1.2s linear infinite" }}>⟳</div>
+            <div style={{ fontSize:12, color:C.sub }}>加载地图底图...</div>
           </div>
         )}
 
-        {/* 地图区错误遮罩 */}
-        {isError && (
-          <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column",
-                        alignItems:"center", justifyContent:"center",
-                        background:C.err, padding:16, gap:8, zIndex:10 }}>
-            <div style={{ fontSize:28 }}>⚠️</div>
-            <div style={{ fontSize:12, fontWeight:700, color:C.errTxt }}>
-              地图初始化失败
+        {/* 地图加载失败占位 */}
+        {mapPhase === "error" && (
+          <div style={{ position:"absolute", inset:0, display:"flex",
+                        flexDirection:"column", alignItems:"center",
+                        justifyContent:"center", gap:6,
+                        background:C.err, padding:"16px 20px", zIndex:5 }}>
+            <div style={{ fontSize:22 }}>🗺️</div>
+            <div style={{ fontSize:12, fontWeight:700, color:C.errT, textAlign:"center" }}>
+              地图底图加载失败
             </div>
-            <div style={{ fontSize:11, color:C.errTxt, textAlign:"center", lineHeight:1.5 }}>
-              出错步骤：{errStep}
+            <div style={{ fontSize:10, color:C.errT, textAlign:"center",
+                          lineHeight:1.5, maxWidth:260,
+                          wordBreak:"break-all", whiteSpace:"pre-wrap" }}>
+              {mapErr}
+            </div>
+            <div style={{ fontSize:10, color:C.sub, textAlign:"center" }}>
+              POI 列表仍然可用（见下方）
             </div>
           </div>
         )}
 
         {/* 定位来源角标 */}
-        {isDone && location?.source === "default" && (
+        {mapPhase === "ready" && location?.source === "default" && (
           <div style={{ position:"absolute", bottom:8, left:8, zIndex:5,
                         background:"rgba(255,122,90,0.88)", color:"#fff",
-                        borderRadius:10, padding:"3px 10px", fontSize:10, fontWeight:600 }}>
+                        borderRadius:10, padding:"3px 10px",
+                        fontSize:10, fontWeight:600 }}>
             GPS 失败 · 已显示上海
           </div>
         )}
       </div>
 
-      {/* 错误详情卡片（地图区下方，完整展示错误信息）*/}
-      {isError && (
-        <div style={{ margin:"10px 14px 0", background:C.err,
-                      border:`1.5px solid ${C.errTxt}44`, borderRadius:18,
-                      padding:"14px 16px", flexShrink:0 }}>
-          <div style={{ fontSize:13, fontWeight:800, color:C.errTxt, marginBottom:8 }}>
-            ❌ 出错步骤：{errStep}
-          </div>
-          <div style={{ fontSize:12, color:C.errTxt, lineHeight:1.7,
-                        wordBreak:"break-all", whiteSpace:"pre-wrap" }}>
-            {errMsg}
-          </div>
-          <button
-            onClick={() => window.location.reload()}
-            style={{ marginTop:12, width:"100%", padding:"11px 0", borderRadius:14,
-                     background:C.grad, color:"#fff", fontSize:13, fontWeight:700,
-                     border:"none", cursor:"pointer" }}>
-            🔄 重新加载
-          </button>
-        </div>
-      )}
-
-      {/* POI 列表 */}
+      {/* POI 列表区域（独立于地图，始终显示） */}
       <div style={{ flex:1, overflowY:"auto", padding:"10px 14px 88px" }}>
 
-        {/* 状态栏 */}
-        {!isError && (
-          <div style={{ fontSize:11, color:C.sub, marginBottom:10,
-                        fontWeight:600, display:"flex", alignItems:"center",
-                        gap:6, minHeight:20 }}>
-            {phase === "search" ? (
-              <><span style={{ animation:"tm-spin 1s linear infinite",
-                               display:"inline-block" }}>⟳</span>
-                搜索中（11个关键词）...</>
-            ) : isDone && pois !== null ? (
-              <><span style={{ color:C.pri }}>●</span>
-                {activeCat.id === "all"
-                  ? `共 ${pois.length} 个宠物相关地点`
-                  : `${activeCat.label}：${pois.length} 个地点`}</>
-            ) : isLoading ? (
-              <><span style={{ animation:"tm-spin 1s linear infinite",
-                               display:"inline-block" }}>⟳</span>
-                {PHASE_LABEL[phase]}</>
-            ) : null}
+        {/* POI 状态栏 */}
+        <div style={{ fontSize:11, color:C.sub, marginBottom:10,
+                      fontWeight:600, display:"flex", alignItems:"center",
+                      gap:6, minHeight:20 }}>
+          {poiLoading ? (
+            <><span style={{ animation:"tm-spin 1s linear infinite",
+                             display:"inline-block" }}>⟳</span>
+              搜索附近宠物地点（11个关键词）...</>
+          ) : poiErr ? (
+            <span style={{ color:C.errT }}>⚠️ POI 搜索失败</span>
+          ) : pois !== null ? (
+            <><span style={{ color:C.pri }}>●</span>
+              {activeCat.id === "all"
+                ? `共 ${pois.length} 个宠物相关地点`
+                : `${activeCat.label}：${pois.length} 个地点`}</>
+          ) : null}
+        </div>
+
+        {/* POI 搜索失败详情 */}
+        {poiErr && (
+          <div style={{ background:C.err, border:`1.5px solid ${C.errT}44`,
+                        borderRadius:16, padding:"12px 14px", marginBottom:12 }}>
+            <div style={{ fontSize:12, fontWeight:700, color:C.errT, marginBottom:6 }}>
+              ❌ POI 搜索失败
+            </div>
+            <div style={{ fontSize:11, color:C.errT, lineHeight:1.6,
+                          wordBreak:"break-all", whiteSpace:"pre-wrap" }}>
+              {poiErr}
+            </div>
+            <div style={{ fontSize:10, color:C.sub, marginTop:8, lineHeight:1.5 }}>
+              请检查：① NEXT_PUBLIC_AMAP_WEB_KEY 是否配置
+              ② 高德控制台该 Key 类型是否为「Web服务」
+              ③ 控制台是否有 IP 白名单限制
+            </div>
           </div>
         )}
 
         {/* 空结果 */}
-        {isDone && pois?.length === 0 && (
+        {!poiLoading && !poiErr && pois?.length === 0 && (
           <EmptyState cat={activeCat} hasOthers={(allPois?.length ?? 0) > 0} />
         )}
 
         {/* POI 卡片 */}
         {(pois || []).map((poi) => (
-          <PoiCard key={poi.id} poi={poi} icon={activeCat.icon}
+          <PoiCard
+            key={poi.id}
+            poi={poi}
+            icon={activeCat.icon}
             selected={selPoi?.id === poi.id}
             onSelect={() => {
               setSelPoi(poi);
+              // 如果地图已就绪，移动中心到该 POI
               const c = getCoords(poi.location);
-              if (c && mapRef.current && window.AMap)
+              if (c && mapRef.current && window.AMap) {
                 mapRef.current.setCenter(new window.AMap.LngLat(c.lng, c.lat));
-            }} />
+              }
+            }}
+          />
         ))}
       </div>
 
@@ -409,9 +364,9 @@ export default function MapTab() {
   );
 }
 
-/* ════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════
    POI 列表卡片
-════════════════════════════════════════════════════════════ */
+════════════════════════════════════════════════════════ */
 function PoiCard({ poi, icon, selected, onSelect }) {
   const dist = fmtDist(poi.distance);
   const type = poi.type?.split(";").slice(-1)[0] ?? "";
@@ -421,15 +376,16 @@ function PoiCard({ poi, icon, selected, onSelect }) {
 
   return (
     <div onClick={onSelect}
-      style={{ background:"#fff", borderRadius:18, padding:"13px 14px", marginBottom:10,
-               boxShadow:"0 2px 12px rgba(0,0,0,0.06)", cursor:"pointer",
+      style={{ background:"#fff", borderRadius:18, padding:"13px 14px",
+               marginBottom:10, boxShadow:"0 2px 12px rgba(0,0,0,0.06)",
+               cursor:"pointer", display:"flex", gap:12, alignItems:"flex-start",
                border:`1.5px solid ${selected ? C.pri : "transparent"}`,
-               display:"flex", gap:12, alignItems:"flex-start",
                transition:"border-color .15s" }}>
 
       <div style={{ width:44, height:44, borderRadius:13, flexShrink:0,
                     background: selected ? "#FFF3E0" : C.light,
-                    display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>
+                    display:"flex", alignItems:"center",
+                    justifyContent:"center", fontSize:20 }}>
         {icon}
       </div>
 
@@ -461,9 +417,9 @@ function PoiCard({ poi, icon, selected, onSelect }) {
   );
 }
 
-/* ════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════
    POI 详情底部弹窗
-════════════════════════════════════════════════════════════ */
+════════════════════════════════════════════════════════ */
 function PoiDetail({ poi, onClose }) {
   const dist = fmtDist(poi.distance);
   const tel  = fmtTel(poi.tel);
@@ -474,16 +430,18 @@ function PoiDetail({ poi, onClose }) {
 
   return (
     <div style={{ position:"absolute", inset:0, zIndex:60,
-                  background:"rgba(26,16,6,0.44)", display:"flex", alignItems:"flex-end" }}
+                  background:"rgba(26,16,6,0.44)", display:"flex",
+                  alignItems:"flex-end" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}>
 
-      <div style={{ width:"100%", background:"#fff", borderRadius:"22px 22px 0 0",
+      <div style={{ width:"100%", background:"#fff",
+                    borderRadius:"22px 22px 0 0",
                     padding:"0 0 44px", boxSizing:"border-box",
                     maxHeight:"74%", overflowY:"auto",
                     animation:"tm-up .22s ease-out" }}>
 
-        <div style={{ width:40, height:4, borderRadius:4, background:"#E0D4C8",
-                      margin:"14px auto 18px" }} />
+        <div style={{ width:40, height:4, borderRadius:4,
+                      background:"#E0D4C8", margin:"14px auto 18px" }} />
 
         <div style={{ padding:"0 20px" }}>
           <div style={{ fontSize:19, fontWeight:800, color:C.text, marginBottom:6 }}>
@@ -491,17 +449,19 @@ function PoiDetail({ poi, onClose }) {
           </div>
 
           {type && (
-            <span style={{ display:"inline-block", fontSize:11, background:"#FFF3E0",
-                           color:C.pri, padding:"3px 10px", borderRadius:20,
+            <span style={{ display:"inline-block", fontSize:11,
+                           background:"#FFF3E0", color:C.pri,
+                           padding:"3px 10px", borderRadius:20,
                            marginBottom:16, fontWeight:600 }}>
               {type}
             </span>
           )}
 
-          <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:22 }}>
+          <div style={{ display:"flex", flexDirection:"column",
+                        gap:10, marginBottom:22 }}>
             {addr && <Row icon="📍" text={addr} />}
             {dist && <Row icon="📏" text={`距您约 ${dist}`} />}
-            {tel && (
+            {tel  && (
               <Row icon="📞" text={tel}
                 extra={
                   <a href={`tel:${tel}`}
@@ -515,9 +475,9 @@ function PoiDetail({ poi, onClose }) {
 
           <div style={{ display:"flex", gap:10 }}>
             <button onClick={() => openNavigation(poi)}
-              style={{ flex:1, padding:"14px 0", borderRadius:16, background:C.grad,
-                       color:"#fff", fontSize:14, fontWeight:700,
-                       border:"none", cursor:"pointer" }}>
+              style={{ flex:1, padding:"14px 0", borderRadius:16,
+                       background:C.grad, color:"#fff", fontSize:14,
+                       fontWeight:700, border:"none", cursor:"pointer" }}>
               🗺️ 打开高德地图导航
             </button>
             <button onClick={onClose}
@@ -543,9 +503,9 @@ function Row({ icon, text, extra }) {
   );
 }
 
-/* ════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════
    空结果
-════════════════════════════════════════════════════════════ */
+════════════════════════════════════════════════════════ */
 function EmptyState({ cat, hasOthers }) {
   return (
     <div style={{ textAlign:"center", padding:"40px 24px", color:C.sub }}>

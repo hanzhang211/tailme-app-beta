@@ -1,134 +1,156 @@
 /**
- * services/amapService.js
- *
- * 高德 JSAPI v2.0 — 使用官方 @amap/amap-jsapi-loader 初始化
- *
- * 前置：npm install @amap/amap-jsapi-loader
+ * services/amapService.js  — 双 Key 架构
  *
  * 环境变量：
- *   NEXT_PUBLIC_AMAP_KEY
- *   NEXT_PUBLIC_AMAP_SECURITY_CODE
+ *   NEXT_PUBLIC_AMAP_JS_KEY       Web端(JS API) Key  → 地图底图 + 定位
+ *   NEXT_PUBLIC_AMAP_SECURITY_CODE Web端安全密钥
+ *   NEXT_PUBLIC_AMAP_WEB_KEY      Web服务 Key         → POI 搜索（REST API）
+ *
+ * 架构：
+ *   地图 SDK  ── JS  Key + script 标签（可选，失败不影响 POI 列表）
+ *   POI 搜索  ── Web Key + fetch restapi.amap.com（必须，独立于地图）
+ *   定位       ── 优先 navigator.geolocation（不需要任何 Key）
  */
 
-let _promise = null;
+/* ══════════════════════════════════════════════════════════
+   1. 浏览器原生定位（不依赖 AMap SDK）
+══════════════════════════════════════════════════════════ */
+export function getMyLocation() {
+  return new Promise((resolve) => {
+    const fallback = { lng: 121.4737, lat: 31.2304, source: "default", city: "上海市" };
 
-export function loadAMap() {
+    if (typeof window === "undefined" || !navigator?.geolocation) {
+      resolve(fallback);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({
+        lng:    pos.coords.longitude,
+        lat:    pos.coords.latitude,
+        source: "gps",
+        city:   "",
+      }),
+      () => resolve(fallback),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
+   2. 地图 SDK 加载（可选，失败不影响 POI）
+      使用 script onload + 轮询 window.AMap
+══════════════════════════════════════════════════════════ */
+let _sdkPromise = null;
+
+export function loadMapSDK() {
   if (typeof window === "undefined") {
-    return Promise.reject(new Error("AMap 只能在浏览器中使用"));
+    return Promise.reject(new Error("SSR"));
+  }
+  if (window.AMap?.Map) return Promise.resolve(window.AMap);
+  if (_sdkPromise) return _sdkPromise;
+
+  const jsKey  = process.env.NEXT_PUBLIC_AMAP_JS_KEY;
+  const secKey = process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE;
+
+  if (!jsKey) {
+    return Promise.reject(new Error("缺少 NEXT_PUBLIC_AMAP_JS_KEY"));
   }
 
-  /* 已加载完成 */
-  if (window.AMap && typeof window.AMap.Map === "function") {
-    return Promise.resolve(window.AMap);
+  // 注入安全密钥（必须在 script 之前）
+  if (secKey) {
+    window._AMapSecurityConfig = { securityJsCode: secKey };
   }
 
-  /* 复用进行中的 Promise */
-  if (_promise) return _promise;
+  _sdkPromise = new Promise((resolve, reject) => {
+    // 防止重复插入
+    const existing = document.querySelector(`script[data-amap-js="${jsKey}"]`);
+    if (!existing) {
+      const s = document.createElement("script");
+      s.setAttribute("data-amap-js", jsKey);
+      s.src =
+        "https://webapi.amap.com/maps?v=2.0" +
+        "&key="    + jsKey +
+        "&plugin=AMap.Geolocation,AMap.Scale,AMap.ToolBar";
+      s.async = true;
+      s.onerror = () => {
+        _sdkPromise = null;
+        reject(new Error("地图 JS SDK onerror — 检查 JS Key 白名单配置"));
+      };
+      document.head.appendChild(s);
+    }
 
-  const key  = process.env.NEXT_PUBLIC_AMAP_KEY;
-  const code = process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE;
+    // 轮询 window.AMap，最多 12s
+    const t0      = Date.now();
+    const timer   = setInterval(() => {
+      if (window.AMap?.Map) {
+        clearInterval(timer);
+        resolve(window.AMap);
+        return;
+      }
+      if (Date.now() - t0 > 12000) {
+        clearInterval(timer);
+        _sdkPromise = null;
+        reject(new Error(
+          "地图 SDK 12s 未就绪（window.AMap 仍为 undefined）\n" +
+          "JS Key 前6位: " + jsKey.slice(0, 6) + "\n" +
+          "Security code: " + (secKey ? "已配置" : "未配置")
+        ));
+      }
+    }, 200);
+  });
 
+  return _sdkPromise;
+}
+
+/* ══════════════════════════════════════════════════════════
+   3. POI 搜索 — Web服务 REST API（独立于 JS SDK）
+      直接 fetch restapi.amap.com，不依赖 window.AMap
+══════════════════════════════════════════════════════════ */
+const REST_BASE = "https://restapi.amap.com/v3/place/around";
+
+/** 单关键词搜索，失败返回空数组 */
+async function searchOneREST(lat, lng, keyword, radius) {
+  const key = process.env.NEXT_PUBLIC_AMAP_WEB_KEY;
   if (!key) {
-    return Promise.reject(new Error("缺少 NEXT_PUBLIC_AMAP_KEY"));
+    console.warn("[amapService] 缺少 NEXT_PUBLIC_AMAP_WEB_KEY，POI 搜索跳过");
+    return [];
   }
 
-  /* 必须在 AMapLoader.load() 之前设置 */
-  if (code) {
-    window._AMapSecurityConfig = { securityJsCode: code };
+  const url =
+    REST_BASE +
+    "?key="      + key +
+    "&location=" + lng + "," + lat +   // 高德格式：经度在前
+    "&keywords=" + encodeURIComponent(keyword) +
+    "&radius="   + radius +
+    "&offset=25" +
+    "&page=1"    +
+    "&extensions=base";
+
+  try {
+    const res  = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (data.status !== "1" || !Array.isArray(data.pois)) return [];
+
+    // 归一化：distance 转 number，location 保持字符串
+    return data.pois.map((p) => ({
+      ...p,
+      distance: parseFloat(p.distance) || 0,
+    }));
+  } catch {
+    return [];
   }
-
-  _promise = import("@amap/amap-jsapi-loader")
-    .then((mod) => {
-      const AMapLoader = mod.default ?? mod;
-      return AMapLoader.load({
-        key,
-        version: "2.0",
-        plugins: [
-          "AMap.Geolocation",
-          "AMap.PlaceSearch",
-          "AMap.Scale",
-          "AMap.ToolBar",
-        ],
-      });
-    })
-    .then((AMap) => {
-      /* 挂到 window，方便 MapTab 的 useEffect 直接访问 */
-      window.AMap = AMap;
-      return AMap;
-    })
-    .catch((err) => {
-      _promise = null;
-      throw new Error("高德地图加载失败：" + (err?.message || String(err)));
-    });
-
-  return _promise;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   获取用户位置
-   GPS → IP 定位 → 上海市中心（兜底）
-═══════════════════════════════════════════════════════════ */
-export function getMyLocation(AMap) {
-  return new Promise((resolve) => {
-    try {
-      const geo = new AMap.Geolocation({
-        enableHighAccuracy: true,
-        timeout:            8000,
-        noIpLocate:         0,
-        showButton:         false,
-        showCircle:         false,
-        showMarker:         false,
-        panToLocation:      false,
-        zoomToAccuracy:     false,
-      });
-      geo.getCurrentPosition((status, result) => {
-        if (status === "complete" && result?.position) {
-          resolve({
-            lng:    result.position.getLng(),
-            lat:    result.position.getLat(),
-            source: "gps",
-            city:   result.addressComponent?.city || "",
-          });
-        } else {
-          resolve({ lng: 121.4737, lat: 31.2304, source: "default", city: "上海市" });
-        }
-      });
-    } catch {
-      resolve({ lng: 121.4737, lat: 31.2304, source: "default", city: "上海市" });
-    }
-  });
-}
-
-/* ═══════════════════════════════════════════════════════════
-   POI 搜索
-═══════════════════════════════════════════════════════════ */
-export const ALL_KEYWORDS = [
-  "宠物医院", "宠物诊所", "宠物店",   "宠物用品",
-  "宠物食品", "宠物美容", "宠物寄养", "宠物训练",
-  "动物医院", "狗粮",     "猫粮",
-];
-
-function searchOne(AMap, keyword, loc, radius) {
-  return new Promise((resolve) => {
-    try {
-      const ps = new AMap.PlaceSearch({ pageSize: 25, pageIndex: 1 });
-      ps.searchNearBy(keyword, [loc.lng, loc.lat], radius, (status, result) => {
-        const pois = result?.poiList?.pois;
-        resolve(Array.isArray(pois) ? pois : []);
-      });
-    } catch {
-      resolve([]);
-    }
-  });
-}
-
-async function mergeSearch(AMap, loc, radius) {
-  const settled = await Promise.allSettled(
-    ALL_KEYWORDS.map((kw) => searchOne(AMap, kw, loc, radius))
+/** 11 个关键词并发搜索，合并去重，按距离排序 */
+async function mergeSearchREST(lat, lng, radius) {
+  const results = await Promise.allSettled(
+    ALL_KEYWORDS.map((kw) => searchOneREST(lat, lng, kw, radius))
   );
   const seen = new Set();
   const list = [];
-  settled.forEach((r) => {
+  results.forEach((r) => {
     if (r.status !== "fulfilled") return;
     r.value.forEach((poi) => {
       if (!poi?.id || seen.has(poi.id)) return;
@@ -139,15 +161,27 @@ async function mergeSearch(AMap, loc, radius) {
   return list.sort((a, b) => (a.distance ?? 99999) - (b.distance ?? 99999));
 }
 
-export async function searchPetPOI(AMap, location) {
-  let result = await mergeSearch(AMap, location, 5000);
-  if (result.length < 5) result = await mergeSearch(AMap, location, 10000);
+/**
+ * 搜索附近宠物 POI（主入口）
+ * 先搜 5000m，< 5 个自动扩至 10000m
+ */
+export async function searchPetPOI(lat, lng) {
+  let result = await mergeSearchREST(lat, lng, 5000);
+  if (result.length < 5) {
+    result = await mergeSearchREST(lat, lng, 10000);
+  }
   return result;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   分类（客户端过滤，不重新搜索）
-═══════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════
+   4. 常量与工具函数
+══════════════════════════════════════════════════════════ */
+export const ALL_KEYWORDS = [
+  "宠物医院", "宠物诊所", "宠物店",   "宠物用品",
+  "宠物食品", "宠物美容", "宠物寄养", "宠物训练",
+  "动物医院", "狗粮",     "猫粮",
+];
+
 export const CATEGORIES = [
   { id: "all",      label: "全部",     icon: "🐾", test: () => true },
   { id: "hospital", label: "医院/诊所", icon: "🏥", test: (p) => /医院|诊所|兽医/.test(p.name) },
@@ -156,11 +190,20 @@ export const CATEGORIES = [
   { id: "training", label: "训练",     icon: "🎓", test: (p) => /训练|学校/.test(p.name) },
 ];
 
-/* ═══════════════════════════════════════════════════════════
-   工具函数
-═══════════════════════════════════════════════════════════ */
+/**
+ * 从 POI 取坐标。
+ * REST API 返回 "lng,lat" 字符串；
+ * JS  API 返回 AMap.LngLat 对象 —— 两种都处理。
+ */
 export function getCoords(loc) {
   if (!loc) return null;
+  // REST API: "121.47,31.23"
+  if (typeof loc === "string") {
+    const [lng, lat] = loc.split(",").map(Number);
+    if (isNaN(lng) || isNaN(lat)) return null;
+    return { lng, lat };
+  }
+  // JS API: AMap.LngLat 或 {lng, lat}
   const lng = typeof loc.getLng === "function" ? loc.getLng() : Number(loc.lng);
   const lat = typeof loc.getLat === "function" ? loc.getLat() : Number(loc.lat);
   if (isNaN(lng) || isNaN(lat)) return null;
@@ -169,7 +212,7 @@ export function getCoords(loc) {
 
 export function fmtDist(m) {
   const n = Number(m);
-  if (!m || isNaN(n)) return "";
+  if (!m && m !== 0 || isNaN(n)) return "";
   return n < 1000 ? `${Math.round(n)}m` : `${(n / 1000).toFixed(1)}km`;
 }
 
@@ -179,12 +222,14 @@ export function fmtTel(tel) {
   return t.split(";")[0].trim() || null;
 }
 
+/** 打开高德地图导航（callnative=1 优先唤起 App）*/
 export function openNavigation(poi) {
   const c = getCoords(poi.location);
   if (!c) return;
   const name = encodeURIComponent(poi.name || "");
   window.open(
-    `https://uri.amap.com/navigation?to=${c.lng},${c.lat},${name}&mode=walk&coordinate=gaode&callnative=1`,
+    `https://uri.amap.com/navigation?to=${c.lng},${c.lat},${name}` +
+    `&mode=walk&coordinate=gaode&callnative=1`,
     "_blank"
   );
 }
