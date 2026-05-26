@@ -31,6 +31,7 @@ const C = {
   pri:    "#1E3A5F",   // 强调 / 按钮 / 选中态
   grad:   "#1E3A5F",
   accent: "#0891B2",   // 次级 / 标签 / 文字
+  tint:   "#E0F4F7",   // 柔青蓝 / 装饰背景 / 选中底
   bg:     "#FFFFFF",
   text:   "#1A1006",
   sub:    "#9B8B76",
@@ -377,14 +378,14 @@ function PoiCard({ poi, icon, selected, onSelect }) {
 
   return (
     <div onClick={onSelect}
-      style={{ background:"#fff", borderRadius:18, padding:"13px 14px",
+      style={{ background: selected ? C.tint : "#fff", borderRadius:18, padding:"13px 14px",
                marginBottom:10, boxShadow:"0 2px 12px rgba(0,0,0,0.06)",
                cursor:"pointer", display:"flex", gap:12, alignItems:"flex-start",
                border:`1.5px solid ${selected ? C.pri : "transparent"}`,
-               transition:"border-color .15s" }}>
+               transition:"all .15s" }}>
 
       <div style={{ width:44, height:44, borderRadius:13, flexShrink:0,
-                    background: selected ? "#F0F0F0" : C.light,
+                    background: selected ? C.tint : C.light,
                     display:"flex", alignItems:"center",
                     justifyContent:"center", fontSize:20 }}>
         {icon}
@@ -401,7 +402,7 @@ function PoiCard({ poi, icon, selected, onSelect }) {
         </div>
         {type && (
           <div style={{ marginTop:6 }}>
-            <span style={{ fontSize:10, background:"#F0F0F0", color:C.accent,
+            <span style={{ fontSize:10, background:C.tint, color:C.accent,
                            padding:"2px 8px", borderRadius:20, fontWeight:500 }}>
               {type}
             </span>
@@ -451,7 +452,7 @@ function PoiDetail({ poi, onClose }) {
 
           {type && (
             <span style={{ display:"inline-block", fontSize:11,
-                           background:"#F0F0F0", color:C.accent,
+                           background:C.tint, color:C.accent,
                            padding:"3px 10px", borderRadius:20,
                            marginBottom:16, fontWeight:600 }}>
               {type}

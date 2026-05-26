@@ -109,11 +109,10 @@ const C = {
   pri:"#1E3A5F",      // 主强调 / 按钮 / 选中态 (深藏青，偏黑)
   grad:"#1E3A5F",
   accent:"#0891B2",   // 次级 / 标签 / 文字 (青蓝)
+  tint:"#E0F4F7",     // 柔青蓝 / 装饰背景 / 选中底
   bg:"#FFFFFF", card:"#FFFFFF", text:"#1A1006", sub:"#8A8F98",
   light:"#F7F8FA", border:"#ECEEF2",
 };
-// 保留橙色仅用于宠物头像（视觉焦点），通过 PET_GRAD 常量引用
-const PET_GRAD = "linear-gradient(135deg,#FF7A5A 0%,#FFB347 100%)";
 const cardStyle = { background:C.card, borderRadius:20, padding:16, marginBottom:12, boxShadow:"0 2px 14px rgba(0,0,0,0.05)" };
 const btnStyle  = (active) => ({
   background: active ? C.grad : "#F7F8FA", color: active ? "#fff" : "#3B4252",
@@ -517,16 +516,14 @@ function HomeTab({ pet }) {
                                     fontSize:16, textDecoration:"none" }}>🔔</a>
         </div>
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
-          <div style={{ position:"relative" }}>
-            <div style={{ width:108, height:108, borderRadius:"50%",
-                          background:PET_GRAD,
-                          display:"flex", alignItems:"center", justifyContent:"center",
-                          fontSize:60, animation:"float 3s ease-in-out infinite",
-                          boxShadow:"0 8px 24px rgba(255,122,90,0.25)" }}>
+          <div style={{ position:"relative", padding:"4px 10px" }}>
+            <div style={{ fontSize:120, lineHeight:1,
+                          animation:"float 3s ease-in-out infinite",
+                          filter:"drop-shadow(0 6px 12px rgba(8,145,178,0.18))" }}>
               🐶
             </div>
             {hungry && (
-              <div style={{ position:"absolute", top:-6, right:-6, background:C.accent, borderRadius:20,
+              <div style={{ position:"absolute", top:0, right:-4, background:C.accent, borderRadius:20,
                             padding:"3px 9px", fontSize:10, fontWeight:700, color:"white",
                             boxShadow:"0 2px 10px rgba(8,145,178,0.35)" }}>
                 😋 饿了
@@ -557,8 +554,10 @@ function HomeTab({ pet }) {
             <div key={i} style={{ flex:1, background:"white", border:`1px solid ${H_BORDER}`,
                                    borderRadius:16, padding:"12px 6px", textAlign:"center",
                                    boxShadow:H_SHADOW }}>
-              <div style={{ fontSize:18 }}>{ico}</div>
-              <div style={{ fontSize:10, color:H_SUB, marginTop:4 }}>{lbl}</div>
+              <div style={{ width:34, height:34, borderRadius:"50%", background:C.tint,
+                            display:"inline-flex", alignItems:"center", justifyContent:"center",
+                            fontSize:18, lineHeight:1 }}>{ico}</div>
+              <div style={{ fontSize:10, color:H_SUB, marginTop:6 }}>{lbl}</div>
               <div style={{ fontSize:11, fontWeight:700, color:C.text, marginTop:2 }}>{val}</div>
             </div>
           ))}
@@ -592,7 +591,7 @@ function HomeTab({ pet }) {
               </div>
             ))}
           </div>
-          <div style={{ background:H_SURFACE, border:`1px solid ${H_BORDER}`,
+          <div style={{ background:C.tint, border:`1px solid ${H_BORDER}`,
                         borderLeft:`3px solid ${C.accent}`, borderRadius:14, padding:12 }}>
             <div style={{ fontSize:11, color:H_SUB }}>推荐喂食量（每次）</div>
             <div style={{ fontSize:17, fontWeight:800, color:C.accent, marginTop:3 }}>{feedAmt(pet.weight)}</div>
@@ -607,8 +606,8 @@ function HomeTab({ pet }) {
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
             <span style={{ fontSize:18 }}>🔬</span>
             <span style={{ fontSize:14, fontWeight:700, color:C.text }}>AI 健康分析</span>
-            <span style={{ marginLeft:"auto", fontSize:10, background:H_SURFACE, color:C.accent,
-                           border:`1px solid ${H_BORDER}`,
+            <span style={{ marginLeft:"auto", fontSize:10, background:C.tint, color:C.accent,
+                           border:`1px solid ${C.tint}`,
                            padding:"2px 9px", borderRadius:20, fontWeight:600 }}>Beta</span>
           </div>
           <div style={{ fontSize:11, color:H_SUB, marginBottom:14 }}>上传照片，AI 帮你初步分析健康状况</div>
@@ -617,7 +616,7 @@ function HomeTab({ pet }) {
               <button key={key} onClick={() => handleUpload(key)}
                 style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center",
                          padding:"12px 6px", borderRadius:16,
-                         background:uplType === key ? "#F0F0F0" : H_SURFACE,
+                         background:uplType === key ? C.tint : H_SURFACE,
                          border:`1.5px solid ${uplType === key ? C.pri : H_BORDER}`,
                          cursor:"pointer", transition:"all .2s" }}>
                 <span style={{ fontSize:24 }}>{em}</span>
@@ -633,7 +632,7 @@ function HomeTab({ pet }) {
           )}
           <ErrBox msg={uploadError} />
           {result && !loading && (
-            <div style={{ marginTop:14, borderRadius:16, padding:16, background:H_SURFACE, border:`1px solid ${H_BORDER}` }}>
+            <div style={{ marginTop:14, borderRadius:16, padding:16, background:C.tint, border:`1px solid ${H_BORDER}` }}>
               <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${H_BORDER}` }}>
                 <div style={{ textAlign:"center" }}>
                   <div style={{ fontSize:30, fontWeight:800, color:result.rc, lineHeight:1 }}>{result.score}</div>
@@ -721,7 +720,7 @@ function CommunityTab({ pet }) {
           ))}
         </div>
       </div>
-      <div style={{ background:"#F7F8FA", padding:"7px 18px", borderBottom:`1px solid ${C.border}`,
+      <div style={{ background:C.tint, padding:"7px 18px", borderBottom:`1px solid ${C.border}`,
                     flexShrink:0, display:"flex", alignItems:"center", gap:10 }}>
         <span style={{ fontSize:13, fontWeight:700, color:C.text }}>🐕 {ag}</span>
         <span style={{ fontSize:11, color:C.sub }}>{CHATS[ag]?.count.toLocaleString()} 人在群里</span>
@@ -730,7 +729,7 @@ function CommunityTab({ pet }) {
         {(msgs[ag] || []).map((msg) => (
           <div key={msg.id} style={{ display:"flex", gap:10, marginBottom:14,
                                      flexDirection:msg.own ? "row-reverse" : "row" }}>
-            <div style={{ width:34, height:34, borderRadius:"50%", background:"#F0F0F0",
+            <div style={{ width:34, height:34, borderRadius:"50%", background:C.tint,
                           display:"flex", alignItems:"center", justifyContent:"center",
                           fontSize:16, flexShrink:0 }}>
               {msg.av}
@@ -781,7 +780,7 @@ function SocialTab() {
         </div>
         <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>找到附近的狗友，一起遛弯</div>
       </div>
-      <div style={{ margin:"12px 14px 0", background:C.light, border:`1px solid #E5E7EB`,
+      <div style={{ margin:"12px 14px 0", background:C.tint, border:`1px solid #E5E7EB`,
                     borderRadius:16, padding:"10px 14px", display:"flex", gap:8 }}>
         <span style={{ fontSize:14 }}>ℹ️</span>
         <div style={{ fontSize:11, color:C.sub, lineHeight:1.65 }}>
@@ -794,7 +793,7 @@ function SocialTab() {
           <div key={dog.id} style={{ ...cardStyle }}>
             <div style={{ display:"flex", gap:12 }}>
               <div style={{ width:60, height:60, borderRadius:18,
-                            background:"linear-gradient(135deg,#F0F0F0,#E5E7EB)",
+                            background:`linear-gradient(135deg,${C.tint},#CDE9EE)`,
                             display:"flex", alignItems:"center", justifyContent:"center",
                             fontSize:32, flexShrink:0 }}>
                 {dog.av}
@@ -819,7 +818,7 @@ function SocialTab() {
                   {b.ok ? "✓" : "✗"} {b.lbl}
                 </span>
               ))}
-              <span style={{ fontSize:11, background:"#F7F8FA", color:C.accent, padding:"4px 10px", borderRadius:20 }}>
+              <span style={{ fontSize:11, background:C.tint, color:C.accent, padding:"4px 10px", borderRadius:20 }}>
                 💝 {dog.likes}
               </span>
             </div>
