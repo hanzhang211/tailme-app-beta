@@ -18,14 +18,12 @@ import {
   saveFeedingRecord,
   saveHealthUpload,
 } from "@/services/supabaseService";
+import MapTab from "@/components/map/MapTab";
 
 /* ══════════════════════════════════════════════════════════════
-   未来接入真实服务的 stub（地图 / 聊天 / AI）
+   未来接入真实服务的 stub（聊天 / AI）
+   地图已迁移至 components/map/MapTab.jsx（高德 JS API）
 ══════════════════════════════════════════════════════════════ */
-const mapService = {
-  openNavigation: (shop) =>
-    alert(`导航至：${shop.name}\n（正式版将跳转至高德/Apple 地图）`),
-};
 const chatService = {
   sendMessage: async () => {},
 };
@@ -61,29 +59,6 @@ const isHungry = (bt, dt) => {
   const [dh, dm] = dt.split(":").map(Number);
   return (m > bh * 60 + bm + 180 && m < dh * 60 + dm - 120) || m > dh * 60 + dm + 180;
 };
-
-const SHOPS = [
-  { id:1, name:"梧桐树下宠物友好咖啡", dist:"徐汇", typ:"咖啡馆", rating:4.8, rc:342, km:"0.8",
-    tags:["小型犬友好","户外座位","安静治愈"], water:true,  treat:true,  large:false,
-    addr:"徐汇区衡山路128号", em:"🌳",
-    desc:"藏在梧桐树荫里的温馨小店。提供宠物专属饮水碗和小零食，氛围极度治愈，适合带小型犬慢慢坐一下午。",
-    x:88, y:105 },
-  { id:2, name:"Paw Cafe", dist:"静安", typ:"咖啡馆", rating:4.9, rc:521, km:"1.2",
-    tags:["网红打卡","大型犬可","宠物菜单"], water:true,  treat:true,  large:true,
-    addr:"静安区南京西路1233号", em:"☕",
-    desc:"上海最受欢迎的宠物友好咖啡，空间开阔，有专属宠物菜单，大型犬也欢迎，是毛孩子的天堂。",
-    x:208, y:52 },
-  { id:3, name:"TailMe 合作商场", dist:"浦东", typ:"购物中心", rating:4.7, rc:198, km:"2.5",
-    tags:["TailMe认证","宠物通道","全犬种"], water:true,  treat:false, large:true,
-    addr:"浦东新区陆家嘴环路1000号", em:"🏬",
-    desc:"TailMe官方合作商场，提供专属宠物通道和休息区，设有宠物寄存服务，购物遛娃两不误。",
-    x:300, y:91 },
-  { id:4, name:"小花园宠物餐厅", dist:"长宁", typ:"餐厅", rating:4.6, rc:276, km:"1.8",
-    tags:["花园露台","下午茶","宠物轻食"], water:true,  treat:true,  large:false,
-    addr:"长宁区法华镇路525号", em:"🌸",
-    desc:"拥有美丽花园的宠物友好餐厅，提供宠物专属轻食，适合主人和毛孩子一起悠闲享受午后时光。",
-    x:80, y:61 },
-];
 
 const CHATS = {
   "腊肠犬群": { count:1243, msgs:[
@@ -640,102 +615,10 @@ function HomeTab({ pet }) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   MAP TAB
+   MAP TAB — 已迁移至 components/map/MapTab.jsx
+   使用高德 JS API，动态加载，无 SSR 报错。
+   import MapTab from "@/components/map/MapTab" (顶部已导入)
 ══════════════════════════════════════════════════════════════ */
-function MapTab() {
-  const [sel, setSel] = useState(null);
-
-  return (
-    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:C.bg, position:"relative" }}>
-      <div style={{ background:"white", padding:"52px 18px 14px", flexShrink:0 }}>
-        <div style={{ fontSize:20, fontWeight:800, color:C.text }}>🗺️ 宠物友好地图</div>
-        <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>上海 · 附近宠物友好店铺</div>
-      </div>
-      <div style={{ margin:"0 14px", borderRadius:24, overflow:"hidden", flexShrink:0, boxShadow:"0 2px 14px rgba(0,0,0,0.07)" }}>
-        <svg width="100%" viewBox="0 0 400 170" style={{ display:"block" }}>
-          <rect width="400" height="170" fill="#DFF0DF"/>
-          <rect x="125" y="0" width="4" height="170" fill="white" opacity="0.9"/>
-          <rect x="245" y="0" width="4" height="170" fill="white" opacity="0.9"/>
-          <rect x="0" y="58"  width="400" height="4" fill="white" opacity="0.9"/>
-          <rect x="0" y="112" width="400" height="4" fill="white" opacity="0.9"/>
-          {[[6,6,113,46],[135,6,105,46],[255,6,140,46],[6,68,113,38],[135,68,105,38],[255,68,140,38],[6,122,113,42],[135,122,105,42],[255,122,140,42]]
-            .map(([x,y,w,h],i) => <rect key={i} x={x} y={y} width={w} height={h} rx="4" fill={["#C2D8C2","#CBDFCB","#B8D4B8"][i%3]}/>)}
-          <text x="62"  y="28" textAnchor="middle" fill="#6A906A" fontSize="9.5" fontFamily="system-ui">徐汇</text>
-          <text x="187" y="28" textAnchor="middle" fill="#6A906A" fontSize="9.5" fontFamily="system-ui">静安</text>
-          <text x="325" y="28" textAnchor="middle" fill="#6A906A" fontSize="9.5" fontFamily="system-ui">浦东</text>
-          <text x="62"  y="88" textAnchor="middle" fill="#6A906A" fontSize="9.5" fontFamily="system-ui">长宁</text>
-          <circle cx="200" cy="88" r="14" fill="#4A90E2" opacity="0.18"/>
-          <circle cx="200" cy="88" r="6"  fill="#4A90E2" stroke="white" strokeWidth="2"/>
-          {SHOPS.map((s) => (
-            <g key={s.id} transform={`translate(${s.x},${s.y})`} onClick={() => setSel(s)} style={{ cursor:"pointer" }}>
-              <circle r="13" fill={sel?.id===s.id ? C.pri : "white"} stroke={sel?.id===s.id ? C.pri : "#ccc"} strokeWidth="1.5"/>
-              <text textAnchor="middle" dominantBaseline="central" fontSize="13" y="0">{s.em}</text>
-              {sel?.id===s.id && <circle r="3" cy="18" fill={C.pri}/>}
-            </g>
-          ))}
-        </svg>
-      </div>
-      <div style={{ flex:1, overflowY:"auto", padding:"10px 14px 76px" }}>
-        <div style={{ fontSize:11, color:C.sub, marginBottom:10, fontWeight:600 }}>附近 {SHOPS.length} 家宠物友好店铺</div>
-        {SHOPS.map((s) => (
-          <button key={s.id} onClick={() => setSel(s)}
-            style={{ width:"100%", background:"white", borderRadius:20, padding:14, marginBottom:10,
-                     boxShadow:"0 2px 10px rgba(0,0,0,0.05)", border:`1.5px solid ${sel?.id===s.id ? C.pri : "transparent"}`,
-                     cursor:"pointer", textAlign:"left", display:"block", transition:"all .2s" }}>
-            <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
-              <div style={{ width:50, height:50, borderRadius:14, background:C.light, display:"flex",
-                            alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>{s.em}</div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:14, fontWeight:700, color:C.text, whiteSpace:"nowrap",
-                              overflow:"hidden", textOverflow:"ellipsis" }}>{s.name}</div>
-                <div style={{ fontSize:11, color:C.sub, marginTop:2 }}>{s.typ} · {s.dist}</div>
-                <div style={{ display:"flex", gap:5, marginTop:6, flexWrap:"wrap" }}>
-                  {s.tags.slice(0,2).map((t) => (
-                    <span key={t} style={{ fontSize:10, background:"#FFF3E0", color:C.pri,
-                                          padding:"2px 8px", borderRadius:20, fontWeight:500 }}>{t}</span>
-                  ))}
-                </div>
-              </div>
-              <div style={{ textAlign:"right", flexShrink:0 }}>
-                <div style={{ fontSize:11, fontWeight:700, color:C.pri }}>⭐ {s.rating}</div>
-                <div style={{ fontSize:10, color:C.sub, marginTop:3 }}>{s.km}km</div>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-      {sel && (
-        <div style={{ position:"absolute", inset:0, zIndex:50, background:"rgba(26,16,6,0.48)",
-                      display:"flex", alignItems:"flex-end" }}
-             onClick={(e) => e.target === e.currentTarget && setSel(null)}>
-          <div style={{ width:"100%", background:"white", borderRadius:"26px 26px 0 0",
-                        padding:"20px 20px 32px", maxHeight:"72%", overflowY:"auto", boxSizing:"border-box" }}>
-            <div style={{ width:40, height:4, borderRadius:4, background:"#E0D4C8", margin:"0 auto 18px" }}/>
-            <div style={{ fontSize:42, textAlign:"center", marginBottom:12 }}>{sel.em}</div>
-            <div style={{ fontSize:18, fontWeight:800, color:C.text, marginBottom:4 }}>{sel.name}</div>
-            <div style={{ fontSize:12, color:C.sub, marginBottom:2 }}>📍 {sel.addr}</div>
-            <div style={{ fontSize:12, color:C.sub, marginBottom:14 }}>⭐ {sel.rating} · {sel.rc} 条评价 · {sel.km}km</div>
-            <div style={{ fontSize:13, lineHeight:1.75, color:"#5A4A35", marginBottom:16 }}>{sel.desc}</div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:16 }}>
-              {[["宠物饮水",sel.water],["Dog Treat",sel.treat],["大型犬",sel.large]].map(([lbl, v]) => (
-                <div key={lbl} style={{ borderRadius:14, padding:"12px 6px", textAlign:"center",
-                                        background:v?"#F0FFF4":"#FFF5F5" }}>
-                  <div style={{ fontSize:20 }}>{v ? "✅" : "❌"}</div>
-                  <div style={{ fontSize:11, color:v?"#4CAF50":"#F44336", marginTop:4, fontWeight:600 }}>{lbl}</div>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => mapService.openNavigation(sel)}
-              style={{ width:"100%", padding:"14px 0", borderRadius:20, background:C.grad, color:"white",
-                       fontSize:14, fontWeight:700, border:"none", cursor:"pointer" }}>
-              收藏这里 🐾
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 /* ══════════════════════════════════════════════════════════════
    COMMUNITY TAB
