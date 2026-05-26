@@ -1,31 +1,77 @@
 /**
  * services/supabaseService.js
  *
- * 真实 Supabase MVP 环境。
+ * 手机号账号体系 MVP。
+ * 无 Supabase Auth，用户通过 phone 唯一标识。
  * 无任何 mock / fallback / fake 数据。
- * 所有函数失败时抛出真实错误，由调用方处理。
  */
 
-import { supabase } from "@/lib/supabase";
+import supabase from "@/lib/supabase";
 
 function requireSupabase() {
   if (!supabase) {
-    throw new Error("Supabase client not initialized. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+    throw new Error(
+      "Supabase 未初始化。请检查 NEXT_PUBLIC_SUPABASE_URL 和 NEXT_PUBLIC_SUPABASE_ANON_KEY。"
+    );
   }
   return supabase;
 }
 
-/* ── 获取当前登录用户 ─────────────────────────────────────────
-   未登录时返回 null（不报错）
+/* ── 手机号登录 / 注册（get or create）─────────────────────────
+   逻辑：先 SELECT，有则返回，无则 INSERT。
+   手机号加 UNIQUE 约束，物理上禁止重复。
+   处理并发 race condition：INSERT 若报 23505（unique violation），
+   说明并发请求刚刚创建，重新 SELECT 即可。
    ─────────────────────────────────────────────────────────── */
-export async function getCurrentUser() {
+export async function getOrCreateUserByPhone(phone) {
   const sb = requireSupabase();
-  const { data, error } = await sb.auth.getUser();
-  if (error) return null;
-  return data?.user ?? null;
+
+  // 1. 先查是否已存在
+  const { data: existing, error: selErr } = await sb
+    .from("users")
+    .select("*")
+    .eq("phone", phone)
+    .maybeSingle();
+
+  if (selErr) throw new Error(`查询用户失败: ${selErr.message}`);
+  if (existing) return existing;
+
+  // 2. 不存在则创建
+  const { data: created, error: insErr } = await sb
+    .from("users")
+    .insert({ phone, created_at: new Date().toISOString() })
+    .select()
+    .single();
+
+  if (!insErr) return created;
+
+  // 3. race condition：unique violation → 再查一次
+  if (insErr.code === "23505") {
+    const { data: retried, error: retryErr } = await sb
+      .from("users")
+      .select("*")
+      .eq("phone", phone)
+      .single();
+    if (retryErr) throw new Error(`重试查询用户失败: ${retryErr.message}`);
+    return retried;
+  }
+
+  throw new Error(`创建用户失败: ${insErr.message}`);
 }
 
-/* ── 获取指定用户的所有宠物 ───────────────────────────────────*/
+/* ── 根据 ID 获取用户 ────────────────────────────────────────── */
+export async function getUserById(userId) {
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from("users")
+    .select("*")
+    .eq("id", userId)
+    .single();
+  if (error) throw new Error(`获取用户失败: ${error.message}`);
+  return data;
+}
+
+/* ── 获取用户的所有宠物 ───────────────────────────────────────── */
 export async function getUserPets(userId) {
   const sb = requireSupabase();
   const { data, error } = await sb
@@ -33,32 +79,28 @@ export async function getUserPets(userId) {
     .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
-  if (error) throw new Error(`getUserPets failed: ${error.message}`);
-  return data;
+  if (error) throw new Error(`获取宠物失败: ${error.message}`);
+  return data; // 空数组代表无宠物
 }
 
-/* ── 保存宠物档案（真实 INSERT）──────────────────────────────
-   表单字段映射：
-   - neutered / vaccinated: "yes"/"no" → boolean
-   - age / weight: string → number
+/* ── 保存宠物档案（真实 INSERT，绑定 userId）────────────────────
+   userId 必传，不从 Supabase Auth 获取（MVP 使用自定义手机号体系）
    ─────────────────────────────────────────────────────────── */
-export async function savePetProfile(formData) {
+export async function savePetProfile(formData, userId) {
   const sb = requireSupabase();
-
-  const { data: authData } = await sb.auth.getUser();
-  const userId = authData?.user?.id ?? null;
+  if (!userId) throw new Error("savePetProfile: userId 不能为空");
 
   const payload = {
+    user_id:    userId,
     name:       formData.name?.trim(),
-    breed:      formData.breed || null,
-    age:        formData.age    ? parseFloat(formData.age)    : null,
-    weight:     formData.weight ? parseFloat(formData.weight) : null,
-    gender:     formData.gender || null,
+    breed:      formData.breed   || null,
+    age:        formData.age     ? parseFloat(formData.age)    : null,
+    weight:     formData.weight  ? parseFloat(formData.weight) : null,
+    gender:     formData.gender  || null,
     neutered:   formData.neutered   === "yes",
     vaccinated: formData.vaccinated === "yes",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    ...(userId ? { user_id: userId } : {}),
   };
 
   const { data, error } = await sb
@@ -67,33 +109,31 @@ export async function savePetProfile(formData) {
     .select()
     .single();
 
-  if (error) throw new Error(`savePetProfile failed: ${error.message}`);
+  if (error) throw new Error(`创建宠物失败: ${error.message}`);
   return data;
 }
 
-/* ── 保存喂食记录 ─────────────────────────────────────────────*/
+/* ── 保存喂食记录 ─────────────────────────────────────────────── */
 export async function saveFeedingRecord(record) {
   const sb = requireSupabase();
   const { error } = await sb
     .from("feeding_records")
     .insert({ ...record, recorded_at: new Date().toISOString() });
-  if (error) throw new Error(`saveFeedingRecord failed: ${error.message}`);
+  if (error) throw new Error(`保存喂食记录失败: ${error.message}`);
 }
 
-/* ── 保存健康上传记录 ─────────────────────────────────────────*/
+/* ── 保存健康上传记录 ─────────────────────────────────────────── */
 export async function saveHealthUpload(upload) {
   const sb = requireSupabase();
   const { error } = await sb
     .from("health_uploads")
     .insert({ ...upload, created_at: new Date().toISOString() });
-  if (error) throw new Error(`saveHealthUpload failed: ${error.message}`);
+  if (error) throw new Error(`保存健康记录失败: ${error.message}`);
 }
 
-/* ── 获取后台统计数据 ─────────────────────────────────────────
-   每张表独立查询。
-   返回: { counts: {...}, errors: {...} }
-   - count = number（含 0）→ 真实数据
-   - count = null          → 该表查询失败（含具体 error message）
+/* ── 后台统计（各表真实 count）────────────────────────────────
+   count = number（含 0）→ 正常
+   count = null          → 该表查询失败（含错误原因）
    ─────────────────────────────────────────────────────────── */
 export async function getAdminStats() {
   const sb = requireSupabase();

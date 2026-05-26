@@ -1,50 +1,34 @@
 "use client";
 
 /**
- * app/page.jsx  —  TailMe / 爪爪日记
+ * app/page.jsx — TailMe / 爪爪日记
  *
- * 真实 Supabase MVP 环境。
- * 依赖：
- *   @/lib/supabase.js
- *   @/services/supabaseService.js
+ * 手机号账号体系 MVP。
+ * 状态流：
+ *   loading → login（手机号+验证码）→ onboarding（无宠物时）→ app（四 Tab）
+ * user_id 持久化在 localStorage，刷新页面自动恢复登录态。
  */
 
 import { useState, useEffect, useRef } from "react";
 import {
+  getOrCreateUserByPhone,
+  getUserById,
+  getUserPets,
   savePetProfile,
   saveFeedingRecord,
   saveHealthUpload,
 } from "@/services/supabaseService";
 
 /* ══════════════════════════════════════════════════════════════
-   SERVICE LAYER STUBS
-   （地图、聊天、存储、AI 保持 mock，接口位置已预留）
+   未来接入真实服务的 stub（地图 / 聊天 / AI）
 ══════════════════════════════════════════════════════════════ */
-
-// 🗺️  地图服务 — 未来换 MAP_PROVIDER = "amap" | "tencent" | "apple"
-const MAP_PROVIDER = "mock";
 const mapService = {
-  provider: MAP_PROVIDER,
-  getUserLocation:           async () => ({ lat: 31.22, lng: 121.47, city: "上海" }),
-  getNearbyPetFriendlyShops: async () => SHOPS,
-  getShopDetail:             async (id) => SHOPS.find((s) => s.id === id) || null,
-  openNavigation:            (shop) => alert(`导航至：${shop.name}\n（正式版将跳转至高德/Apple 地图）`),
+  openNavigation: (shop) =>
+    alert(`导航至：${shop.name}\n（正式版将跳转至高德/Apple 地图）`),
 };
-
-// 💬 聊天服务 — 未来接腾讯云 IM / 阿里云 IM
 const chatService = {
-  sendMessage: async (groupId, content) => ({ success: true }),
+  sendMessage: async () => {},
 };
-
-// 📦 存储服务 — 未来接腾讯云 COS / 阿里云 OSS
-const storageService = {
-  uploadHealthImage: async (file, type, petId) => ({
-    success: true,
-    url: `mock://health/${petId}/${type}_${Date.now()}.jpg`,
-  }),
-};
-
-// 🤖 AI 健康服务 — 未来接通义千问 VL / DeepSeek / OpenAI Vision
 const _delay = (ms) => new Promise((r) => setTimeout(r, ms));
 const aiHealthService = {
   analyzeFoodImage:  async () => { await _delay(2200); return AI_RES.food;  },
@@ -53,9 +37,8 @@ const aiHealthService = {
 };
 
 /* ══════════════════════════════════════════════════════════════
-   STATIC MOCK DATA
+   STATIC DATA（地图/聊天/附近狗狗 UI 数据）
 ══════════════════════════════════════════════════════════════ */
-
 const BREEDS = [
   "腊肠犬","柴犬","柯基","金毛","拉布拉多","边牧","法斗","比熊","贵宾","泰迪",
   "阿拉斯加","哈士奇","德牧","博美","马尔济斯","巴哥","吉娃娃","秋田","雪纳瑞","约克夏",
@@ -113,7 +96,7 @@ const CHATS = {
   "柴犬群": { count:2341, msgs:[
     { id:1, u:"柴警察局",   av:"🚔", t:"13:10", m:"我家柴犬今天换了新粮，满地打滚不吃 😂" },
     { id:2, u:"橘子皮皮",   av:"🍊", t:"13:15", m:"太正常了！新旧粮要慢慢混合过渡～" },
-    { id:3, u:"小花椒",     av:"🌶️",t:"13:22", m:"大家推荐浦东哪里遛柴犬吗？" },
+    { id:3, u:"小花椒",     av:"🌶️", t:"13:22", m:"大家推荐浦东哪里遛柴犬吗？" },
     { id:4, u:"阿福主人",   av:"🦊", t:"13:30", m:"世纪公园超棒！早上7点前基本可以不牵绳 🌳" },
   ]},
   "柯基群": { count:1876, msgs:[
@@ -131,11 +114,11 @@ const CHATS = {
 };
 
 const DOGS = [
-  { id:1, name:"Joy",    breed:"腊肠犬", age:"2岁", walk:"晚上 7:00",  neut:true,  vacc:true,  likes:"小型犬",   char:"温柔粘人", av:"🌭", km:"0.3", owner:"Lucy" },
-  { id:2, name:"Momo",   breed:"柯基",   age:"1岁", walk:"下午 5:00",  neut:false, vacc:true,  likes:"活泼狗狗", char:"活泼好动", av:"🍑", km:"0.5", owner:"小明"  },
-  { id:3, name:"花花",   breed:"柴犬",   age:"3岁", walk:"早上 8:00",  neut:true,  vacc:true,  likes:"同品种",   char:"独立傲娇", av:"🦊", km:"0.8", owner:"晓雯"  },
-  { id:4, name:"Butter", breed:"金毛",   age:"4岁", walk:"下午 4:00",  neut:true,  vacc:true,  likes:"所有狗狗", char:"超级友善", av:"☀️", km:"1.1", owner:"大伟"  },
-  { id:5, name:"雪球",   breed:"萨摩耶", age:"2岁", walk:"晚上 7:30",  neut:false, vacc:true,  likes:"大型犬",   char:"开朗爱笑", av:"⛄", km:"1.5", owner:"阿强"  },
+  { id:1, name:"Joy",    breed:"腊肠犬", age:"2岁", walk:"晚上 7:00", neut:true,  vacc:true,  likes:"小型犬",   char:"温柔粘人", av:"🌭", km:"0.3", owner:"Lucy" },
+  { id:2, name:"Momo",   breed:"柯基",   age:"1岁", walk:"下午 5:00", neut:false, vacc:true,  likes:"活泼狗狗", char:"活泼好动", av:"🍑", km:"0.5", owner:"小明"  },
+  { id:3, name:"花花",   breed:"柴犬",   age:"3岁", walk:"早上 8:00", neut:true,  vacc:true,  likes:"同品种",   char:"独立傲娇", av:"🦊", km:"0.8", owner:"晓雯"  },
+  { id:4, name:"Butter", breed:"金毛",   age:"4岁", walk:"下午 4:00", neut:true,  vacc:true,  likes:"所有狗狗", char:"超级友善", av:"☀️", km:"1.1", owner:"大伟"  },
+  { id:5, name:"雪球",   breed:"萨摩耶", age:"2岁", walk:"晚上 7:30", neut:false, vacc:true,  likes:"大型犬",   char:"开朗爱笑", av:"⛄", km:"1.5", owner:"阿强"  },
 ];
 
 const AI_RES = {
@@ -160,16 +143,9 @@ const btnStyle  = (active) => ({
 });
 
 /* ══════════════════════════════════════════════════════════════
-   PET AVATAR COMPONENT
-   当前：emoji 占位。
-   未来：传入 avatarType / animatedAvatarUrl / futureAIAvatarConfig
-         接入 Live2D / Spine / Three.js AI 动态宠物。
+   PET AVATAR
 ══════════════════════════════════════════════════════════════ */
-function PetAvatar({ size = 108, animated = true, avatarType = "emoji", animatedAvatarUrl = null, futureAIAvatarConfig = null }) {
-  /* 未来：
-     if (avatarType === "live2d" && animatedAvatarUrl) { ... }
-     if (avatarType === "spine"  && animatedAvatarUrl) { ... }
-     if (avatarType === "webgl_ai" && futureAIAvatarConfig) { ... Three.js ... } */
+function PetAvatar({ size = 108, animated = true }) {
   return (
     <div style={{ width:size, height:size, borderRadius:"50%", background:"rgba(255,255,255,0.22)",
                   display:"flex", alignItems:"center", justifyContent:"center", fontSize:size*0.56,
@@ -180,7 +156,7 @@ function PetAvatar({ size = 108, animated = true, avatarType = "emoji", animated
 }
 
 /* ══════════════════════════════════════════════════════════════
-   SHARED FORM WIDGETS
+   SHARED WIDGETS
 ══════════════════════════════════════════════════════════════ */
 const Label = ({ children, style }) => (
   <div style={{ fontSize:12, fontWeight:600, color:"#5A4A35", marginBottom:8, ...style }}>{children}</div>
@@ -190,40 +166,193 @@ const Inp = (props) => (
     border:`1.5px solid ${C.border}`, background:C.light, color:C.text, outline:"none",
     boxSizing:"border-box", ...props.style }} />
 );
+const ErrBox = ({ msg }) =>
+  msg ? (
+    <div style={{ marginTop:10, padding:"10px 14px", background:"#FFF0F0", borderRadius:14,
+                  fontSize:12, color:"#D94040", lineHeight:1.5 }}>
+      ❌ {msg}
+    </div>
+  ) : null;
+
+/* ══════════════════════════════════════════════════════════════
+   LOADING SCREEN
+══════════════════════════════════════════════════════════════ */
+function LoadingScreen() {
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", alignItems:"center",
+                  justifyContent:"center", background:"linear-gradient(160deg,#FFF8ED 0%,#FFE4B5 50%,#FFDAB9 100%)" }}>
+      <div style={{ fontSize:52, marginBottom:16, animation:"float 3s ease-in-out infinite" }}>🐾</div>
+      <div style={{ fontSize:20, fontWeight:800, color:C.text }}>爪爪日记</div>
+      <div style={{ fontSize:12, color:C.sub, marginTop:6 }}>正在加载...</div>
+      <style>{`@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}`}</style>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PHONE LOGIN
+   MVP 测试验证码：123456
+   正式上线接阿里云短信 SDK：
+     POST https://dysmsapi.aliyuncs.com → SendSms
+     在 Next.js API Route /api/send-sms 中调用，避免前端暴露 AK
+══════════════════════════════════════════════════════════════ */
+function PhoneLogin({ onLogin }) {
+  const [step, setStep]       = useState(1); // 1=输入手机号, 2=输入验证码
+  const [phone, setPhone]     = useState("");
+  const [code, setCode]       = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState(null);
+
+  const isValidPhone = /^1[3-9]\d{9}$/.test(phone.trim());
+
+  const handleSendCode = () => {
+    if (!isValidPhone) { setError("请输入正确的11位中国大陆手机号"); return; }
+    setError(null);
+    // MVP：不实际发送短信，直接进入验证码输入
+    // 正式上线：fetch("/api/send-sms", { method:"POST", body: JSON.stringify({ phone }) })
+    setStep(2);
+  };
+
+  const handleVerify = async () => {
+    if (code.trim() !== "123456") {
+      setError("验证码错误（MVP 固定测试码：123456）");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const user = await getOrCreateUserByPhone(phone.trim());
+      onLogin(user.id);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ height:"100%", background:"linear-gradient(160deg,#FFF8ED 0%,#FFE4B5 50%,#FFDAB9 100%)",
+                  display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 28px" }}>
+      <div style={{ fontSize:52, marginBottom:12 }}>🐾</div>
+      <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:4 }}>爪爪日记</div>
+      <div style={{ fontSize:12, color:C.sub, marginBottom:36 }}>TailMe · 让陪伴更懂你</div>
+
+      <div style={{ width:"100%", background:"white", borderRadius:28, padding:"28px 24px",
+                    boxShadow:"0 6px 30px rgba(255,122,90,0.12)" }}>
+        {step === 1 ? (
+          <>
+            <div style={{ fontSize:18, fontWeight:700, color:C.text, marginBottom:4 }}>手机号登录</div>
+            <div style={{ fontSize:12, color:C.sub, marginBottom:22 }}>
+              新用户自动注册，老用户直接进入
+            </div>
+            <Label>手机号</Label>
+            <div style={{ display:"flex", gap:10, marginBottom:4 }}>
+              <div style={{ background:C.light, borderRadius:16, padding:"12px 14px", fontSize:14,
+                            color:C.sub, border:`1.5px solid ${C.border}`, whiteSpace:"nowrap" }}>
+                +86
+              </div>
+              <Inp
+                value={phone}
+                onChange={(e) => { setPhone(e.target.value); setError(null); }}
+                onKeyDown={(e) => e.key === "Enter" && handleSendCode()}
+                type="tel"
+                maxLength={11}
+                placeholder="请输入手机号"
+              />
+            </div>
+            <ErrBox msg={error} />
+            <button
+              onClick={handleSendCode}
+              style={{ marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14,
+                       fontWeight:700, background:isValidPhone ? C.grad : "#F0E8D8",
+                       color:isValidPhone ? "white" : "#C0A890", border:"none",
+                       cursor:isValidPhone ? "pointer" : "default", transition:"all .2s" }}>
+              获取验证码
+            </button>
+          </>
+        ) : (
+          <>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+              <button onClick={() => { setStep(1); setCode(""); setError(null); }}
+                style={{ background:"transparent", border:"none", fontSize:18, cursor:"pointer", color:C.sub }}>
+                ←
+              </button>
+              <div style={{ fontSize:18, fontWeight:700, color:C.text }}>输入验证码</div>
+            </div>
+            <div style={{ fontSize:12, color:C.sub, marginBottom:22 }}>
+              已发送至 +86 {phone}
+              <span style={{ marginLeft:8, color:C.pri, fontWeight:600, fontSize:11 }}>
+                [MVP 测试码: 123456]
+              </span>
+            </div>
+            <Label>验证码</Label>
+            <Inp
+              value={code}
+              onChange={(e) => { setCode(e.target.value); setError(null); }}
+              onKeyDown={(e) => e.key === "Enter" && handleVerify()}
+              type="number"
+              maxLength={6}
+              placeholder="请输入6位验证码"
+              style={{ letterSpacing:6, fontSize:20, textAlign:"center" }}
+            />
+            <ErrBox msg={error} />
+            <button
+              onClick={handleVerify}
+              disabled={loading || code.length < 6}
+              style={{ marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14,
+                       fontWeight:700, background:!loading && code.length >= 6 ? C.grad : "#F0E8D8",
+                       color:!loading && code.length >= 6 ? "white" : "#C0A890",
+                       border:"none", cursor:!loading && code.length >= 6 ? "pointer" : "default",
+                       transition:"all .2s" }}>
+              {loading ? "验证中..." : "登录 / 注册"}
+            </button>
+          </>
+        )}
+      </div>
+
+      <div style={{ marginTop:20, fontSize:11, color:"#C0A890", textAlign:"center", lineHeight:1.7 }}>
+        登录即代表同意《用户协议》和《隐私政策》
+      </div>
+      <style>{`@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}`}</style>
+    </div>
+  );
+}
 
 /* ══════════════════════════════════════════════════════════════
    ONBOARDING
+   新增：接收 userId prop，创建宠物时必须绑定
 ══════════════════════════════════════════════════════════════ */
-function Onboarding({ onComplete }) {
-  const [step, setStep] = useState(1);
-  const [f, setF] = useState({ name:"", breed:"", age:"", weight:"", gender:"", neutered:"", vaccinated:"" });
+function Onboarding({ userId, onComplete }) {
+  const [step, setStep]     = useState(1);
+  const [f, setF]           = useState({ name:"", breed:"", age:"", weight:"", gender:"", neutered:"", vaccinated:"" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState(null);
+
   const upd = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const ok  = [f.name && f.breed, f.age && f.weight && f.gender, f.neutered && f.vaccinated][step - 1];
-
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState(null);
 
   const next = async () => {
     if (step < 3) { setStep((s) => s + 1); return; }
     setSaving(true);
-    setSaveError(null);
+    setError(null);
     try {
-      const savedPet = await savePetProfile(f);
-      // savedPet 是 Supabase 返回的真实行数据，含真实 uuid id
+      // 真实 INSERT，绑定 userId，service 层处理 boolean 转换
+      const savedPet = await savePetProfile(f, userId);
       onComplete(savedPet);
     } catch (err) {
-      setSaveError(err.message);
+      setError(err.message);
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div style={{ minHeight:"100%", background:"linear-gradient(160deg,#FFF8ED 0%,#FFE4B5 50%,#FFDAB9 100%)", display:"flex", flexDirection:"column" }}>
+    <div style={{ minHeight:"100%", background:"linear-gradient(160deg,#FFF8ED 0%,#FFE4B5 50%,#FFDAB9 100%)",
+                  display:"flex", flexDirection:"column" }}>
       <div style={{ paddingTop:56, paddingBottom:20, textAlign:"center" }}>
         <div style={{ fontSize:52, marginBottom:8 }}>🐾</div>
         <div style={{ fontSize:26, fontWeight:800, color:C.text, letterSpacing:-0.5 }}>爪爪日记</div>
-        <div style={{ fontSize:12, color:C.sub, marginTop:3 }}>TailMe · 让陪伴更懂你</div>
+        <div style={{ fontSize:12, color:C.sub, marginTop:3 }}>告诉我们你的毛孩子</div>
       </div>
       <div style={{ padding:"0 28px", marginBottom:20 }}>
         <div style={{ display:"flex", gap:6, marginBottom:4 }}>
@@ -234,8 +363,10 @@ function Onboarding({ onComplete }) {
         </div>
         <div style={{ textAlign:"center", fontSize:11, color:C.sub }}>第 {step} / 3 步</div>
       </div>
+
       <div style={{ flex:1, padding:"0 18px 20px" }}>
-        <div style={{ background:"white", borderRadius:28, padding:"22px 20px", boxShadow:"0 6px 30px rgba(255,122,90,0.1)" }}>
+        <div style={{ background:"white", borderRadius:28, padding:"22px 20px",
+                      boxShadow:"0 6px 30px rgba(255,122,90,0.1)" }}>
           {step === 1 && <>
             <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>你的毛孩子叫什么？</div>
             <div style={{ fontSize:12, color:C.sub, marginBottom:20 }}>先来认识一下 🐶</div>
@@ -250,9 +381,11 @@ function Onboarding({ onComplete }) {
                 <option value="">选择品种</option>
                 {BREEDS.map((b) => <option key={b} value={b}>{b}</option>)}
               </select>
-              <span style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", color:C.sub, pointerEvents:"none", fontSize:12 }}>▾</span>
+              <span style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)",
+                             color:C.sub, pointerEvents:"none", fontSize:12 }}>▾</span>
             </div>
           </>}
+
           {step === 2 && <>
             <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>{f.name || "它"} 的基本情况？</div>
             <div style={{ fontSize:12, color:C.sub, marginBottom:20 }}>帮助我们更好地了解 💛</div>
@@ -272,6 +405,7 @@ function Onboarding({ onComplete }) {
               <button style={btnStyle(f.gender === "female")} onClick={() => upd("gender","female")}>女孩 🎀</button>
             </div>
           </>}
+
           {step === 3 && <>
             <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>最后两个问题 🌟</div>
             <div style={{ fontSize:12, color:C.sub, marginBottom:20 }}>社交和健康分析会用到</div>
@@ -287,17 +421,14 @@ function Onboarding({ onComplete }) {
             </div>
           </>}
         </div>
+
         <button onClick={next} disabled={!ok || saving}
           style={{ marginTop:14, width:"100%", padding:"15px 0", borderRadius:20, fontSize:14, fontWeight:700,
                    background:ok && !saving ? C.grad : "#F0E8D8", color:ok && !saving ? "white" : "#C0A890",
                    border:"none", cursor:ok && !saving ? "pointer" : "default", transition:"all .2s" }}>
           {saving ? "保存中..." : step < 3 ? "继续 →" : `开始和 ${f.name || "它"} 的旅程 🐾`}
         </button>
-        {saveError && (
-          <div style={{ marginTop:10, padding:"10px 14px", background:"#FFF0F0", borderRadius:14, fontSize:12, color:"#D94040", lineHeight:1.5 }}>
-            ❌ 保存失败：{saveError}
-          </div>
-        )}
+        <ErrBox msg={error} />
         {step > 1 && (
           <button onClick={() => setStep((s) => s - 1)}
             style={{ width:"100%", marginTop:8, padding:"10px 0", fontSize:12, color:C.sub,
@@ -321,10 +452,10 @@ function HomeTab({ pet }) {
   const [uplType, setUpl]   = useState(null);
   const [loading, setLoad]  = useState(false);
   const [result, setResult] = useState(null);
+  const [feedError, setFeedError]     = useState(null);
+  const [uploadError, setUploadError] = useState(null);
 
   const hungry = isHungry(bt, dt);
-
-  const [feedError, setFeedError] = useState(null);
 
   const handleSaveFeed = async () => {
     if (editFeed) {
@@ -337,8 +468,6 @@ function HomeTab({ pet }) {
     }
     setEdit((v) => !v);
   };
-
-  const [uploadError, setUploadError] = useState(null);
 
   const handleUpload = async (type) => {
     setUpl(type); setResult(null); setLoad(true); setUploadError(null);
@@ -360,8 +489,8 @@ function HomeTab({ pet }) {
 
   return (
     <div style={{ height:"100%", overflowY:"auto", background:C.bg }}>
-      {/* Hero */}
-      <div style={{ background:C.grad, borderRadius:"0 0 36px 36px", padding:"52px 20px 28px", position:"relative", overflow:"hidden" }}>
+      <div style={{ background:C.grad, borderRadius:"0 0 36px 36px", padding:"52px 20px 28px",
+                    position:"relative", overflow:"hidden" }}>
         <div style={{ position:"absolute", top:-40, right:-40, width:130, height:130, borderRadius:"50%", background:"rgba(255,255,255,0.1)" }}/>
         <div style={{ position:"absolute", top:15, right:70, width:65, height:65, borderRadius:"50%", background:"rgba(255,255,255,0.07)" }}/>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18 }}>
@@ -369,13 +498,17 @@ function HomeTab({ pet }) {
             <div style={{ fontSize:10, color:"rgba(255,255,255,0.75)", marginBottom:2 }}>爪爪日记 TailMe</div>
             <div style={{ fontSize:20, fontWeight:800, color:"white" }}>嗨，{pet.name} 👋</div>
           </div>
-          <a href="/admin" style={{ width:38, height:38, borderRadius:"50%", background:"rgba(255,255,255,0.22)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, textDecoration:"none" }}>🔔</a>
+          <a href="/admin" style={{ width:38, height:38, borderRadius:"50%", background:"rgba(255,255,255,0.22)",
+                                    display:"flex", alignItems:"center", justifyContent:"center",
+                                    fontSize:16, textDecoration:"none" }}>🔔</a>
         </div>
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
           <div style={{ position:"relative" }}>
-            <PetAvatar size={108} animated pet={pet} />
+            <PetAvatar size={108} animated />
             {hungry && (
-              <div style={{ position:"absolute", top:-6, right:-6, background:"white", borderRadius:20, padding:"3px 9px", fontSize:10, fontWeight:700, color:C.pri, boxShadow:"0 2px 10px rgba(0,0,0,0.15)" }}>
+              <div style={{ position:"absolute", top:-6, right:-6, background:"white", borderRadius:20,
+                            padding:"3px 9px", fontSize:10, fontWeight:700, color:C.pri,
+                            boxShadow:"0 2px 10px rgba(0,0,0,0.15)" }}>
                 😋 饿了
               </div>
             )}
@@ -385,7 +518,8 @@ function HomeTab({ pet }) {
             {pet.breed} · {pet.age}岁 · {pet.weight}kg · {pet.gender === "male" ? "男孩" : "女孩"}
           </div>
           {hungry && (
-            <div style={{ marginTop:12, background:"rgba(255,255,255,0.2)", borderRadius:20, padding:"8px 18px", fontSize:13, color:"white" }}>
+            <div style={{ marginTop:12, background:"rgba(255,255,255,0.2)", borderRadius:20,
+                          padding:"8px 18px", fontSize:13, color:"white" }}>
               🍖 我有点饿啦，记得喂我哦！
             </div>
           )}
@@ -393,14 +527,15 @@ function HomeTab({ pet }) {
       </div>
 
       <div style={{ padding:"14px 14px 90px" }}>
-        {/* Stats */}
+        {/* Quick stats */}
         <div style={{ display:"flex", gap:10, marginBottom:12 }}>
           {[
             ["💪","今日状态","活力满满"],
-            ["💉","疫苗", pet.vaccinated === "yes" ? "已齐全" : "未完成"],
-            [pet.neutered === "yes" ? "✅" : "⭕","绝育", pet.neutered === "yes" ? "已绝育" : "未绝育"],
+            ["💉","疫苗", pet.vaccinated ? "已齐全" : "未完成"],
+            [pet.neutered ? "✅" : "⭕","绝育", pet.neutered ? "已绝育" : "未绝育"],
           ].map(([ico, lbl, val], i) => (
-            <div key={i} style={{ flex:1, background:"white", borderRadius:16, padding:"12px 6px", textAlign:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div key={i} style={{ flex:1, background:"white", borderRadius:16, padding:"12px 6px",
+                                   textAlign:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
               <div style={{ fontSize:18 }}>{ico}</div>
               <div style={{ fontSize:10, color:C.sub, marginTop:4 }}>{lbl}</div>
               <div style={{ fontSize:11, fontWeight:700, color:C.text, marginTop:2 }}>{val}</div>
@@ -416,7 +551,8 @@ function HomeTab({ pet }) {
               <span style={{ fontSize:14, fontWeight:700, color:C.text }}>喂食计划</span>
             </div>
             <button onClick={handleSaveFeed}
-              style={{ fontSize:11, background:C.light, color:C.pri, border:"none", borderRadius:20, padding:"4px 13px", cursor:"pointer", fontWeight:600 }}>
+              style={{ fontSize:11, background:C.light, color:C.pri, border:"none", borderRadius:20,
+                       padding:"4px 13px", cursor:"pointer", fontWeight:600 }}>
               {editFeed ? "完成 ✓" : "设置"}
             </button>
           </div>
@@ -426,7 +562,8 @@ function HomeTab({ pet }) {
                 <div style={{ fontSize:11, color:C.sub, marginBottom:5 }}>{em} {lbl}</div>
                 {editFeed
                   ? <input type="time" value={val} onChange={(e) => setter(e.target.value)}
-                      style={{ fontSize:16, fontWeight:700, color:C.text, background:"transparent", border:"none", outline:"none", width:"100%" }}/>
+                      style={{ fontSize:16, fontWeight:700, color:C.text, background:"transparent",
+                               border:"none", outline:"none", width:"100%" }}/>
                   : <div style={{ fontSize:16, fontWeight:700, color:C.text }}>{val}</div>}
               </div>
             ))}
@@ -436,11 +573,7 @@ function HomeTab({ pet }) {
             <div style={{ fontSize:17, fontWeight:800, color:C.pri, marginTop:3 }}>{feedAmt(pet.weight)}</div>
             <div style={{ fontSize:10, color:"#C0A890", marginTop:4 }}>基于体重 {pet.weight}kg 估算 · 仅供参考</div>
           </div>
-          {feedError && (
-            <div style={{ marginTop:8, padding:"8px 12px", background:"#FFF0F0", borderRadius:12, fontSize:11, color:"#D94040" }}>
-              ❌ 保存失败：{feedError}
-            </div>
-          )}
+          <ErrBox msg={feedError} />
         </div>
 
         {/* AI Upload */}
@@ -448,15 +581,18 @@ function HomeTab({ pet }) {
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
             <span style={{ fontSize:18 }}>🔬</span>
             <span style={{ fontSize:14, fontWeight:700, color:C.text }}>AI 健康分析</span>
-            <span style={{ marginLeft:"auto", fontSize:10, background:"#FFF3E0", color:C.pri, padding:"2px 9px", borderRadius:20, fontWeight:600 }}>Beta</span>
+            <span style={{ marginLeft:"auto", fontSize:10, background:"#FFF3E0", color:C.pri,
+                           padding:"2px 9px", borderRadius:20, fontWeight:600 }}>Beta</span>
           </div>
           <div style={{ fontSize:11, color:C.sub, marginBottom:14 }}>上传照片，AI 帮你初步分析健康状况</div>
           <div style={{ display:"flex", gap:8 }}>
             {[["food","🥩","食物照片"],["poop","💩","便便照片"],["other","🔍","分泌物"]].map(([key, em, lbl]) => (
               <button key={key} onClick={() => handleUpload(key)}
-                style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", padding:"12px 6px", borderRadius:16,
+                style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center",
+                         padding:"12px 6px", borderRadius:16,
                          background:uplType === key ? "#FFF3E0" : "#FAFAFA",
-                         border:`1.5px solid ${uplType === key ? C.pri : C.border}`, cursor:"pointer", transition:"all .2s" }}>
+                         border:`1.5px solid ${uplType === key ? C.pri : C.border}`,
+                         cursor:"pointer", transition:"all .2s" }}>
                 <span style={{ fontSize:24 }}>{em}</span>
                 <span style={{ fontSize:10, color:"#5A4A35", marginTop:5, textAlign:"center", lineHeight:1.3 }}>{lbl}</span>
               </button>
@@ -468,11 +604,7 @@ function HomeTab({ pet }) {
               <div style={{ fontSize:12, color:C.sub, marginTop:8 }}>AI 分析中，请稍候...</div>
             </div>
           )}
-          {uploadError && !loading && (
-            <div style={{ marginTop:14, padding:"10px 14px", background:"#FFF0F0", borderRadius:14, fontSize:12, color:"#D94040" }}>
-              ❌ 保存失败：{uploadError}
-            </div>
-          )}
+          <ErrBox msg={uploadError} />
           {result && !loading && (
             <div style={{ marginTop:14, borderRadius:16, padding:16, background:C.bg, border:`1.5px solid ${C.border}` }}>
               <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.border}` }}>
@@ -485,7 +617,9 @@ function HomeTab({ pet }) {
                   <div style={{ fontSize:14, fontWeight:700, color:result.rc }}>风险：{result.risk}</div>
                   <div style={{ fontSize:10, color:C.sub, marginTop:2 }}>当前等级</div>
                 </div>
-                <div style={{ marginLeft:"auto", width:42, height:42, borderRadius:"50%", background:`${result.rc}22`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>
+                <div style={{ marginLeft:"auto", width:42, height:42, borderRadius:"50%",
+                              background:`${result.rc}22`, display:"flex", alignItems:"center",
+                              justifyContent:"center", fontSize:22 }}>
                   {result.score >= 80 ? "😊" : result.score >= 65 ? "😐" : "😟"}
                 </div>
               </div>
@@ -517,8 +651,6 @@ function MapTab() {
         <div style={{ fontSize:20, fontWeight:800, color:C.text }}>🗺️ 宠物友好地图</div>
         <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>上海 · 附近宠物友好店铺</div>
       </div>
-
-      {/* SVG mock 地图 — 未来根据 MAP_PROVIDER 替换为高德/腾讯/Apple */}
       <div style={{ margin:"0 14px", borderRadius:24, overflow:"hidden", flexShrink:0, boxShadow:"0 2px 14px rgba(0,0,0,0.07)" }}>
         <svg width="100%" viewBox="0 0 400 170" style={{ display:"block" }}>
           <rect width="400" height="170" fill="#DFF0DF"/>
@@ -543,7 +675,6 @@ function MapTab() {
           ))}
         </svg>
       </div>
-
       <div style={{ flex:1, overflowY:"auto", padding:"10px 14px 76px" }}>
         <div style={{ fontSize:11, color:C.sub, marginBottom:10, fontWeight:600 }}>附近 {SHOPS.length} 家宠物友好店铺</div>
         {SHOPS.map((s) => (
@@ -552,13 +683,16 @@ function MapTab() {
                      boxShadow:"0 2px 10px rgba(0,0,0,0.05)", border:`1.5px solid ${sel?.id===s.id ? C.pri : "transparent"}`,
                      cursor:"pointer", textAlign:"left", display:"block", transition:"all .2s" }}>
             <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
-              <div style={{ width:50, height:50, borderRadius:14, background:C.light, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>{s.em}</div>
+              <div style={{ width:50, height:50, borderRadius:14, background:C.light, display:"flex",
+                            alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>{s.em}</div>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:14, fontWeight:700, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{s.name}</div>
+                <div style={{ fontSize:14, fontWeight:700, color:C.text, whiteSpace:"nowrap",
+                              overflow:"hidden", textOverflow:"ellipsis" }}>{s.name}</div>
                 <div style={{ fontSize:11, color:C.sub, marginTop:2 }}>{s.typ} · {s.dist}</div>
                 <div style={{ display:"flex", gap:5, marginTop:6, flexWrap:"wrap" }}>
                   {s.tags.slice(0,2).map((t) => (
-                    <span key={t} style={{ fontSize:10, background:"#FFF3E0", color:C.pri, padding:"2px 8px", borderRadius:20, fontWeight:500 }}>{t}</span>
+                    <span key={t} style={{ fontSize:10, background:"#FFF3E0", color:C.pri,
+                                          padding:"2px 8px", borderRadius:20, fontWeight:500 }}>{t}</span>
                   ))}
                 </div>
               </div>
@@ -570,12 +704,12 @@ function MapTab() {
           </button>
         ))}
       </div>
-
-      {/* Bottom sheet modal */}
       {sel && (
-        <div style={{ position:"absolute", inset:0, zIndex:50, background:"rgba(26,16,6,0.48)", display:"flex", alignItems:"flex-end" }}
+        <div style={{ position:"absolute", inset:0, zIndex:50, background:"rgba(26,16,6,0.48)",
+                      display:"flex", alignItems:"flex-end" }}
              onClick={(e) => e.target === e.currentTarget && setSel(null)}>
-          <div style={{ width:"100%", background:"white", borderRadius:"26px 26px 0 0", padding:"20px 20px 32px", maxHeight:"72%", overflowY:"auto", boxSizing:"border-box" }}>
+          <div style={{ width:"100%", background:"white", borderRadius:"26px 26px 0 0",
+                        padding:"20px 20px 32px", maxHeight:"72%", overflowY:"auto", boxSizing:"border-box" }}>
             <div style={{ width:40, height:4, borderRadius:4, background:"#E0D4C8", margin:"0 auto 18px" }}/>
             <div style={{ fontSize:42, textAlign:"center", marginBottom:12 }}>{sel.em}</div>
             <div style={{ fontSize:18, fontWeight:800, color:C.text, marginBottom:4 }}>{sel.name}</div>
@@ -584,14 +718,16 @@ function MapTab() {
             <div style={{ fontSize:13, lineHeight:1.75, color:"#5A4A35", marginBottom:16 }}>{sel.desc}</div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:16 }}>
               {[["宠物饮水",sel.water],["Dog Treat",sel.treat],["大型犬",sel.large]].map(([lbl, v]) => (
-                <div key={lbl} style={{ borderRadius:14, padding:"12px 6px", textAlign:"center", background:v?"#F0FFF4":"#FFF5F5" }}>
+                <div key={lbl} style={{ borderRadius:14, padding:"12px 6px", textAlign:"center",
+                                        background:v?"#F0FFF4":"#FFF5F5" }}>
                   <div style={{ fontSize:20 }}>{v ? "✅" : "❌"}</div>
                   <div style={{ fontSize:11, color:v?"#4CAF50":"#F44336", marginTop:4, fontWeight:600 }}>{lbl}</div>
                 </div>
               ))}
             </div>
             <button onClick={() => mapService.openNavigation(sel)}
-              style={{ width:"100%", padding:"14px 0", borderRadius:20, background:C.grad, color:"white", fontSize:14, fontWeight:700, border:"none", cursor:"pointer" }}>
+              style={{ width:"100%", padding:"14px 0", borderRadius:20, background:C.grad, color:"white",
+                       fontSize:14, fontWeight:700, border:"none", cursor:"pointer" }}>
               收藏这里 🐾
             </button>
           </div>
@@ -605,8 +741,8 @@ function MapTab() {
    COMMUNITY TAB
 ══════════════════════════════════════════════════════════════ */
 function CommunityTab({ pet }) {
-  const groups = Object.keys(CHATS);
-  const defG   = pet?.breed && CHATS[`${pet.breed}群`] ? `${pet.breed}群` : groups[0];
+  const groups  = Object.keys(CHATS);
+  const defG    = pet?.breed && CHATS[`${pet.breed}群`] ? `${pet.breed}群` : groups[0];
   const [ag, setAg]     = useState(defG);
   const [msgs, setMsgs] = useState(() => {
     const m = {};
@@ -628,7 +764,6 @@ function CommunityTab({ pet }) {
       m: inp.trim(), own: true,
     };
     setMsgs((p) => ({ ...p, [ag]: [...p[ag], newMsg] }));
-    // 未来: await chatService.sendMessage(ag, inp.trim())
     await chatService.sendMessage(ag, inp.trim());
     setInp("");
   };
@@ -641,7 +776,8 @@ function CommunityTab({ pet }) {
         <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:12, scrollbarWidth:"none" }}>
           {groups.map((g) => (
             <button key={g} onClick={() => setAg(g)}
-              style={{ flexShrink:0, padding:"6px 14px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer", transition:"all .2s",
+              style={{ flexShrink:0, padding:"6px 14px", borderRadius:20, fontSize:12, fontWeight:600,
+                       cursor:"pointer", transition:"all .2s",
                        background:ag===g ? C.grad : C.light, color:ag===g ? "white" : "#5A4A35",
                        border:`1.5px solid ${ag===g ? "transparent" : C.border}` }}>
               {g}
@@ -649,17 +785,22 @@ function CommunityTab({ pet }) {
           ))}
         </div>
       </div>
-      <div style={{ background:"#FFF8ED", padding:"7px 18px", borderBottom:`1px solid ${C.border}`, flexShrink:0, display:"flex", alignItems:"center", gap:10 }}>
+      <div style={{ background:"#FFF8ED", padding:"7px 18px", borderBottom:`1px solid ${C.border}`,
+                    flexShrink:0, display:"flex", alignItems:"center", gap:10 }}>
         <span style={{ fontSize:13, fontWeight:700, color:C.text }}>🐕 {ag}</span>
         <span style={{ fontSize:11, color:C.sub }}>{CHATS[ag]?.count.toLocaleString()} 人在群里</span>
       </div>
       <div ref={chatRef} style={{ flex:1, overflowY:"auto", padding:"12px 14px" }}>
         {(msgs[ag] || []).map((msg) => (
-          <div key={msg.id} style={{ display:"flex", gap:10, marginBottom:14, flexDirection:msg.own ? "row-reverse" : "row" }}>
-            <div style={{ width:34, height:34, borderRadius:"50%", background:"#FFF3E0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>
+          <div key={msg.id} style={{ display:"flex", gap:10, marginBottom:14,
+                                     flexDirection:msg.own ? "row-reverse" : "row" }}>
+            <div style={{ width:34, height:34, borderRadius:"50%", background:"#FFF3E0",
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          fontSize:16, flexShrink:0 }}>
               {msg.av}
             </div>
-            <div style={{ maxWidth:"72%", display:"flex", flexDirection:"column", alignItems:msg.own ? "flex-end" : "flex-start" }}>
+            <div style={{ maxWidth:"72%", display:"flex", flexDirection:"column",
+                          alignItems:msg.own ? "flex-end" : "flex-start" }}>
               {!msg.own && <div style={{ fontSize:11, color:C.sub, marginBottom:3, paddingLeft:4 }}>{msg.u}</div>}
               <div style={{ padding:"10px 14px", fontSize:13, lineHeight:1.55,
                             borderRadius:msg.own ? "18px 4px 18px 18px" : "4px 18px 18px 18px",
@@ -672,12 +813,17 @@ function CommunityTab({ pet }) {
           </div>
         ))}
       </div>
-      <div style={{ background:"white", borderTop:`1px solid ${C.border}`, padding:"10px 14px 18px", display:"flex", gap:10, flexShrink:0 }}>
-        <input value={inp} onChange={(e) => setInp(e.target.value)} onKeyDown={(e) => e.key==="Enter" && send()}
+      <div style={{ background:"white", borderTop:`1px solid ${C.border}`, padding:"10px 14px 18px",
+                    display:"flex", gap:10, flexShrink:0 }}>
+        <input value={inp} onChange={(e) => setInp(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder={`和 ${ag} 的朋友聊聊...`}
-          style={{ flex:1, borderRadius:22, padding:"10px 16px", fontSize:13, border:`1.5px solid ${C.border}`, background:"#FAFAFA", color:C.text, outline:"none" }}/>
+          style={{ flex:1, borderRadius:22, padding:"10px 16px", fontSize:13,
+                   border:`1.5px solid ${C.border}`, background:"#FAFAFA", color:C.text, outline:"none" }}/>
         <button onClick={send}
-          style={{ width:40, height:40, borderRadius:"50%", background:C.grad, border:"none", cursor:"pointer", color:"white", fontSize:16, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          style={{ width:40, height:40, borderRadius:"50%", background:C.grad, border:"none",
+                   cursor:"pointer", color:"white", fontSize:16, flexShrink:0,
+                   display:"flex", alignItems:"center", justifyContent:"center" }}>
           ➤
         </button>
       </div>
@@ -697,17 +843,22 @@ function SocialTab() {
         <div style={{ fontSize:20, fontWeight:800, color:C.text }}>🐾 附近狗狗</div>
         <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>找到附近的狗友，一起遛弯</div>
       </div>
-      <div style={{ margin:"12px 14px 0", background:C.light, border:`1px solid #FFE4B5`, borderRadius:16, padding:"10px 14px", display:"flex", gap:8 }}>
+      <div style={{ margin:"12px 14px 0", background:C.light, border:`1px solid #FFE4B5`,
+                    borderRadius:16, padding:"10px 14px", display:"flex", gap:8 }}>
         <span style={{ fontSize:14 }}>ℹ️</span>
         <div style={{ fontSize:11, color:C.sub, lineHeight:1.65 }}>
-          正式功能上线后需上传<span style={{ color:C.pri, fontWeight:600 }}>疫苗证明</span>和<span style={{ color:C.pri, fontWeight:600 }}>狗证</span>，当前为 Demo 展示阶段。
+          正式功能上线后需上传<span style={{ color:C.pri, fontWeight:600 }}>疫苗证明</span>和
+          <span style={{ color:C.pri, fontWeight:600 }}>狗证</span>，当前为 Demo 展示阶段。
         </div>
       </div>
       <div style={{ padding:"12px 14px 88px" }}>
         {DOGS.map((dog) => (
           <div key={dog.id} style={{ ...cardStyle }}>
             <div style={{ display:"flex", gap:12 }}>
-              <div style={{ width:60, height:60, borderRadius:18, background:"linear-gradient(135deg,#FFF3E0,#FFE4B5)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, flexShrink:0 }}>
+              <div style={{ width:60, height:60, borderRadius:18,
+                            background:"linear-gradient(135deg,#FFF3E0,#FFE4B5)",
+                            display:"flex", alignItems:"center", justifyContent:"center",
+                            fontSize:32, flexShrink:0 }}>
                 {dog.av}
               </div>
               <div style={{ flex:1 }}>
@@ -724,7 +875,9 @@ function SocialTab() {
                 { lbl:dog.neut ? "已绝育" : "未绝育", ok:dog.neut },
                 { lbl:dog.vacc ? "疫苗齐全" : "疫苗未齐", ok:dog.vacc },
               ].map((b) => (
-                <span key={b.lbl} style={{ fontSize:11, background:b.ok?"#F0FFF4":"#FFF5F5", color:b.ok?"#4CAF50":"#F44336", padding:"4px 10px", borderRadius:20, fontWeight:600 }}>
+                <span key={b.lbl} style={{ fontSize:11, background:b.ok?"#F0FFF4":"#FFF5F5",
+                                           color:b.ok?"#4CAF50":"#F44336", padding:"4px 10px",
+                                           borderRadius:20, fontWeight:600 }}>
                   {b.ok ? "✓" : "✗"} {b.lbl}
                 </span>
               ))}
@@ -734,11 +887,14 @@ function SocialTab() {
             </div>
             <div style={{ fontSize:12, color:C.sub, marginTop:8 }}>🎭 性格：{dog.char}</div>
             {inv.has(dog.id)
-              ? <div style={{ marginTop:12, padding:"11px 0", background:"#F0FFF4", borderRadius:14, textAlign:"center", fontSize:13, color:"#4CAF50", fontWeight:600 }}>
+              ? <div style={{ marginTop:12, padding:"11px 0", background:"#F0FFF4", borderRadius:14,
+                              textAlign:"center", fontSize:13, color:"#4CAF50", fontWeight:600 }}>
                   ✅ 邀请已发送，等待对方主人同意
                 </div>
               : <button onClick={() => setInv((p) => new Set([...p, dog.id]))}
-                  style={{ marginTop:12, width:"100%", padding:"12px 0", borderRadius:14, background:C.grad, color:"white", fontSize:13, fontWeight:700, border:"none", cursor:"pointer" }}>
+                  style={{ marginTop:12, width:"100%", padding:"12px 0", borderRadius:14,
+                           background:C.grad, color:"white", fontSize:13, fontWeight:700,
+                           border:"none", cursor:"pointer" }}>
                   🐾 邀请一起散步
                 </button>}
           </div>
@@ -750,6 +906,8 @@ function SocialTab() {
 
 /* ══════════════════════════════════════════════════════════════
    APP SHELL
+   状态机：loading → login → onboarding → app
+   user_id 持久化至 localStorage("tailme_user_id")
 ══════════════════════════════════════════════════════════════ */
 const TABS = [
   { icon:"🏠", label:"首页" },
@@ -758,45 +916,101 @@ const TABS = [
   { icon:"🐾", label:"狗友" },
 ];
 
-export default function App() {
-  const [pet, setPet] = useState(null);
-  const [tab, setTab] = useState(0);
+// 状态：loading | login | onboarding | app
+const S = { LOADING:"loading", LOGIN:"login", ONBOARDING:"onboarding", APP:"app" };
+const LS_KEY = "tailme_user_id";
 
-  return (
+export default function AppRoot() {
+  const [screen, setScreen] = useState(S.LOADING);
+  const [userId, setUserId] = useState(null);
+  const [pet, setPet]       = useState(null);
+  const [tab, setTab]       = useState(0);
+
+  /* 启动时：读取 localStorage → 验证 userId → 查询宠物 */
+  useEffect(() => {
+    const storedId = localStorage.getItem(LS_KEY);
+    if (!storedId) { setScreen(S.LOGIN); return; }
+
+    // 验证 user 在 DB 中确实存在（防止 DB 重置后本地残留 id）
+    getUserById(storedId)
+      .then(() => loadPets(storedId))
+      .catch(() => {
+        // user 不存在 → 清除本地缓存，重新登录
+        localStorage.removeItem(LS_KEY);
+        setScreen(S.LOGIN);
+      });
+  }, []);
+
+  const loadPets = async (uid) => {
+    try {
+      const pets = await getUserPets(uid);
+      setUserId(uid);
+      if (pets && pets.length > 0) {
+        setPet(pets[0]);
+        setScreen(S.APP);
+      } else {
+        setScreen(S.ONBOARDING);
+      }
+    } catch {
+      // 查询宠物失败也进入 onboarding，让用户重新创建
+      setUserId(uid);
+      setScreen(S.ONBOARDING);
+    }
+  };
+
+  /* 登录成功 → 保存 userId → 查询宠物 */
+  const handleLogin = (uid) => {
+    localStorage.setItem(LS_KEY, uid);
+    setUserId(uid);
+    setScreen(S.LOADING);
+    loadPets(uid);
+  };
+
+  /* 宠物创建成功 → 进入主页 */
+  const handlePetCreated = (newPet) => {
+    setPet(newPet);
+    setScreen(S.APP);
+  };
+
+  const shell = (content, scroll = false) => (
     <div style={{ background:"linear-gradient(155deg,#FFE8D4 0%,#FFD6E8 100%)", minHeight:"100vh",
                   display:"flex", justifyContent:"center", alignItems:"flex-start" }}>
       <div style={{ width:"100%", maxWidth:430, height:"100vh", position:"relative",
-                    background:C.bg, overflow:"hidden",
-                    boxShadow:"0 0 80px rgba(255,122,90,0.18)" }}>
-        {!pet ? (
-          <div style={{ height:"100%", overflowY:"auto" }}>
-            <Onboarding onComplete={setPet} />
-          </div>
-        ) : (
-          <>
-            <div style={{ position:"absolute", top:0, left:0, right:0, bottom:60, overflow:"hidden" }}>
-              {tab === 0 && <HomeTab pet={pet} />}
-              {tab === 1 && <MapTab />}
-              {tab === 2 && <CommunityTab pet={pet} />}
-              {tab === 3 && <SocialTab />}
-            </div>
-            <div style={{ position:"absolute", bottom:0, left:0, right:0, height:60,
-                          background:"white", borderTop:`1px solid ${C.border}`,
-                          display:"flex", zIndex:100 }}>
-              {TABS.map((t, i) => (
-                <button key={i} onClick={() => setTab(i)}
-                  style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center",
-                           justifyContent:"center", gap:2, border:"none", background:"transparent",
-                           cursor:"pointer", transition:"all .15s", paddingTop:4 }}>
-                  <div style={{ fontSize:20, lineHeight:1, filter:tab===i ? "none" : "grayscale(1) opacity(0.5)" }}>{t.icon}</div>
-                  <div style={{ fontSize:10, fontWeight:tab===i ? 700 : 500, color:tab===i ? C.pri : "#C0A890", transition:"color .15s" }}>{t.label}</div>
-                  {tab === i && <div style={{ width:18, height:2.5, borderRadius:4, background:C.grad, marginTop:1 }}/>}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+                    background:C.bg, overflow:"hidden", boxShadow:"0 0 80px rgba(255,122,90,0.18)" }}>
+        {scroll
+          ? <div style={{ height:"100%", overflowY:"auto" }}>{content}</div>
+          : content}
       </div>
     </div>
+  );
+
+  if (screen === S.LOADING)    return shell(<LoadingScreen />, false);
+  if (screen === S.LOGIN)      return shell(<PhoneLogin onLogin={handleLogin} />, false);
+  if (screen === S.ONBOARDING) return shell(<Onboarding userId={userId} onComplete={handlePetCreated} />, true);
+
+  // S.APP
+  return shell(
+    <>
+      <div style={{ position:"absolute", top:0, left:0, right:0, bottom:60, overflow:"hidden" }}>
+        {tab === 0 && <HomeTab pet={pet} />}
+        {tab === 1 && <MapTab />}
+        {tab === 2 && <CommunityTab pet={pet} />}
+        {tab === 3 && <SocialTab />}
+      </div>
+      <div style={{ position:"absolute", bottom:0, left:0, right:0, height:60,
+                    background:"white", borderTop:`1px solid ${C.border}`, display:"flex", zIndex:100 }}>
+        {TABS.map((t, i) => (
+          <button key={i} onClick={() => setTab(i)}
+            style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center",
+                     justifyContent:"center", gap:2, border:"none", background:"transparent",
+                     cursor:"pointer", transition:"all .15s", paddingTop:4 }}>
+            <div style={{ fontSize:20, lineHeight:1, filter:tab===i ? "none" : "grayscale(1) opacity(0.5)" }}>{t.icon}</div>
+            <div style={{ fontSize:10, fontWeight:tab===i ? 700 : 500,
+                          color:tab===i ? C.pri : "#C0A890", transition:"color .15s" }}>{t.label}</div>
+            {tab === i && <div style={{ width:18, height:2.5, borderRadius:4, background:C.grad, marginTop:1 }}/>}
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
