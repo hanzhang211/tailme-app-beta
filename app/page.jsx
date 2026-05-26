@@ -122,19 +122,8 @@ const btnStyle  = (active) => ({
 ══════════════════════════════════════════════════════════════ */
 function Logo({ size = 52 }) {
   return (
-    <svg width={size} height={Math.round(size * 0.95)} viewBox="0 0 100 95"
-         fill="none" stroke="#000000" strokeWidth="5"
-         strokeLinecap="round" strokeLinejoin="round" aria-label="爪爪日记">
-      <ellipse cx="50" cy="62" rx="42" ry="11" transform="rotate(-14 50 62)" />
-      <circle cx="92" cy="51" r="3.5" fill="#000000" stroke="none" />
-      <g fill="#FFFFFF">
-        <ellipse cx="22" cy="36" rx="8" ry="12" transform="rotate(-15 22 36)" />
-        <ellipse cx="40" cy="24" rx="9" ry="14" />
-        <ellipse cx="60" cy="24" rx="9" ry="14" />
-        <ellipse cx="78" cy="36" rx="8" ry="12" transform="rotate(15 78 36)" />
-        <path d="M 28 50 Q 22 58, 25 72 Q 30 84, 45 86 Q 62 86, 73 80 Q 80 72, 78 60 Q 75 50, 65 48 Q 50 46, 36 47 Q 30 48, 28 50 Z" />
-      </g>
-    </svg>
+    <img src="/logo.png" alt="爪爪日记"
+         style={{ display:"block", width:size, height:"auto" }} />
   );
 }
 
