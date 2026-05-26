@@ -125,7 +125,7 @@ const Label = ({ children, style }) => (
 );
 const Inp = (props) => (
   <input {...props} style={{ width:"100%", borderRadius:16, padding:"12px 14px", fontSize:14,
-    border:`1.5px solid ${C.border}`, background:C.light, color:C.text, outline:"none",
+    border:"2px solid #000000", background:"#FFFFFF", color:C.text, outline:"none",
     boxSizing:"border-box", ...props.style }} />
 );
 const ErrBox = ({ msg }) =>
@@ -192,25 +192,30 @@ function PhoneLogin({ onLogin }) {
     }
   };
 
+  // PhoneLogin 本地白底冷调
+  const P_SURFACE = "#F7F8FA";
+  const P_BORDER  = "#ECEEF2";
+  const P_SUB     = "#8A8F98";
+
   return (
-    <div style={{ height:"100%", background:"linear-gradient(160deg,#FFF8ED 0%,#FFE4B5 50%,#FFDAB9 100%)",
+    <div style={{ height:"100%", background:"#FFFFFF",
                   display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 28px" }}>
       <div style={{ fontSize:52, marginBottom:12 }}>🐾</div>
       <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:4 }}>爪爪日记</div>
-      <div style={{ fontSize:12, color:C.sub, marginBottom:36 }}>TailMe · 让陪伴更懂你</div>
+      <div style={{ fontSize:12, color:P_SUB, marginBottom:36 }}>TailMe · 让陪伴更懂你</div>
 
-      <div style={{ width:"100%", background:"white", borderRadius:28, padding:"28px 24px",
-                    boxShadow:"0 6px 30px rgba(255,122,90,0.12)" }}>
+      <div style={{ width:"100%", background:"white", border:`1px solid ${P_BORDER}`,
+                    borderRadius:28, padding:"28px 24px" }}>
         {step === 1 ? (
           <>
             <div style={{ fontSize:18, fontWeight:700, color:C.text, marginBottom:4 }}>手机号登录</div>
-            <div style={{ fontSize:12, color:C.sub, marginBottom:22 }}>
+            <div style={{ fontSize:12, color:P_SUB, marginBottom:22 }}>
               新用户自动注册，老用户直接进入
             </div>
             <Label>手机号</Label>
             <div style={{ display:"flex", gap:10, marginBottom:4 }}>
-              <div style={{ background:C.light, borderRadius:16, padding:"12px 14px", fontSize:14,
-                            color:C.sub, border:`1.5px solid ${C.border}`, whiteSpace:"nowrap" }}>
+              <div style={{ background:"#FFFFFF", borderRadius:16, padding:"12px 14px", fontSize:14,
+                            color:C.text, border:"2px solid #000000", whiteSpace:"nowrap", fontWeight:600 }}>
                 +86
               </div>
               <Inp
@@ -226,8 +231,9 @@ function PhoneLogin({ onLogin }) {
             <button
               onClick={handleSendCode}
               style={{ marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14,
-                       fontWeight:700, background:isValidPhone ? C.grad : "#F0E8D8",
-                       color:isValidPhone ? "white" : "#C0A890", border:"none",
+                       fontWeight:700, background:isValidPhone ? C.grad : P_SURFACE,
+                       color:isValidPhone ? "white" : P_SUB,
+                       border:isValidPhone ? "none" : `1px solid ${P_BORDER}`,
                        cursor:isValidPhone ? "pointer" : "default", transition:"all .2s" }}>
               获取验证码
             </button>
@@ -236,12 +242,12 @@ function PhoneLogin({ onLogin }) {
           <>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
               <button onClick={() => { setStep(1); setCode(""); setError(null); }}
-                style={{ background:"transparent", border:"none", fontSize:18, cursor:"pointer", color:C.sub }}>
+                style={{ background:"transparent", border:"none", fontSize:18, cursor:"pointer", color:P_SUB }}>
                 ←
               </button>
               <div style={{ fontSize:18, fontWeight:700, color:C.text }}>输入验证码</div>
             </div>
-            <div style={{ fontSize:12, color:C.sub, marginBottom:22 }}>
+            <div style={{ fontSize:12, color:P_SUB, marginBottom:22 }}>
               已发送至 +86 {phone}
               <span style={{ marginLeft:8, color:C.pri, fontWeight:600, fontSize:11 }}>
                 [MVP 测试码: 123456]
@@ -262,9 +268,10 @@ function PhoneLogin({ onLogin }) {
               onClick={handleVerify}
               disabled={loading || code.length < 6}
               style={{ marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14,
-                       fontWeight:700, background:!loading && code.length >= 6 ? C.grad : "#F0E8D8",
-                       color:!loading && code.length >= 6 ? "white" : "#C0A890",
-                       border:"none", cursor:!loading && code.length >= 6 ? "pointer" : "default",
+                       fontWeight:700, background:!loading && code.length >= 6 ? C.grad : P_SURFACE,
+                       color:!loading && code.length >= 6 ? "white" : P_SUB,
+                       border:!loading && code.length >= 6 ? "none" : `1px solid ${P_BORDER}`,
+                       cursor:!loading && code.length >= 6 ? "pointer" : "default",
                        transition:"all .2s" }}>
               {loading ? "验证中..." : "登录 / 注册"}
             </button>
@@ -272,7 +279,7 @@ function PhoneLogin({ onLogin }) {
         )}
       </div>
 
-      <div style={{ marginTop:20, fontSize:11, color:"#C0A890", textAlign:"center", lineHeight:1.7 }}>
+      <div style={{ marginTop:20, fontSize:11, color:P_SUB, textAlign:"center", lineHeight:1.7 }}>
         登录即代表同意《用户协议》和《隐私政策》
       </div>
       <style>{`@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}`}</style>
@@ -313,7 +320,6 @@ function Onboarding({ userId, onComplete }) {
   const O_SURFACE  = "#F7F8FA";
   const O_BORDER   = "#ECEEF2";
   const O_SUB      = "#8A8F98";
-  const O_INP      = { background:O_SURFACE, border:`1.5px solid ${O_BORDER}` };
 
   return (
     <div style={{ minHeight:"100%", background:O_BG, display:"flex", flexDirection:"column" }}>
@@ -338,12 +344,12 @@ function Onboarding({ userId, onComplete }) {
             <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>你的毛孩子叫什么？</div>
             <div style={{ fontSize:12, color:O_SUB, marginBottom:20 }}>先来认识一下 🐶</div>
             <Label>宠物名字</Label>
-            <Inp value={f.name} onChange={(e) => upd("name", e.target.value)} placeholder="比如：豆豆、可乐、花花..." style={O_INP} />
+            <Inp value={f.name} onChange={(e) => upd("name", e.target.value)} placeholder="比如：豆豆、可乐、花花..." />
             <Label style={{ marginTop:16 }}>狗狗品种</Label>
             <div style={{ position:"relative" }}>
               <select value={f.breed} onChange={(e) => upd("breed", e.target.value)}
                 style={{ width:"100%", borderRadius:16, padding:"12px 16px", fontSize:14,
-                         border:`1.5px solid ${O_BORDER}`, background:O_SURFACE,
+                         border:"2px solid #000000", background:"#FFFFFF",
                          color:f.breed ? C.text : O_SUB, outline:"none", appearance:"none", boxSizing:"border-box" }}>
                 <option value="">选择品种</option>
                 {BREEDS.map((b) => <option key={b} value={b}>{b}</option>)}
@@ -359,11 +365,11 @@ function Onboarding({ userId, onComplete }) {
             <div style={{ display:"flex", gap:12, marginBottom:16 }}>
               <div style={{ flex:1 }}>
                 <Label>年龄（岁）</Label>
-                <Inp value={f.age} onChange={(e) => upd("age", e.target.value)} type="number" min="0" max="20" placeholder="2" style={O_INP} />
+                <Inp value={f.age} onChange={(e) => upd("age", e.target.value)} type="number" min="0" max="20" placeholder="2" />
               </div>
               <div style={{ flex:1 }}>
                 <Label>体重（kg）</Label>
-                <Inp value={f.weight} onChange={(e) => upd("weight", e.target.value)} type="number" min="0" max="80" step="0.1" placeholder="8.5" style={O_INP} />
+                <Inp value={f.weight} onChange={(e) => upd("weight", e.target.value)} type="number" min="0" max="80" step="0.1" placeholder="8.5" />
               </div>
             </div>
             <Label>性别</Label>
