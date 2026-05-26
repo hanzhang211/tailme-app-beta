@@ -112,8 +112,8 @@ const C = {
 };
 const cardStyle = { background:C.card, borderRadius:20, padding:16, marginBottom:12, boxShadow:"0 2px 14px rgba(0,0,0,0.05)" };
 const btnStyle  = (active) => ({
-  background: active ? C.grad : C.light, color: active ? "#fff" : "#5A4A35",
-  border:`1.5px solid ${active ? C.pri : C.border}`, borderRadius:16,
+  background: active ? C.grad : "#F7F8FA", color: active ? "#fff" : "#3B4252",
+  border:`1.5px solid ${active ? C.pri : "#ECEEF2"}`, borderRadius:16,
   padding:"10px 0", fontSize:13, fontWeight:600, cursor:"pointer", flex:1, transition:"all .2s",
 });
 
@@ -142,10 +142,10 @@ const ErrBox = ({ msg }) =>
 function LoadingScreen() {
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", alignItems:"center",
-                  justifyContent:"center", background:"linear-gradient(160deg,#FFF8ED 0%,#FFE4B5 50%,#FFDAB9 100%)" }}>
+                  justifyContent:"center", background:"#FFFFFF" }}>
       <div style={{ fontSize:52, marginBottom:16, animation:"float 3s ease-in-out infinite" }}>🐾</div>
       <div style={{ fontSize:20, fontWeight:800, color:C.text }}>爪爪日记</div>
-      <div style={{ fontSize:12, color:C.sub, marginTop:6 }}>正在加载...</div>
+      <div style={{ fontSize:12, color:"#8A8F98", marginTop:6 }}>正在加载...</div>
       <style>{`@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}`}</style>
     </div>
   );
@@ -308,57 +308,62 @@ function Onboarding({ userId, onComplete }) {
     }
   };
 
+  // Onboarding 本地白底冷调
+  const O_BG       = "#FFFFFF";
+  const O_SURFACE  = "#F7F8FA";
+  const O_BORDER   = "#ECEEF2";
+  const O_SUB      = "#8A8F98";
+  const O_INP      = { background:O_SURFACE, border:`1.5px solid ${O_BORDER}` };
+
   return (
-    <div style={{ minHeight:"100%", background:"linear-gradient(160deg,#FFF8ED 0%,#FFE4B5 50%,#FFDAB9 100%)",
-                  display:"flex", flexDirection:"column" }}>
+    <div style={{ minHeight:"100%", background:O_BG, display:"flex", flexDirection:"column" }}>
       <div style={{ paddingTop:56, paddingBottom:20, textAlign:"center" }}>
         <div style={{ fontSize:52, marginBottom:8 }}>🐾</div>
         <div style={{ fontSize:26, fontWeight:800, color:C.text, letterSpacing:-0.5 }}>爪爪日记</div>
-        <div style={{ fontSize:12, color:C.sub, marginTop:3 }}>告诉我们你的毛孩子</div>
+        <div style={{ fontSize:12, color:O_SUB, marginTop:3 }}>告诉我们你的毛孩子</div>
       </div>
       <div style={{ padding:"0 28px", marginBottom:20 }}>
         <div style={{ display:"flex", gap:6, marginBottom:4 }}>
           {[1,2,3].map((i) => (
             <div key={i} style={{ flex:1, height:4, borderRadius:4, transition:"background .3s",
-                                   background: i <= step ? C.pri : "#FFD9C8" }} />
+                                   background: i <= step ? C.pri : O_BORDER }} />
           ))}
         </div>
-        <div style={{ textAlign:"center", fontSize:11, color:C.sub }}>第 {step} / 3 步</div>
+        <div style={{ textAlign:"center", fontSize:11, color:O_SUB }}>第 {step} / 3 步</div>
       </div>
 
       <div style={{ flex:1, padding:"0 18px 20px" }}>
-        <div style={{ background:"white", borderRadius:28, padding:"22px 20px",
-                      boxShadow:"0 6px 30px rgba(255,122,90,0.1)" }}>
+        <div style={{ background:"white", border:`1px solid ${O_BORDER}`, borderRadius:28, padding:"22px 20px" }}>
           {step === 1 && <>
             <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>你的毛孩子叫什么？</div>
-            <div style={{ fontSize:12, color:C.sub, marginBottom:20 }}>先来认识一下 🐶</div>
+            <div style={{ fontSize:12, color:O_SUB, marginBottom:20 }}>先来认识一下 🐶</div>
             <Label>宠物名字</Label>
-            <Inp value={f.name} onChange={(e) => upd("name", e.target.value)} placeholder="比如：豆豆、可乐、花花..." />
+            <Inp value={f.name} onChange={(e) => upd("name", e.target.value)} placeholder="比如：豆豆、可乐、花花..." style={O_INP} />
             <Label style={{ marginTop:16 }}>狗狗品种</Label>
             <div style={{ position:"relative" }}>
               <select value={f.breed} onChange={(e) => upd("breed", e.target.value)}
                 style={{ width:"100%", borderRadius:16, padding:"12px 16px", fontSize:14,
-                         border:`1.5px solid ${C.border}`, background:C.light,
-                         color:f.breed ? C.text : C.sub, outline:"none", appearance:"none", boxSizing:"border-box" }}>
+                         border:`1.5px solid ${O_BORDER}`, background:O_SURFACE,
+                         color:f.breed ? C.text : O_SUB, outline:"none", appearance:"none", boxSizing:"border-box" }}>
                 <option value="">选择品种</option>
                 {BREEDS.map((b) => <option key={b} value={b}>{b}</option>)}
               </select>
               <span style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)",
-                             color:C.sub, pointerEvents:"none", fontSize:12 }}>▾</span>
+                             color:O_SUB, pointerEvents:"none", fontSize:12 }}>▾</span>
             </div>
           </>}
 
           {step === 2 && <>
             <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>{f.name || "它"} 的基本情况？</div>
-            <div style={{ fontSize:12, color:C.sub, marginBottom:20 }}>帮助我们更好地了解 💛</div>
+            <div style={{ fontSize:12, color:O_SUB, marginBottom:20 }}>帮助我们更好地了解 💛</div>
             <div style={{ display:"flex", gap:12, marginBottom:16 }}>
               <div style={{ flex:1 }}>
                 <Label>年龄（岁）</Label>
-                <Inp value={f.age} onChange={(e) => upd("age", e.target.value)} type="number" min="0" max="20" placeholder="2" />
+                <Inp value={f.age} onChange={(e) => upd("age", e.target.value)} type="number" min="0" max="20" placeholder="2" style={O_INP} />
               </div>
               <div style={{ flex:1 }}>
                 <Label>体重（kg）</Label>
-                <Inp value={f.weight} onChange={(e) => upd("weight", e.target.value)} type="number" min="0" max="80" step="0.1" placeholder="8.5" />
+                <Inp value={f.weight} onChange={(e) => upd("weight", e.target.value)} type="number" min="0" max="80" step="0.1" placeholder="8.5" style={O_INP} />
               </div>
             </div>
             <Label>性别</Label>
@@ -370,7 +375,7 @@ function Onboarding({ userId, onComplete }) {
 
           {step === 3 && <>
             <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>最后两个问题 🌟</div>
-            <div style={{ fontSize:12, color:C.sub, marginBottom:20 }}>社交和健康分析会用到</div>
+            <div style={{ fontSize:12, color:O_SUB, marginBottom:20 }}>社交和健康分析会用到</div>
             <Label>是否已绝育</Label>
             <div style={{ display:"flex", gap:10, marginBottom:18 }}>
               <button style={btnStyle(f.neutered === "yes")} onClick={() => upd("neutered","yes")}>已绝育 ✅</button>
@@ -386,14 +391,15 @@ function Onboarding({ userId, onComplete }) {
 
         <button onClick={next} disabled={!ok || saving}
           style={{ marginTop:14, width:"100%", padding:"15px 0", borderRadius:20, fontSize:14, fontWeight:700,
-                   background:ok && !saving ? C.grad : "#F0E8D8", color:ok && !saving ? "white" : "#C0A890",
-                   border:"none", cursor:ok && !saving ? "pointer" : "default", transition:"all .2s" }}>
+                   background:ok && !saving ? C.grad : O_SURFACE, color:ok && !saving ? "white" : O_SUB,
+                   border:ok && !saving ? "none" : `1px solid ${O_BORDER}`,
+                   cursor:ok && !saving ? "pointer" : "default", transition:"all .2s" }}>
           {saving ? "保存中..." : step < 3 ? "继续 →" : `开始和 ${f.name || "它"} 的旅程 🐾`}
         </button>
         <ErrBox msg={error} />
         {step > 1 && (
           <button onClick={() => setStep((s) => s - 1)}
-            style={{ width:"100%", marginTop:8, padding:"10px 0", fontSize:12, color:C.sub,
+            style={{ width:"100%", marginTop:8, padding:"10px 0", fontSize:12, color:O_SUB,
                      background:"transparent", border:"none", cursor:"pointer" }}>
             ← 返回修改
           </button>
