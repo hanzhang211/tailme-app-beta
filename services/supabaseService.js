@@ -6,7 +6,7 @@
  * 无任何 mock / fallback / fake 数据。
  */
 
-import supabase from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 function requireSupabase() {
   if (!supabase) {
