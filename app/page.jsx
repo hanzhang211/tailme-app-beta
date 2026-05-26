@@ -210,7 +210,7 @@ function PhoneLogin({ onLogin }) {
   return (
     <div style={{ height:"100%", background:"#FFFFFF",
                   display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 28px" }}>
-      <div style={{ marginBottom:12 }}><Logo size={52} /></div>
+      <div style={{ marginBottom:12 }}><Logo size={96} /></div>
       <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:4 }}>爪爪日记</div>
       <div style={{ fontSize:12, color:P_SUB, marginBottom:36 }}>TailMe · 让陪伴更懂你</div>
 
@@ -335,7 +335,7 @@ function Onboarding({ userId, onComplete }) {
   return (
     <div style={{ minHeight:"100%", background:O_BG, display:"flex", flexDirection:"column" }}>
       <div style={{ paddingTop:56, paddingBottom:20, textAlign:"center" }}>
-        <div style={{ marginBottom:8, display:"flex", justifyContent:"center" }}><Logo size={52} /></div>
+        <div style={{ marginBottom:8, display:"flex", justifyContent:"center" }}><Logo size={96} /></div>
         <div style={{ fontSize:26, fontWeight:800, color:C.text, letterSpacing:-0.5 }}>爪爪日记</div>
         <div style={{ fontSize:12, color:O_SUB, marginTop:3 }}>告诉我们你的毛孩子</div>
       </div>
