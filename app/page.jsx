@@ -118,6 +118,27 @@ const btnStyle  = (active) => ({
 });
 
 /* ══════════════════════════════════════════════════════════════
+   BRAND LOGO（内联 SVG，爪印 + 轨道环）
+══════════════════════════════════════════════════════════════ */
+function Logo({ size = 52 }) {
+  return (
+    <svg width={size} height={Math.round(size * 0.95)} viewBox="0 0 100 95"
+         fill="none" stroke="#000000" strokeWidth="5"
+         strokeLinecap="round" strokeLinejoin="round" aria-label="爪爪日记">
+      <ellipse cx="50" cy="62" rx="42" ry="11" transform="rotate(-14 50 62)" />
+      <circle cx="92" cy="51" r="3.5" fill="#000000" stroke="none" />
+      <g fill="#FFFFFF">
+        <ellipse cx="22" cy="36" rx="8" ry="12" transform="rotate(-15 22 36)" />
+        <ellipse cx="40" cy="24" rx="9" ry="14" />
+        <ellipse cx="60" cy="24" rx="9" ry="14" />
+        <ellipse cx="78" cy="36" rx="8" ry="12" transform="rotate(15 78 36)" />
+        <path d="M 28 50 Q 22 58, 25 72 Q 30 84, 45 86 Q 62 86, 73 80 Q 80 72, 78 60 Q 75 50, 65 48 Q 50 46, 36 47 Q 30 48, 28 50 Z" />
+      </g>
+    </svg>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
    SHARED WIDGETS
 ══════════════════════════════════════════════════════════════ */
 const Label = ({ children, style }) => (
@@ -143,7 +164,7 @@ function LoadingScreen() {
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", alignItems:"center",
                   justifyContent:"center", background:"#FFFFFF" }}>
-      <div style={{ fontSize:52, marginBottom:16, animation:"float 3s ease-in-out infinite" }}>🐾</div>
+      <div style={{ marginBottom:16, animation:"float 3s ease-in-out infinite" }}><Logo size={52} /></div>
       <div style={{ fontSize:20, fontWeight:800, color:C.text }}>爪爪日记</div>
       <div style={{ fontSize:12, color:"#8A8F98", marginTop:6 }}>正在加载...</div>
       <style>{`@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}`}</style>
@@ -200,7 +221,7 @@ function PhoneLogin({ onLogin }) {
   return (
     <div style={{ height:"100%", background:"#FFFFFF",
                   display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 28px" }}>
-      <div style={{ fontSize:52, marginBottom:12 }}>🐾</div>
+      <div style={{ marginBottom:12 }}><Logo size={52} /></div>
       <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:4 }}>爪爪日记</div>
       <div style={{ fontSize:12, color:P_SUB, marginBottom:36 }}>TailMe · 让陪伴更懂你</div>
 
@@ -325,7 +346,7 @@ function Onboarding({ userId, onComplete }) {
   return (
     <div style={{ minHeight:"100%", background:O_BG, display:"flex", flexDirection:"column" }}>
       <div style={{ paddingTop:56, paddingBottom:20, textAlign:"center" }}>
-        <div style={{ fontSize:52, marginBottom:8 }}>🐾</div>
+        <div style={{ marginBottom:8, display:"flex", justifyContent:"center" }}><Logo size={52} /></div>
         <div style={{ fontSize:26, fontWeight:800, color:C.text, letterSpacing:-0.5 }}>爪爪日记</div>
         <div style={{ fontSize:12, color:O_SUB, marginTop:3 }}>告诉我们你的毛孩子</div>
       </div>
@@ -474,9 +495,12 @@ function HomeTab({ pet }) {
       <div style={{ background:H_BG, borderBottom:`1px solid ${H_BORDER}`, padding:"52px 20px 24px",
                     position:"relative", overflow:"hidden" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18 }}>
-          <div>
-            <div style={{ fontSize:10, color:H_SUB, marginBottom:2, letterSpacing:0.5 }}>爪爪日记 TailMe</div>
-            <div style={{ fontSize:20, fontWeight:800, color:C.text }}>嗨，{pet.name} 👋</div>
+          <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
+            <Logo size={32} />
+            <div>
+              <div style={{ fontSize:10, color:H_SUB, marginBottom:2, letterSpacing:0.5 }}>爪爪日记 TailMe</div>
+              <div style={{ fontSize:20, fontWeight:800, color:C.text }}>嗨，{pet.name} 👋</div>
+            </div>
           </div>
           <a href="/admin" style={{ width:38, height:38, borderRadius:"50%", background:H_SURFACE,
                                     border:`1px solid ${H_BORDER}`,
