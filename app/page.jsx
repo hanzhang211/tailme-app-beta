@@ -493,7 +493,8 @@ function HomeTab({ pet }) {
   // HomeTab 本地白底科技风配色（仅作用于本 Tab，保留橙色作为点缀）
   const H_BG       = "#FFFFFF";
   const H_SURFACE  = "#F7F8FA";  // 浅灰填充（替代原 C.light 暖黄）
-  const H_BORDER   = "#000000";  // 黑色描边（细线 1px）
+  const H_BORDER   = "#E5E7EB";  // 浅灰描边
+  const H_SHADOW   = "0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)";  // 柔阴影
   const H_SUB      = "#8A8F98";  // 次级文字（替代暖灰 C.sub）
 
   return (
@@ -552,7 +553,8 @@ function HomeTab({ pet }) {
             [pet.neutered ? "✅" : "⭕","绝育", pet.neutered ? "已绝育" : "未绝育"],
           ].map(([ico, lbl, val], i) => (
             <div key={i} style={{ flex:1, background:"white", border:`1px solid ${H_BORDER}`,
-                                   borderRadius:16, padding:"12px 6px", textAlign:"center" }}>
+                                   borderRadius:16, padding:"12px 6px", textAlign:"center",
+                                   boxShadow:H_SHADOW }}>
               <div style={{ fontSize:18 }}>{ico}</div>
               <div style={{ fontSize:10, color:H_SUB, marginTop:4 }}>{lbl}</div>
               <div style={{ fontSize:11, fontWeight:700, color:C.text, marginTop:2 }}>{val}</div>
@@ -562,7 +564,7 @@ function HomeTab({ pet }) {
 
         {/* Feeding */}
         <div style={{ background:"white", border:`1px solid ${H_BORDER}`, borderRadius:20,
-                      padding:16, marginBottom:12 }}>
+                      padding:16, marginBottom:12, boxShadow:H_SHADOW }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               <span style={{ fontSize:18 }}>🍽️</span>
@@ -599,7 +601,7 @@ function HomeTab({ pet }) {
 
         {/* AI Upload */}
         <div style={{ background:"white", border:`1px solid ${H_BORDER}`, borderRadius:20,
-                      padding:16, marginBottom:12 }}>
+                      padding:16, marginBottom:12, boxShadow:H_SHADOW }}>
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
             <span style={{ fontSize:18 }}>🔬</span>
             <span style={{ fontSize:14, fontWeight:700, color:C.text }}>AI 健康分析</span>
