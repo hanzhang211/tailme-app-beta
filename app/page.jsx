@@ -125,7 +125,7 @@ const Label = ({ children, style }) => (
 );
 const Inp = (props) => (
   <input {...props} style={{ width:"100%", borderRadius:16, padding:"12px 14px", fontSize:14,
-    border:"2px solid #000000", background:"#FFFFFF", color:C.text, outline:"none",
+    border:"1.5px solid #ECEEF2", background:"#F7F8FA", color:C.text, outline:"none",
     boxSizing:"border-box", ...props.style }} />
 );
 const ErrBox = ({ msg }) =>
@@ -204,8 +204,9 @@ function PhoneLogin({ onLogin }) {
       <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:4 }}>爪爪日记</div>
       <div style={{ fontSize:12, color:P_SUB, marginBottom:36 }}>TailMe · 让陪伴更懂你</div>
 
-      <div style={{ width:"100%", background:"white", border:`1px solid ${P_BORDER}`,
-                    borderRadius:28, padding:"28px 24px" }}>
+      <div style={{ width:"100%", background:"white", border:"2.5px solid #000000",
+                    borderRadius:28, padding:"28px 24px",
+                    boxShadow:"0 16px 44px rgba(0,0,0,0.14)" }}>
         {step === 1 ? (
           <>
             <div style={{ fontSize:18, fontWeight:700, color:C.text, marginBottom:4 }}>手机号登录</div>
@@ -214,8 +215,8 @@ function PhoneLogin({ onLogin }) {
             </div>
             <Label>手机号</Label>
             <div style={{ display:"flex", gap:10, marginBottom:4 }}>
-              <div style={{ background:"#FFFFFF", borderRadius:16, padding:"12px 14px", fontSize:14,
-                            color:C.text, border:"2px solid #000000", whiteSpace:"nowrap", fontWeight:600 }}>
+              <div style={{ background:P_SURFACE, borderRadius:16, padding:"12px 14px", fontSize:14,
+                            color:C.text, border:`1.5px solid ${P_BORDER}`, whiteSpace:"nowrap" }}>
                 +86
               </div>
               <Inp
@@ -231,7 +232,7 @@ function PhoneLogin({ onLogin }) {
             <button
               onClick={handleSendCode}
               style={{ marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14,
-                       fontWeight:700, background:isValidPhone ? C.grad : P_SURFACE,
+                       fontWeight:700, background:isValidPhone ? "#000000" : P_SURFACE,
                        color:isValidPhone ? "white" : P_SUB,
                        border:isValidPhone ? "none" : `1px solid ${P_BORDER}`,
                        cursor:isValidPhone ? "pointer" : "default", transition:"all .2s" }}>
@@ -268,7 +269,7 @@ function PhoneLogin({ onLogin }) {
               onClick={handleVerify}
               disabled={loading || code.length < 6}
               style={{ marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14,
-                       fontWeight:700, background:!loading && code.length >= 6 ? C.grad : P_SURFACE,
+                       fontWeight:700, background:!loading && code.length >= 6 ? "#000000" : P_SURFACE,
                        color:!loading && code.length >= 6 ? "white" : P_SUB,
                        border:!loading && code.length >= 6 ? "none" : `1px solid ${P_BORDER}`,
                        cursor:!loading && code.length >= 6 ? "pointer" : "default",
@@ -349,7 +350,7 @@ function Onboarding({ userId, onComplete }) {
             <div style={{ position:"relative" }}>
               <select value={f.breed} onChange={(e) => upd("breed", e.target.value)}
                 style={{ width:"100%", borderRadius:16, padding:"12px 16px", fontSize:14,
-                         border:"2px solid #000000", background:"#FFFFFF",
+                         border:`1.5px solid ${O_BORDER}`, background:O_SURFACE,
                          color:f.breed ? C.text : O_SUB, outline:"none", appearance:"none", boxSizing:"border-box" }}>
                 <option value="">选择品种</option>
                 {BREEDS.map((b) => <option key={b} value={b}>{b}</option>)}
@@ -397,7 +398,7 @@ function Onboarding({ userId, onComplete }) {
 
         <button onClick={next} disabled={!ok || saving}
           style={{ marginTop:14, width:"100%", padding:"15px 0", borderRadius:20, fontSize:14, fontWeight:700,
-                   background:ok && !saving ? C.grad : O_SURFACE, color:ok && !saving ? "white" : O_SUB,
+                   background:ok && !saving ? "#000000" : O_SURFACE, color:ok && !saving ? "white" : O_SUB,
                    border:ok && !saving ? "none" : `1px solid ${O_BORDER}`,
                    cursor:ok && !saving ? "pointer" : "default", transition:"all .2s" }}>
           {saving ? "保存中..." : step < 3 ? "继续 →" : `开始和 ${f.name || "它"} 的旅程 🐾`}
