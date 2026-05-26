@@ -118,19 +118,6 @@ const btnStyle  = (active) => ({
 });
 
 /* ══════════════════════════════════════════════════════════════
-   PET AVATAR
-══════════════════════════════════════════════════════════════ */
-function PetAvatar({ size = 108, animated = true }) {
-  return (
-    <div style={{ width:size, height:size, borderRadius:"50%", background:"rgba(255,255,255,0.22)",
-                  display:"flex", alignItems:"center", justifyContent:"center", fontSize:size*0.56,
-                  animation: animated ? "float 3s ease-in-out infinite" : "none" }}>
-      🐶
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════
    SHARED WIDGETS
 ══════════════════════════════════════════════════════════════ */
 const Label = ({ children, style }) => (
@@ -462,39 +449,50 @@ function HomeTab({ pet }) {
     }
   };
 
+  // HomeTab 本地白底科技风配色（仅作用于本 Tab，保留橙色作为点缀）
+  const H_BG       = "#FFFFFF";
+  const H_SURFACE  = "#F7F8FA";  // 浅灰填充（替代原 C.light 暖黄）
+  const H_BORDER   = "#ECEEF2";  // 冷调描边（替代原 C.border 米黄）
+  const H_SUB      = "#8A8F98";  // 次级文字（替代暖灰 C.sub）
+
   return (
-    <div style={{ height:"100%", overflowY:"auto", background:C.bg }}>
-      <div style={{ background:C.grad, borderRadius:"0 0 36px 36px", padding:"52px 20px 28px",
+    <div style={{ height:"100%", overflowY:"auto", background:H_BG }}>
+      <div style={{ background:H_BG, borderBottom:`1px solid ${H_BORDER}`, padding:"52px 20px 24px",
                     position:"relative", overflow:"hidden" }}>
-        <div style={{ position:"absolute", top:-40, right:-40, width:130, height:130, borderRadius:"50%", background:"rgba(255,255,255,0.1)" }}/>
-        <div style={{ position:"absolute", top:15, right:70, width:65, height:65, borderRadius:"50%", background:"rgba(255,255,255,0.07)" }}/>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18 }}>
           <div>
-            <div style={{ fontSize:10, color:"rgba(255,255,255,0.75)", marginBottom:2 }}>爪爪日记 TailMe</div>
-            <div style={{ fontSize:20, fontWeight:800, color:"white" }}>嗨，{pet.name} 👋</div>
+            <div style={{ fontSize:10, color:H_SUB, marginBottom:2, letterSpacing:0.5 }}>爪爪日记 TailMe</div>
+            <div style={{ fontSize:20, fontWeight:800, color:C.text }}>嗨，{pet.name} 👋</div>
           </div>
-          <a href="/admin" style={{ width:38, height:38, borderRadius:"50%", background:"rgba(255,255,255,0.22)",
+          <a href="/admin" style={{ width:38, height:38, borderRadius:"50%", background:H_SURFACE,
+                                    border:`1px solid ${H_BORDER}`,
                                     display:"flex", alignItems:"center", justifyContent:"center",
                                     fontSize:16, textDecoration:"none" }}>🔔</a>
         </div>
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
           <div style={{ position:"relative" }}>
-            <PetAvatar size={108} animated />
+            <div style={{ width:108, height:108, borderRadius:"50%",
+                          background:C.grad,
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          fontSize:60, animation:"float 3s ease-in-out infinite",
+                          boxShadow:"0 8px 24px rgba(255,122,90,0.25)" }}>
+              🐶
+            </div>
             {hungry && (
-              <div style={{ position:"absolute", top:-6, right:-6, background:"white", borderRadius:20,
-                            padding:"3px 9px", fontSize:10, fontWeight:700, color:C.pri,
-                            boxShadow:"0 2px 10px rgba(0,0,0,0.15)" }}>
+              <div style={{ position:"absolute", top:-6, right:-6, background:C.pri, borderRadius:20,
+                            padding:"3px 9px", fontSize:10, fontWeight:700, color:"white",
+                            boxShadow:"0 2px 10px rgba(255,122,90,0.35)" }}>
                 😋 饿了
               </div>
             )}
           </div>
-          <div style={{ marginTop:12, fontSize:20, fontWeight:800, color:"white" }}>{pet.name}</div>
-          <div style={{ fontSize:12, color:"rgba(255,255,255,0.82)", marginTop:3 }}>
+          <div style={{ marginTop:12, fontSize:20, fontWeight:800, color:C.text }}>{pet.name}</div>
+          <div style={{ fontSize:12, color:H_SUB, marginTop:3 }}>
             {pet.breed} · {pet.age}岁 · {pet.weight}kg · {pet.gender === "male" ? "男孩" : "女孩"}
           </div>
           {hungry && (
-            <div style={{ marginTop:12, background:"rgba(255,255,255,0.2)", borderRadius:20,
-                          padding:"8px 18px", fontSize:13, color:"white" }}>
+            <div style={{ marginTop:12, background:H_SURFACE, border:`1px solid ${H_BORDER}`,
+                          borderRadius:20, padding:"8px 18px", fontSize:13, color:C.pri, fontWeight:600 }}>
               🍖 我有点饿啦，记得喂我哦！
             </div>
           )}
@@ -509,32 +507,35 @@ function HomeTab({ pet }) {
             ["💉","疫苗", pet.vaccinated ? "已齐全" : "未完成"],
             [pet.neutered ? "✅" : "⭕","绝育", pet.neutered ? "已绝育" : "未绝育"],
           ].map(([ico, lbl, val], i) => (
-            <div key={i} style={{ flex:1, background:"white", borderRadius:16, padding:"12px 6px",
-                                   textAlign:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div key={i} style={{ flex:1, background:"white", border:`1px solid ${H_BORDER}`,
+                                   borderRadius:16, padding:"12px 6px", textAlign:"center" }}>
               <div style={{ fontSize:18 }}>{ico}</div>
-              <div style={{ fontSize:10, color:C.sub, marginTop:4 }}>{lbl}</div>
+              <div style={{ fontSize:10, color:H_SUB, marginTop:4 }}>{lbl}</div>
               <div style={{ fontSize:11, fontWeight:700, color:C.text, marginTop:2 }}>{val}</div>
             </div>
           ))}
         </div>
 
         {/* Feeding */}
-        <div style={cardStyle}>
+        <div style={{ background:"white", border:`1px solid ${H_BORDER}`, borderRadius:20,
+                      padding:16, marginBottom:12 }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               <span style={{ fontSize:18 }}>🍽️</span>
               <span style={{ fontSize:14, fontWeight:700, color:C.text }}>喂食计划</span>
             </div>
             <button onClick={handleSaveFeed}
-              style={{ fontSize:11, background:C.light, color:C.pri, border:"none", borderRadius:20,
+              style={{ fontSize:11, background:H_SURFACE, color:C.pri,
+                       border:`1px solid ${H_BORDER}`, borderRadius:20,
                        padding:"4px 13px", cursor:"pointer", fontWeight:600 }}>
               {editFeed ? "完成 ✓" : "设置"}
             </button>
           </div>
           <div style={{ display:"flex", gap:10, marginBottom:12 }}>
             {[["🌅","早饭",bt,setBt],["🌆","晚饭",dt,setDt]].map(([em, lbl, val, setter]) => (
-              <div key={lbl} style={{ flex:1, background:C.light, borderRadius:14, padding:12 }}>
-                <div style={{ fontSize:11, color:C.sub, marginBottom:5 }}>{em} {lbl}</div>
+              <div key={lbl} style={{ flex:1, background:H_SURFACE, border:`1px solid ${H_BORDER}`,
+                                       borderRadius:14, padding:12 }}>
+                <div style={{ fontSize:11, color:H_SUB, marginBottom:5 }}>{em} {lbl}</div>
                 {editFeed
                   ? <input type="time" value={val} onChange={(e) => setter(e.target.value)}
                       style={{ fontSize:16, fontWeight:700, color:C.text, background:"transparent",
@@ -543,54 +544,57 @@ function HomeTab({ pet }) {
               </div>
             ))}
           </div>
-          <div style={{ background:"#FFF3E0", borderRadius:14, padding:12 }}>
-            <div style={{ fontSize:11, color:C.sub }}>推荐喂食量（每次）</div>
+          <div style={{ background:H_SURFACE, border:`1px solid ${H_BORDER}`,
+                        borderLeft:`3px solid ${C.pri}`, borderRadius:14, padding:12 }}>
+            <div style={{ fontSize:11, color:H_SUB }}>推荐喂食量（每次）</div>
             <div style={{ fontSize:17, fontWeight:800, color:C.pri, marginTop:3 }}>{feedAmt(pet.weight)}</div>
-            <div style={{ fontSize:10, color:"#C0A890", marginTop:4 }}>基于体重 {pet.weight}kg 估算 · 仅供参考</div>
+            <div style={{ fontSize:10, color:H_SUB, marginTop:4 }}>基于体重 {pet.weight}kg 估算 · 仅供参考</div>
           </div>
           <ErrBox msg={feedError} />
         </div>
 
         {/* AI Upload */}
-        <div style={cardStyle}>
+        <div style={{ background:"white", border:`1px solid ${H_BORDER}`, borderRadius:20,
+                      padding:16, marginBottom:12 }}>
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
             <span style={{ fontSize:18 }}>🔬</span>
             <span style={{ fontSize:14, fontWeight:700, color:C.text }}>AI 健康分析</span>
-            <span style={{ marginLeft:"auto", fontSize:10, background:"#FFF3E0", color:C.pri,
+            <span style={{ marginLeft:"auto", fontSize:10, background:H_SURFACE, color:C.pri,
+                           border:`1px solid ${H_BORDER}`,
                            padding:"2px 9px", borderRadius:20, fontWeight:600 }}>Beta</span>
           </div>
-          <div style={{ fontSize:11, color:C.sub, marginBottom:14 }}>上传照片，AI 帮你初步分析健康状况</div>
+          <div style={{ fontSize:11, color:H_SUB, marginBottom:14 }}>上传照片，AI 帮你初步分析健康状况</div>
           <div style={{ display:"flex", gap:8 }}>
             {[["food","🥩","食物照片"],["poop","💩","便便照片"],["other","🔍","分泌物"]].map(([key, em, lbl]) => (
               <button key={key} onClick={() => handleUpload(key)}
                 style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center",
                          padding:"12px 6px", borderRadius:16,
-                         background:uplType === key ? "#FFF3E0" : "#FAFAFA",
-                         border:`1.5px solid ${uplType === key ? C.pri : C.border}`,
+                         background:uplType === key ? "#FFF3E0" : H_SURFACE,
+                         border:`1.5px solid ${uplType === key ? C.pri : H_BORDER}`,
                          cursor:"pointer", transition:"all .2s" }}>
                 <span style={{ fontSize:24 }}>{em}</span>
-                <span style={{ fontSize:10, color:"#5A4A35", marginTop:5, textAlign:"center", lineHeight:1.3 }}>{lbl}</span>
+                <span style={{ fontSize:10, color:C.text, marginTop:5, textAlign:"center", lineHeight:1.3 }}>{lbl}</span>
               </button>
             ))}
           </div>
           {loading && (
             <div style={{ marginTop:18, textAlign:"center", padding:"12px 0" }}>
               <div style={{ fontSize:28, display:"inline-block", animation:"spin 1s linear infinite" }}>⟳</div>
-              <div style={{ fontSize:12, color:C.sub, marginTop:8 }}>AI 分析中，请稍候...</div>
+              <div style={{ fontSize:12, color:H_SUB, marginTop:8 }}>AI 分析中，请稍候...</div>
             </div>
           )}
           <ErrBox msg={uploadError} />
           {result && !loading && (
-            <div style={{ marginTop:14, borderRadius:16, padding:16, background:C.bg, border:`1.5px solid ${C.border}` }}>
-              <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.border}` }}>
+            <div style={{ marginTop:14, borderRadius:16, padding:16, background:H_SURFACE, border:`1px solid ${H_BORDER}` }}>
+              <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${H_BORDER}` }}>
                 <div style={{ textAlign:"center" }}>
                   <div style={{ fontSize:30, fontWeight:800, color:result.rc, lineHeight:1 }}>{result.score}</div>
-                  <div style={{ fontSize:10, color:C.sub, marginTop:2 }}>健康评分</div>
+                  <div style={{ fontSize:10, color:H_SUB, marginTop:2 }}>健康评分</div>
                 </div>
-                <div style={{ width:1, height:40, background:C.border }}/>
+                <div style={{ width:1, height:40, background:H_BORDER }}/>
                 <div style={{ textAlign:"center" }}>
                   <div style={{ fontSize:14, fontWeight:700, color:result.rc }}>风险：{result.risk}</div>
-                  <div style={{ fontSize:10, color:C.sub, marginTop:2 }}>当前等级</div>
+                  <div style={{ fontSize:10, color:H_SUB, marginTop:2 }}>当前等级</div>
                 </div>
                 <div style={{ marginLeft:"auto", width:42, height:42, borderRadius:"50%",
                               background:`${result.rc}22`, display:"flex", alignItems:"center",
@@ -598,8 +602,9 @@ function HomeTab({ pet }) {
                   {result.score >= 80 ? "😊" : result.score >= 65 ? "😐" : "😟"}
                 </div>
               </div>
-              <div style={{ fontSize:13, lineHeight:1.7, color:"#5A4A35", marginBottom:10 }}>{result.txt}</div>
-              <div style={{ fontSize:11, background:"#F5F5F5", borderRadius:12, padding:"8px 12px", color:C.sub, lineHeight:1.5 }}>
+              <div style={{ fontSize:13, lineHeight:1.7, color:C.text, marginBottom:10 }}>{result.txt}</div>
+              <div style={{ fontSize:11, background:"white", border:`1px solid ${H_BORDER}`,
+                            borderRadius:12, padding:"8px 12px", color:H_SUB, lineHeight:1.5 }}>
                 ⚠️ 本结果仅为健康辅助参考，不能替代兽医诊断。如有疑虑请及时就医。
               </div>
             </div>
