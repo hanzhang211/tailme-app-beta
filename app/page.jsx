@@ -959,7 +959,7 @@ export default function AppRoot() {
                             display:"flex", alignItems:"center", justifyContent:"center",
                             marginTop:-16, boxShadow:"0 4px 14px rgba(230,134,69,0.4)" }}>
                 <img src="/logo.png" alt="首页"
-                     style={{ width:40, height:"auto",
+                     style={{ width:48, height:"auto",
                               filter:"brightness(0) invert(1)" }} />
               </div>
             ) : (
