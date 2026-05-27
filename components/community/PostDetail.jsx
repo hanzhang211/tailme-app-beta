@@ -129,8 +129,12 @@ export default function PostDetail({
         postId: postId, userId: user.id, petId: pet?.id,
         content: draft, parentId: replyTo,
       });
-      if (flagged) toast?.("评论已待审核", "warn");
-      else setComments((prev) => [...prev, comment]);
+      if (flagged) {
+        toast?.("评论已待审核", "warn");
+      } else {
+        setComments((prev) => [...prev, comment]);
+        toast?.(replyTo ? "回复成功 🎉" : "评论成功 🎉", "success");
+      }
       setDraft("");
       setReplyTo(null);
     } catch (e) {

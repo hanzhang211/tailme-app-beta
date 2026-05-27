@@ -804,10 +804,10 @@ function SocialTab() {
    user_id 持久化至 localStorage("tailme_user_id")
 ══════════════════════════════════════════════════════════════ */
 const TABS = [
-  { icon:"🗺️", label:"地图" },
-  { icon:"💬", label:"社群" },
-  { home:true, label:"首页" },
   { icon:"🐾", label:"狗友" },
+  { icon:"🗺️", label:"地图" },
+  { home:true, label:"首页" },
+  { icon:"💬", label:"社群" },
   { icon:"⋯",  label:"更多" },   // 预留页
 ];
 
@@ -897,10 +897,10 @@ export default function AppRoot() {
   return shell(
     <>
       <div style={{ position:"absolute", top:0, left:0, right:0, bottom:60, overflow:"hidden" }}>
-        {tab === 0 && <MapTab />}
-        {tab === 1 && <CommunityTab user={user} pet={pet} />}
+        {tab === 0 && <SocialTab />}
+        {tab === 1 && <MapTab />}
         {tab === 2 && <HomeTab pet={pet} />}
-        {tab === 3 && <SocialTab />}
+        {tab === 3 && <CommunityTab user={user} pet={pet} />}
         {tab === 4 && (
           <div style={{ height:"100%", display:"flex", flexDirection:"column",
                         alignItems:"center", justifyContent:"center", color:C.sub, background:C.bg }}>
