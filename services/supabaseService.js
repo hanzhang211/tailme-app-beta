@@ -92,15 +92,17 @@ export async function savePetProfile(formData, userId) {
 
   const payload = {
     user_id:    userId,
-    name:       formData.name?.trim(),
-    breed:      formData.breed   || null,
-    age:        formData.age     ? parseFloat(formData.age)    : null,
-    weight:     formData.weight  ? parseFloat(formData.weight) : null,
-    gender:     formData.gender  || null,
-    neutered:   formData.neutered   === "yes",
-    vaccinated: formData.vaccinated === "yes",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    name:        formData.name?.trim(),
+    breed:       formData.breed       || null,
+    birthday:    formData.birthday    || null,           // YYYY-MM-DD
+    personality: formData.personality || null,
+    age:         formData.age     ? parseFloat(formData.age)    : null,   // 保留兼容
+    weight:      formData.weight  ? parseFloat(formData.weight) : null,
+    gender:      formData.gender  || null,
+    neutered:    formData.neutered   === "yes",
+    vaccinated:  formData.vaccinated === "yes",
+    created_at:  new Date().toISOString(),
+    updated_at:  new Date().toISOString(),
   };
 
   const { data, error } = await sb
@@ -110,6 +112,21 @@ export async function savePetProfile(formData, userId) {
     .single();
 
   if (error) throw new Error(`创建宠物失败: ${error.message}`);
+  return data;
+}
+
+/* ── 更新宠物档案（部分字段）—— 用于老用户补全生日/性格 ──────── */
+export async function updatePet(petId, fields) {
+  const sb = requireSupabase();
+  if (!petId) throw new Error("updatePet: petId 不能为空");
+  const payload = { ...fields, updated_at: new Date().toISOString() };
+  const { data, error } = await sb
+    .from("pets")
+    .update(payload)
+    .eq("id", petId)
+    .select()
+    .single();
+  if (error) throw new Error(`更新宠物失败: ${error.message}`);
   return data;
 }
 

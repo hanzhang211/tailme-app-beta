@@ -19,8 +19,10 @@ import {
   saveHealthUpload,
   setUsername,
   isUsernameTaken,
+  updatePet,
 } from "@/services/supabaseService";
 import { checkUsername } from "@/services/contentFilter";
+import { formatPetAge, formatBirthday, PERSONALITIES, todayISO } from "@/services/petAge";
 import MapTab from "@/components/map/MapTab";
 import CommunityTab from "@/components/community/CommunityTab";
 
@@ -298,19 +300,27 @@ function PhoneLogin({ onLogin }) {
 ══════════════════════════════════════════════════════════════ */
 function Onboarding({ userId, onComplete }) {
   const [step, setStep]     = useState(1);
-  const [f, setF]           = useState({ name:"", breed:"", age:"", weight:"", gender:"", neutered:"", vaccinated:"" });
+  const [f, setF]           = useState({
+    name:"", breed:"", birthday:"", personality:"",
+    weight:"", gender:"", neutered:"", vaccinated:"",
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState(null);
 
+  const TOTAL_STEPS = 4;
   const upd = (k, v) => setF((p) => ({ ...p, [k]: v }));
-  const ok  = [f.name && f.breed, f.age && f.weight && f.gender, f.neutered && f.vaccinated][step - 1];
+  const ok  = [
+    f.name && f.breed,                       // step 1
+    f.birthday && f.weight && f.gender,      // step 2
+    f.personality,                            // step 3
+    f.neutered && f.vaccinated,              // step 4
+  ][step - 1];
 
   const next = async () => {
-    if (step < 3) { setStep((s) => s + 1); return; }
+    if (step < TOTAL_STEPS) { setStep((s) => s + 1); return; }
     setSaving(true);
     setError(null);
     try {
-      // 真实 INSERT，绑定 userId，service 层处理 boolean 转换
       const savedPet = await savePetProfile(f, userId);
       onComplete(savedPet);
     } catch (err) {
@@ -335,12 +345,12 @@ function Onboarding({ userId, onComplete }) {
       </div>
       <div style={{ padding:"0 28px", marginBottom:20 }}>
         <div style={{ display:"flex", gap:6, marginBottom:4 }}>
-          {[1,2,3].map((i) => (
+          {[1,2,3,4].map((i) => (
             <div key={i} style={{ flex:1, height:4, borderRadius:4, transition:"background .3s",
                                    background: i <= step ? "#E68645" : O_BORDER }} />
           ))}
         </div>
-        <div style={{ textAlign:"center", fontSize:11, color:O_SUB }}>第 {step} / 3 步</div>
+        <div style={{ textAlign:"center", fontSize:11, color:O_SUB }}>第 {step} / 4 步</div>
       </div>
 
       <div style={{ flex:1, padding:"0 18px 20px" }}>
@@ -367,25 +377,50 @@ function Onboarding({ userId, onComplete }) {
 
           {step === 2 && <>
             <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>{f.name || "它"} 的基本情况？</div>
-            <div style={{ fontSize:12, color:O_SUB, marginBottom:20 }}>帮助我们更好地了解 💛</div>
-            <div style={{ display:"flex", gap:12, marginBottom:16 }}>
-              <div style={{ flex:1 }}>
-                <Label>年龄（岁）</Label>
-                <Inp value={f.age} onChange={(e) => upd("age", e.target.value)} type="number" min="0" max="20" placeholder="2" />
-              </div>
+            <div style={{ fontSize:12, color:O_SUB, marginBottom:18 }}>帮助我们更好地了解 💛</div>
+            <Label>毛孩子的生日 🎂</Label>
+            <Inp value={f.birthday} onChange={(e) => upd("birthday", e.target.value)}
+                 type="date" max={todayISO()} />
+            <div style={{ fontSize:11, color:O_SUB, marginTop:6, lineHeight:1.6 }}>
+              不知道准确生日也没关系，挑一个属于你们的纪念日就好 💛
+            </div>
+            <div style={{ display:"flex", gap:12, marginTop:16, marginBottom:16 }}>
               <div style={{ flex:1 }}>
                 <Label>体重（kg）</Label>
                 <Inp value={f.weight} onChange={(e) => upd("weight", e.target.value)} type="number" min="0" max="80" step="0.1" placeholder="8.5" />
               </div>
-            </div>
-            <Label>性别</Label>
-            <div style={{ display:"flex", gap:10 }}>
-              <button style={btnStyle(f.gender === "male")}   onClick={() => upd("gender","male")}>男孩 🐶</button>
-              <button style={btnStyle(f.gender === "female")} onClick={() => upd("gender","female")}>女孩 🎀</button>
+              <div style={{ flex:1 }}>
+                <Label>性别</Label>
+                <div style={{ display:"flex", gap:6 }}>
+                  <button style={btnStyle(f.gender === "male")}   onClick={() => upd("gender","male")}>男孩</button>
+                  <button style={btnStyle(f.gender === "female")} onClick={() => upd("gender","female")}>女孩</button>
+                </div>
+              </div>
             </div>
           </>}
 
           {step === 3 && <>
+            <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>{f.name || "它"} 是什么性格？✨</div>
+            <div style={{ fontSize:12, color:O_SUB, marginBottom:18 }}>选一个最像 TA 的小性格</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+              {PERSONALITIES.map((p) => {
+                const on = f.personality === p;
+                return (
+                  <button key={p} onClick={() => upd("personality", p)}
+                    style={{ padding:"11px 10px", borderRadius:14, fontSize:13,
+                             fontWeight: on ? 700 : 600,
+                             background: on ? "#E68645" : "#FFFFFF",
+                             color: on ? "white" : C.text,
+                             border:`1.5px solid ${on ? "#E68645" : "#7A6F62"}`,
+                             cursor:"pointer", transition:"all .15s" }}>
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
+          </>}
+
+          {step === 4 && <>
             <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>最后两个问题 🌟</div>
             <div style={{ fontSize:12, color:O_SUB, marginBottom:20 }}>社交和健康分析会用到</div>
             <Label>是否已绝育</Label>
@@ -406,7 +441,7 @@ function Onboarding({ userId, onComplete }) {
                    background:ok && !saving ? "#E68645" : O_SURFACE, color:ok && !saving ? "white" : O_SUB,
                    border:ok && !saving ? "none" : `1px solid ${O_BORDER}`,
                    cursor:ok && !saving ? "pointer" : "default", transition:"all .2s" }}>
-          {saving ? "保存中..." : step < 3 ? "继续 →" : `开始和 ${f.name || "它"} 的旅程 🐾`}
+          {saving ? "保存中..." : step < TOTAL_STEPS ? "继续 →" : `开始和 ${f.name || "它"} 的旅程 🐾`}
         </button>
         <ErrBox msg={error} />
         {step > 1 && (
@@ -494,7 +529,107 @@ function UsernameSetup({ userId, onComplete }) {
 /* ══════════════════════════════════════════════════════════════
    HOME TAB
 ══════════════════════════════════════════════════════════════ */
-function HomeTab({ pet }) {
+/* ══════════════════════════════════════════════════════════════
+   PET PROFILE COMPLETE MODAL
+   老用户没填生日/性格时弹出，温柔提示，可关闭（session 内不再弹）
+══════════════════════════════════════════════════════════════ */
+function PetProfileComplete({ pet, onClose, onSaved }) {
+  const [birthday, setBirthday]       = useState(pet?.birthday || "");
+  const [personality, setPersonality] = useState(pet?.personality || "");
+  const [saving, setSaving]           = useState(false);
+  const [error, setError]             = useState(null);
+
+  const canSave = birthday && personality && !saving;
+
+  const handleSave = async () => {
+    if (!canSave) return;
+    setSaving(true); setError(null);
+    try {
+      const updated = await updatePet(pet.id, { birthday, personality });
+      onSaved?.(updated);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div onClick={(e) => e.target === e.currentTarget && !saving && onClose?.()}
+      style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,0.45)",
+               display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div style={{ width:"100%", maxWidth:430, background:"#EEE9E1",
+                    borderRadius:"22px 22px 0 0", padding:"22px 20px 28px",
+                    animation:"compose-up .25s ease-out" }}>
+        <div style={{ fontSize:18, fontWeight:800, color:"#1A1006", marginBottom:4 }}>
+          帮我记住 {pet?.name || "毛孩子"} 的生日吧 🐾
+        </div>
+        <div style={{ fontSize:12, color:"#8A8074", marginBottom:18, lineHeight:1.6 }}>
+          完善一下小档案，让主页更懂 TA
+        </div>
+
+        <Label>毛孩子的生日 🎂</Label>
+        <Inp value={birthday} onChange={(e) => setBirthday(e.target.value)}
+             type="date" max={todayISO()} />
+        <div style={{ fontSize:11, color:"#8A8074", marginTop:6, lineHeight:1.6 }}>
+          不知道准确生日也没关系，挑一个属于你们的纪念日就好 💛
+        </div>
+
+        <Label style={{ marginTop:18 }}>选一个最像 TA 的小性格 ✨</Label>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+          {PERSONALITIES.map((p) => {
+            const on = personality === p;
+            return (
+              <button key={p} onClick={() => setPersonality(p)}
+                style={{ padding:"10px 8px", borderRadius:14, fontSize:12,
+                         fontWeight: on ? 700 : 600,
+                         background: on ? "#E68645" : "#FFFFFF",
+                         color: on ? "white" : "#1A1006",
+                         border:`1.5px solid ${on ? "#E68645" : "#7A6F62"}`,
+                         cursor:"pointer", transition:"all .15s" }}>
+                {p}
+              </button>
+            );
+          })}
+        </div>
+
+        <ErrBox msg={error} />
+
+        <div style={{ display:"flex", gap:10, marginTop:18 }}>
+          <button onClick={onClose} disabled={saving}
+            style={{ flex:1, padding:"13px 0", borderRadius:14, fontSize:13, fontWeight:600,
+                     background:"transparent", color:"#8A8074",
+                     border:"1px solid #D6D5D8",
+                     cursor: saving ? "default" : "pointer" }}>
+            稍后再说
+          </button>
+          <button onClick={handleSave} disabled={!canSave}
+            style={{ flex:2, padding:"13px 0", borderRadius:14, fontSize:13, fontWeight:700,
+                     background: canSave ? "#E68645" : "#F2E5DA",
+                     color: canSave ? "white" : "#8A8074",
+                     border:"none",
+                     cursor: canSave ? "pointer" : "default" }}>
+            {saving ? "保存中..." : "保存 ✨"}
+          </button>
+        </div>
+      </div>
+      <style>{`@keyframes compose-up { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
+    </div>
+  );
+}
+
+function HomeTab({ pet, onPetUpdate }) {
+  // 年龄显示：优先用 birthday 计算（整数岁/月/日）；老数据回退到 pet.age
+  const ageLabel      = formatPetAge(pet.birthday) || (pet.age != null ? `${pet.age}岁` : "未设置");
+  const birthdayLabel = formatBirthday(pet.birthday);
+
+  // 老用户缺生日 → 弹出补全 modal（用户可一次性 dismiss，session 内不再弹）
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [dismissed, setDismissed]       = useState(false);
+  useEffect(() => {
+    if (!pet?.birthday && !dismissed) setCompleteOpen(true);
+  }, [pet?.birthday, dismissed]);
+
   const [bt, setBt]         = useState("08:00");
   const [dt, setDt]         = useState("18:00");
   const [editFeed, setEdit] = useState(false);
@@ -545,6 +680,13 @@ function HomeTab({ pet }) {
 
   return (
     <div style={{ height:"100%", overflowY:"auto", background:H_BG }}>
+      {completeOpen && (
+        <PetProfileComplete
+          pet={pet}
+          onClose={() => { setCompleteOpen(false); setDismissed(true); }}
+          onSaved={(updated) => { setCompleteOpen(false); onPetUpdate?.(updated); }}
+        />
+      )}
       <div style={{ background:H_BG, borderBottom:`1px solid ${H_BORDER}`, padding:"52px 20px 24px",
                     position:"relative", overflow:"hidden" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18 }}>
@@ -577,8 +719,15 @@ function HomeTab({ pet }) {
           </div>
           <div style={{ marginTop:12, fontSize:20, fontWeight:800, color:C.text }}>{pet.name}</div>
           <div style={{ fontSize:12, color:H_SUB, marginTop:3 }}>
-            {pet.breed} · {pet.age}岁 · {pet.weight}kg · {pet.gender === "male" ? "男孩" : "女孩"}
+            {pet.breed} · {ageLabel} · {pet.weight}kg · {pet.gender === "male" ? "男孩" : "女孩"}
           </div>
+          {(birthdayLabel || pet.personality) && (
+            <div style={{ fontSize:11, color:H_SUB, marginTop:4 }}>
+              {birthdayLabel && <span>🎂 {birthdayLabel}</span>}
+              {birthdayLabel && pet.personality && <span style={{ margin:"0 6px" }}>·</span>}
+              {pet.personality && <span>✨ {pet.personality}</span>}
+            </div>
+          )}
           {hungry && (
             <div style={{ marginTop:12, background:H_SURFACE, border:`1px solid ${H_BORDER}`,
                           borderRadius:20, padding:"8px 18px", fontSize:13, color:C.accent, fontWeight:600 }}>
@@ -899,7 +1048,7 @@ export default function AppRoot() {
       <div style={{ position:"absolute", top:0, left:0, right:0, bottom:60, overflow:"hidden" }}>
         {tab === 0 && <SocialTab />}
         {tab === 1 && <MapTab />}
-        {tab === 2 && <HomeTab pet={pet} />}
+        {tab === 2 && <HomeTab pet={pet} onPetUpdate={setPet} />}
         {tab === 3 && <CommunityTab user={user} pet={pet} />}
         {tab === 4 && (
           <div style={{ height:"100%", display:"flex", flexDirection:"column",

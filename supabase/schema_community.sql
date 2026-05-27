@@ -313,3 +313,11 @@ SET    display_image_urls = image_urls
 WHERE  display_image_urls IS NULL
   AND  image_urls IS NOT NULL
   AND  array_length(image_urls, 1) > 0;
+
+-- ============================================================
+-- v6 增量：宠物档案 —— 生日 + 性格
+-- 注意：保留旧 age 字段不删除，向后兼容
+-- ============================================================
+ALTER TABLE pets
+  ADD COLUMN IF NOT EXISTS birthday    date,
+  ADD COLUMN IF NOT EXISTS personality text;
