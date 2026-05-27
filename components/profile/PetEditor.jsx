@@ -1,0 +1,217 @@
+"use client";
+
+/**
+ * components/profile/PetEditor.jsx
+ *
+ * 添加 / 编辑宠物档案的 modal。
+ *  - pet 为 null  → 新增模式（调 savePetProfile）
+ *  - pet 为对象   → 编辑模式（调 updatePet）
+ */
+
+import { useState } from "react";
+import { savePetProfile, updatePet } from "@/services/supabaseService";
+import { PERSONALITIES, todayISO } from "@/services/petAge";
+
+const C = {
+  pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
+  sub:"#8A8074", light:"#D6D5D8", border:"#7A6F62",
+};
+
+const BREEDS = [
+  "腊肠犬","柴犬","柯基","金毛","拉布拉多","边牧","法斗","比熊","贵宾","泰迪",
+  "阿拉斯加","哈士奇","德牧","博美","马尔济斯","巴哥","吉娃娃","秋田","雪纳瑞","约克夏",
+  "杜宾","萨摩耶","罗威纳","伯恩山","斗牛犬","灵缇","纽芬兰","牛头梗","可卡","其他",
+];
+
+export default function PetEditor({ pet, userId, onClose, onSaved, toast }) {
+  const isEdit = !!pet;
+  const [f, setF] = useState({
+    name:        pet?.name || "",
+    breed:       pet?.breed || "",
+    birthday:    pet?.birthday || "",
+    weight:      pet?.weight ?? "",
+    gender:      pet?.gender || "",
+    personality: pet?.personality || "",
+    neutered:    pet ? (pet.neutered    ? "yes" : "no") : "",
+    vaccinated:  pet ? (pet.vaccinated  ? "yes" : "no") : "",
+  });
+  const upd = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState(null);
+
+  const canSave = !saving &&
+    f.name?.trim() && f.breed && f.birthday && f.weight && f.gender &&
+    f.personality && f.neutered && f.vaccinated;
+
+  const handleSave = async () => {
+    if (!canSave) return;
+    setSaving(true); setError(null);
+    try {
+      if (isEdit) {
+        const updated = await updatePet(pet.id, {
+          name:        f.name.trim(),
+          breed:       f.breed,
+          birthday:    f.birthday,
+          weight:      parseFloat(f.weight),
+          gender:      f.gender,
+          personality: f.personality,
+          neutered:    f.neutered   === "yes",
+          vaccinated:  f.vaccinated === "yes",
+        });
+        toast?.("已保存 ✨", "success");
+        onSaved?.(updated);
+      } else {
+        const saved = await savePetProfile(f, userId);
+        toast?.("毛孩子已加入 🐾", "success");
+        onSaved?.(saved);
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div onClick={(e) => e.target === e.currentTarget && !saving && onClose?.()}
+      style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,0.45)",
+               display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div style={{ width:"100%", maxWidth:430, maxHeight:"92vh", background:C.bg,
+                    borderRadius:"22px 22px 0 0", display:"flex", flexDirection:"column",
+                    animation:"compose-up .25s ease-out" }}>
+
+        {/* 头部 */}
+        <div style={{ padding:"14px 16px 8px", display:"flex", alignItems:"center",
+                      borderBottom:`1px solid ${C.light}`, flexShrink:0, gap:10 }}>
+          <button onClick={onClose} disabled={saving}
+            style={{ background:"transparent", border:"none", fontSize:14, color:C.sub,
+                     cursor: saving ? "default" : "pointer" }}>
+            取消
+          </button>
+          <div style={{ flex:1, textAlign:"center", fontSize:15, fontWeight:700, color:C.text }}>
+            {isEdit ? "编辑毛孩子档案" : "添加毛孩子"}
+          </div>
+          <button onClick={handleSave} disabled={!canSave}
+            style={{ padding:"6px 14px", borderRadius:14, fontSize:13, fontWeight:700,
+                     background: canSave ? C.pri : C.light,
+                     color: canSave ? "white" : C.sub,
+                     border:"none",
+                     cursor: canSave ? "pointer" : "default", minWidth:60 }}>
+            {saving ? "…" : "保存"}
+          </button>
+        </div>
+
+        <div style={{ flex:1, overflowY:"auto", padding:"18px 16px 100px" }}>
+          <Field label="名字">
+            <input value={f.name} onChange={(e) => upd("name", e.target.value)}
+              placeholder="比如：豆豆、可乐、花花..."
+              style={inpStyle()} />
+          </Field>
+
+          <Field label="品种">
+            <div style={{ position:"relative" }}>
+              <select value={f.breed} onChange={(e) => upd("breed", e.target.value)}
+                style={{ ...inpStyle(), appearance:"none",
+                         color: f.breed ? C.text : C.sub }}>
+                <option value="">选择品种</option>
+                {BREEDS.map((b) => <option key={b} value={b}>{b}</option>)}
+              </select>
+              <span style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)",
+                             color:C.sub, pointerEvents:"none", fontSize:12 }}>▾</span>
+            </div>
+          </Field>
+
+          <Field label="生日 🎂">
+            <input type="date" value={f.birthday}
+              onChange={(e) => upd("birthday", e.target.value)}
+              max={todayISO()} style={inpStyle()} />
+            <div style={{ fontSize:11, color:C.sub, marginTop:6, lineHeight:1.55 }}>
+              不知道准确生日也没关系，挑一个属于你们的纪念日就好 💛
+            </div>
+          </Field>
+
+          <div style={{ display:"flex", gap:12, marginBottom:14 }}>
+            <div style={{ flex:1 }}>
+              <Field label="体重（kg）" inner>
+                <input type="number" min="0" max="80" step="0.1"
+                  value={f.weight} onChange={(e) => upd("weight", e.target.value)}
+                  placeholder="8.5" style={inpStyle()} />
+              </Field>
+            </div>
+            <div style={{ flex:1 }}>
+              <Field label="性别" inner>
+                <div style={{ display:"flex", gap:6 }}>
+                  <ChipBtn on={f.gender === "male"}   onClick={() => upd("gender", "male")}>男孩</ChipBtn>
+                  <ChipBtn on={f.gender === "female"} onClick={() => upd("gender", "female")}>女孩</ChipBtn>
+                </div>
+              </Field>
+            </div>
+          </div>
+
+          <Field label="性格 ✨">
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+              {PERSONALITIES.map((p) => (
+                <ChipBtn key={p} on={f.personality === p} onClick={() => upd("personality", p)}>
+                  {p}
+                </ChipBtn>
+              ))}
+            </div>
+          </Field>
+
+          <Field label="是否已绝育">
+            <div style={{ display:"flex", gap:10 }}>
+              <ChipBtn on={f.neutered === "yes"} onClick={() => upd("neutered","yes")}>已绝育 ✅</ChipBtn>
+              <ChipBtn on={f.neutered === "no"}  onClick={() => upd("neutered","no")}>未绝育</ChipBtn>
+            </div>
+          </Field>
+
+          <Field label="疫苗是否齐全">
+            <div style={{ display:"flex", gap:10 }}>
+              <ChipBtn on={f.vaccinated === "yes"} onClick={() => upd("vaccinated","yes")}>已齐全 💉</ChipBtn>
+              <ChipBtn on={f.vaccinated === "no"}  onClick={() => upd("vaccinated","no")}>未完成 ⚠️</ChipBtn>
+            </div>
+          </Field>
+
+          {error && (
+            <div style={{ background:"#FFF0F0", color:"#D94040", borderRadius:12,
+                          padding:"10px 14px", fontSize:12, lineHeight:1.5, marginTop:10 }}>
+              ❌ {error}
+            </div>
+          )}
+        </div>
+      </div>
+      <style>{`@keyframes compose-up { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
+    </div>
+  );
+}
+
+function Field({ label, children, inner }) {
+  return (
+    <div style={{ marginBottom: inner ? 0 : 14 }}>
+      <div style={{ fontSize:12, color:C.sub, fontWeight:600, marginBottom:6 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function ChipBtn({ on, onClick, children }) {
+  return (
+    <button onClick={onClick}
+      style={{ flex:1, padding:"10px 8px", borderRadius:14, fontSize:13,
+               fontWeight: on ? 700 : 600,
+               background: on ? C.pri : "#FFFFFF",
+               color: on ? "white" : C.text,
+               border:`1.5px solid ${on ? C.pri : C.border}`,
+               cursor:"pointer", transition:"all .15s" }}>
+      {children}
+    </button>
+  );
+}
+
+function inpStyle() {
+  return {
+    width:"100%", borderRadius:14, padding:"11px 13px", fontSize:14,
+    border:`1.5px solid ${C.border}`, background:"#FFFFFF", color:C.text,
+    outline:"none", boxSizing:"border-box",
+  };
+}

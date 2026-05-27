@@ -115,6 +115,18 @@ export async function savePetProfile(formData, userId) {
   return data;
 }
 
+/* ── 删除宠物（owner 校验：where user_id = passed）─────────────── */
+export async function deletePet(petId, userId) {
+  const sb = requireSupabase();
+  if (!petId || !userId) throw new Error("deletePet: 缺少 petId 或 userId");
+  const { error } = await sb
+    .from("pets")
+    .delete()
+    .eq("id", petId)
+    .eq("user_id", userId);
+  if (error) throw new Error(`删除宠物失败: ${error.message}`);
+}
+
 /* ── 更新宠物档案（部分字段）—— 用于老用户补全生日/性格 ──────── */
 export async function updatePet(petId, fields) {
   const sb = requireSupabase();

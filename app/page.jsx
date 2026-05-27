@@ -25,6 +25,7 @@ import { checkUsername } from "@/services/contentFilter";
 import { formatPetAge, formatBirthday, PERSONALITIES, todayISO } from "@/services/petAge";
 import MapTab from "@/components/map/MapTab";
 import CommunityTab from "@/components/community/CommunityTab";
+import ProfileTab from "@/components/profile/ProfileTab";
 
 /* ══════════════════════════════════════════════════════════════
    AI Stub（社群已迁至 components/community/CommunityTab.jsx 真实数据）
@@ -957,7 +958,7 @@ const TABS = [
   { icon:"🗺️", label:"地图" },
   { home:true, label:"首页" },
   { icon:"💬", label:"社群" },
-  { icon:"⋯",  label:"更多" },   // 预留页
+  { icon:"👤", label:"我的" },
 ];
 
 // 状态：loading | login | onboarding | app
@@ -1025,6 +1026,15 @@ export default function AppRoot() {
     setScreen(S.APP);
   };
 
+  /* 退出登录 → 清 localStorage / state，回到登录页 */
+  const handleLogout = () => {
+    localStorage.removeItem(LS_KEY);
+    setUser(null);
+    setPet(null);
+    setTab(2);
+    setScreen(S.LOGIN);
+  };
+
   const shell = (content, scroll = false) => (
     <div style={{ background:"#EEE9E1", minHeight:"100vh",
                   display:"flex", justifyContent:"center", alignItems:"flex-start" }}>
@@ -1050,13 +1060,7 @@ export default function AppRoot() {
         {tab === 1 && <MapTab />}
         {tab === 2 && <HomeTab pet={pet} onPetUpdate={setPet} />}
         {tab === 3 && <CommunityTab user={user} pet={pet} />}
-        {tab === 4 && (
-          <div style={{ height:"100%", display:"flex", flexDirection:"column",
-                        alignItems:"center", justifyContent:"center", color:C.sub, background:C.bg }}>
-            <div style={{ fontSize:48, marginBottom:12 }}>⋯</div>
-            <div style={{ fontSize:14 }}>页面建设中</div>
-          </div>
-        )}
+        {tab === 4 && <ProfileTab user={user} pet={pet} onLogout={handleLogout} />}
       </div>
       <div style={{ position:"absolute", bottom:0, left:0, right:0, height:60,
                     background:"white", borderTop:`1px solid ${C.border}`, display:"flex", zIndex:100 }}>

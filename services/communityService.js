@@ -141,6 +141,82 @@ export async function listPosts({ limit = 20, before } = {}) {
  * 详情用——选 display_image_urls + thumbnail_urls 做模糊占位
  * （不取原图 original_image_urls；老帖 image_urls 作为 display 兜底）
  */
+/* ══════════════════════════════════════════════════════════
+   个人主页用查询
+══════════════════════════════════════════════════════════ */
+
+/** 我发的帖子 */
+export async function listMyPosts(userId, { limit = 50, before } = {}) {
+  if (!userId) return [];
+  const sb = requireSupabase();
+  let q = sb.from("posts")
+    .select(`
+      id, title, content, post_type, text_bg_color,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
+      like_count, comment_count, created_at,
+      user_id, pet_id,
+      user:users!posts_user_id_fkey ( username ),
+      pet:pets!posts_pet_id_fkey ( breed )
+    `)
+    .eq("user_id", userId)
+    .eq("status", "visible")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (before) q = q.lt("created_at", before);
+  const { data, error } = await q;
+  if (error) throw new Error(`获取我的帖子失败: ${error.message}`);
+  return data || [];
+}
+
+/** 我赞过的帖子 */
+export async function listLikedPosts(userId, { limit = 50 } = {}) {
+  if (!userId) return [];
+  const sb = requireSupabase();
+  const { data: likes, error: likeErr } = await sb
+    .from("post_likes")
+    .select("post_id, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (likeErr) throw new Error(`获取点赞列表失败: ${likeErr.message}`);
+  const ids = (likes || []).map((r) => r.post_id);
+  if (ids.length === 0) return [];
+
+  const { data, error } = await sb.from("posts")
+    .select(`
+      id, title, content, post_type, text_bg_color,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
+      like_count, comment_count, created_at,
+      user_id, pet_id,
+      user:users!posts_user_id_fkey ( username ),
+      pet:pets!posts_pet_id_fkey ( breed )
+    `)
+    .in("id", ids)
+    .eq("status", "visible");
+  if (error) throw new Error(`获取点赞帖子失败: ${error.message}`);
+  const map = new Map((data || []).map((p) => [p.id, p]));
+  return ids.map((id) => map.get(id)).filter(Boolean);
+}
+
+/** 个人主页统计：获赞总数 / 作品数 / 赞过数 */
+export async function getUserStats(userId) {
+  if (!userId) return { totalLikes: 0, postCount: 0, likedCount: 0 };
+  const sb = requireSupabase();
+  const [posts, postCount, likedCount] = await Promise.all([
+    sb.from("posts").select("like_count").eq("user_id", userId).eq("status", "visible"),
+    sb.from("posts").select("*", { count: "exact", head: true })
+      .eq("user_id", userId).eq("status", "visible"),
+    sb.from("post_likes").select("*", { count: "exact", head: true })
+      .eq("user_id", userId),
+  ]);
+  const totalLikes = (posts.data || []).reduce((s, p) => s + (p.like_count || 0), 0);
+  return {
+    totalLikes,
+    postCount:  postCount.count  || 0,
+    likedCount: likedCount.count || 0,
+  };
+}
+
 export async function getPostById(id) {
   const sb = requireSupabase();
   const { data, error } = await sb.from("posts")
