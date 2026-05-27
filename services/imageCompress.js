@@ -53,3 +53,46 @@ export async function compressImage(file, opts = {}) {
     return file;
   }
 }
+
+/**
+ * 同时生成 full + thumb 两个变体，共享一次 bitmap 解码，省 CPU。
+ * @returns {Promise<{ full: File, thumb: File, width: number, height: number }>}
+ *   失败时 full/thumb 都回退到原文件
+ */
+export async function makeImageVariants(file) {
+  if (!file || !file.type?.startsWith("image/")) {
+    return { full: file, thumb: file, width: 0, height: 0 };
+  }
+  if (file.type === "image/gif") {
+    return { full: file, thumb: file, width: 0, height: 0 };
+  }
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const w0 = bitmap.width, h0 = bitmap.height;
+
+    const render = async (maxDim, quality, suffix) => {
+      const ratio = Math.min(1, maxDim / Math.max(w0, h0));
+      const w = Math.max(1, Math.round(w0 * ratio));
+      const h = Math.max(1, Math.round(h0 * ratio));
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
+      const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", quality));
+      if (!blob) return file;
+      const base = (file.name || "photo").replace(/\.[^.]+$/, "");
+      return new File([blob], `${base}.${suffix}.jpg`, { type: "image/jpeg" });
+    };
+
+    const [full, thumb] = await Promise.all([
+      render(1600, 0.82, "f"),  // 原图 / 详情用
+      render(640,  0.75, "t"),  // 缩略图 / Feed 用
+    ]);
+
+    bitmap.close?.();
+    return { full, thumb, width: w0, height: h0 };
+  } catch (e) {
+    console.warn("[makeImageVariants] 解码失败，回退原图:", e?.message);
+    return { full: file, thumb: file, width: 0, height: 0 };
+  }
+}

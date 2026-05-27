@@ -12,6 +12,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  getPostById,
   listComments, createComment,
   likeComment, unlikeComment, getMyLikedCommentIds,
   likePost, unlikePost,
@@ -36,13 +37,13 @@ function fmtRelTime(iso) {
 }
 
 export default function PostDetail({
-  post, user, pet, initialLiked,
-  onLikeChange,   // (postId, isLikedNow, likeCountDelta) => void
-  onDeleted,      // (postId) => void
-  onClose, toast,
+  postId, user, pet, initialLiked,
+  onLikeChange, onDeleted, onClose, toast,
 }) {
-  const [isLiked, setIsLiked] = useState(initialLiked);
-  const [likeCount, setLikeCount] = useState(post.like_count || 0);
+  const [post,     setPost]     = useState(null);
+  const [loadingPost, setLoadingPost] = useState(true);
+  const [isLiked,  setIsLiked]  = useState(initialLiked);
+  const [likeCount, setLikeCount] = useState(0);
   const [comments, setComments] = useState([]);
   const [likedCs,  setLikedCs]  = useState(new Set());
   const [loadingC, setLoadingC] = useState(true);
@@ -53,30 +54,37 @@ export default function PostDetail({
 
   const [viewerIdx, setViewerIdx] = useState(null);
 
-  const avatar  = avatarForBreed(post.pet?.breed);
-  const display = post.user?.username || "未命名宠物";
-  const own     = post.user_id === user?.id;
-  const images  = Array.isArray(post.image_urls) ? post.image_urls : [];
-  const isText  = post.post_type === "text" || images.length === 0;
+  const avatar  = avatarForBreed(post?.pet?.breed);
+  const display = post?.user?.username || "未命名宠物";
+  const own     = post?.user_id === user?.id;
+  const images  = Array.isArray(post?.image_urls) ? post.image_urls : [];
+  const isText  = post?.post_type === "text" || images.length === 0;
 
+  /* 拉详情 + 评论（详情拉完才显示，避免空白闪烁） */
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const list = await listComments(post.id);
+        const [p, list] = await Promise.all([
+          getPostById(postId),
+          listComments(postId),
+        ]);
         if (!alive) return;
+        setPost(p);
+        setLikeCount(p?.like_count || 0);
         setComments(list);
-        if (user?.id) {
+        if (user?.id && list.length) {
           const liked = await getMyLikedCommentIds(user.id, list.map((c) => c.id));
-          if (!alive) return;
-          setLikedCs(liked);
+          if (alive) setLikedCs(liked);
         }
+      } catch (e) {
+        if (alive) toast?.(e.message, "error");
       } finally {
-        if (alive) setLoadingC(false);
+        if (alive) { setLoadingPost(false); setLoadingC(false); }
       }
     })();
     return () => { alive = false; };
-  }, [post.id, user?.id]);
+  }, [postId, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* esc / 系统返回关闭 */
   useEffect(() => {
@@ -90,14 +98,14 @@ export default function PostDetail({
     const wasLiked = isLiked;
     setIsLiked(!wasLiked);
     setLikeCount((c) => c + (wasLiked ? -1 : 1));
-    onLikeChange?.(post.id, !wasLiked, wasLiked ? -1 : 1);
+    onLikeChange?.(postId, !wasLiked, wasLiked ? -1 : 1);
     try {
-      if (wasLiked) await unlikePost(post.id, user.id);
-      else          await likePost(post.id, user.id);
+      if (wasLiked) await unlikePost(postId, user.id);
+      else          await likePost(postId, user.id);
     } catch (e) {
       setIsLiked(wasLiked);
       setLikeCount((c) => c + (wasLiked ? 1 : -1));
-      onLikeChange?.(post.id, wasLiked, wasLiked ? 1 : -1);
+      onLikeChange?.(postId, wasLiked, wasLiked ? 1 : -1);
       toast?.(e.message, "error");
     }
   };
@@ -107,7 +115,7 @@ export default function PostDetail({
     setPosting(true);
     try {
       const { comment, flagged } = await createComment({
-        postId: post.id, userId: user.id, petId: pet?.id,
+        postId: postId, userId: user.id, petId: pet?.id,
         content: draft, parentId: replyTo,
       });
       if (flagged) toast?.("评论已待审核", "warn");
@@ -157,8 +165,8 @@ export default function PostDetail({
   const handleDeletePost = async () => {
     if (!confirm("删除这条帖子？此操作不可撤销。")) return;
     try {
-      await deleteOwnContent({ userId: user.id, targetType: "post", targetId: post.id });
-      onDeleted?.(post.id);
+      await deleteOwnContent({ userId: user.id, targetType: "post", targetId: postId });
+      onDeleted?.(postId);
       onClose?.();
       toast?.("帖子已删除", "info");
     } catch (e) { toast?.(e.message, "error"); }
@@ -169,7 +177,7 @@ export default function PostDetail({
     if (reason === null) return;
     try {
       await reportContent({
-        reporterId: user.id, targetType: "post", targetId: post.id, reason,
+        reporterId: user.id, targetType: "post", targetId: postId, reason,
       });
       toast?.("已举报，管理员会处理", "info");
     } catch (e) { toast?.(e.message, "error"); }
@@ -206,15 +214,32 @@ export default function PostDetail({
           </div>
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{display}</div>
-            <div style={{ fontSize:10, color:C.sub }}>{fmtRelTime(post.created_at)}</div>
+            <div style={{ fontSize:10, color:C.sub }}>{post ? fmtRelTime(post.created_at) : ""}</div>
           </div>
-          <button onClick={own ? handleDeletePost : handleReport}
-            style={{ background:"transparent", border:"none", cursor:"pointer",
-                     color:C.sub, fontSize:14 }}>
-            {own ? "🗑" : "⚐"}
-          </button>
+          {post && (
+            <button onClick={own ? handleDeletePost : handleReport}
+              style={{ background:"transparent", border:"none", cursor:"pointer",
+                       color:C.sub, fontSize:14 }}>
+              {own ? "🗑" : "⚐"}
+            </button>
+          )}
         </div>
 
+        {loadingPost && (
+          <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center",
+                        color:C.sub, fontSize:13 }}>
+            加载中…
+          </div>
+        )}
+
+        {!loadingPost && !post && (
+          <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center",
+                        color:C.sub, fontSize:13 }}>
+            帖子不存在或已被删除
+          </div>
+        )}
+
+        {!loadingPost && post && (<>
         {/* 滚动内容 */}
         <div style={{ flex:1, overflowY:"auto" }}>
 
@@ -351,6 +376,7 @@ export default function PostDetail({
               style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain" }} />
           </div>
         )}
+        </>)}
       </div>
       <style>{`@keyframes detail-up { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
     </div>

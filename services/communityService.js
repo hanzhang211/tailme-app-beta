@@ -111,52 +111,87 @@ export function subscribeRoom(roomId, onInsert) {
 /* ══════════════════════════════════════════════════════════
    帖子
 ══════════════════════════════════════════════════════════ */
-export async function listPosts(limit = 30) {
+/**
+ * Feed 分页拉取——只取卡片渲染必需字段，不要 image_urls。
+ *  - cover_thumbnail_url 缺失时回退到 cover_image_url
+ *  - 用 cursor (before) 而非 offset，避免新帖插入导致跳页
+ */
+export async function listPosts({ limit = 20, before } = {}) {
   const sb = requireSupabase();
-  const { data, error } = await sb
-    .from("posts")
+  let q = sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
-      image_urls, cover_image_url,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
+      like_count, comment_count, created_at,
+      user_id, pet_id,
+      user:users!posts_user_id_fkey ( username ),
+      pet:pets!posts_pet_id_fkey ( breed )
+    `)
+    .eq("status", "visible")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (before) q = q.lt("created_at", before);
+
+  const { data, error } = await q;
+  if (error) throw new Error(`获取帖子失败: ${error.message}`);
+  return data || [];
+}
+
+/** 详情用——完整字段（含 image_urls） */
+export async function getPostById(id) {
+  const sb = requireSupabase();
+  const { data, error } = await sb.from("posts")
+    .select(`
+      id, title, content, post_type, text_bg_color,
+      image_urls, thumbnail_urls,
+      cover_image_url, cover_thumbnail_url, cover_aspect_ratio,
       status, like_count, comment_count, created_at,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username ),
       pet:pets!posts_pet_id_fkey ( name, breed )
     `)
+    .eq("id", id)
     .eq("status", "visible")
-    .order("created_at", { ascending: false })
-    .limit(limit);
-  if (error) throw new Error(`获取帖子失败: ${error.message}`);
-  return data || [];
+    .maybeSingle();
+  if (error) throw new Error(`获取帖子详情失败: ${error.message}`);
+  return data;
 }
 
 export async function createPost({
-  userId, petId, content, title, postType, imageUrls, textBgColor,
+  userId, petId, content, title, postType,
+  imageUrls, thumbnailUrls, coverAspectRatio,
+  textBgColor,
 }) {
   const sb = requireSupabase();
-  // 内容 + 标题都过滤
   const { flagged: fc } = checkContent(content || "");
   const { flagged: ft } = checkContent(title || "");
   const flagged = fc || ft;
 
-  const cover = Array.isArray(imageUrls) && imageUrls.length ? imageUrls[0] : null;
+  const hasImg = Array.isArray(imageUrls) && imageUrls.length;
+  const cover  = hasImg ? imageUrls[0] : null;
+  const thumbCover = Array.isArray(thumbnailUrls) && thumbnailUrls.length
+    ? thumbnailUrls[0] : null;
 
   const { data, error } = await sb
     .from("posts")
     .insert({
-      user_id:         userId,
-      pet_id:          petId || null,
-      title:           (title || "").trim() || null,
-      content:         (content || "").trim(),
-      post_type:       postType || (imageUrls?.length ? "image" : "text"),
-      text_bg_color:   textBgColor || null,
-      image_urls:      Array.isArray(imageUrls) && imageUrls.length ? imageUrls : null,
-      cover_image_url: cover,
-      status:          flagged ? "flagged" : "visible",
+      user_id:             userId,
+      pet_id:              petId || null,
+      title:               (title || "").trim() || null,
+      content:             (content || "").trim(),
+      post_type:           postType || (hasImg ? "image" : "text"),
+      text_bg_color:       textBgColor || null,
+      image_urls:          hasImg ? imageUrls : null,
+      thumbnail_urls:      Array.isArray(thumbnailUrls) && thumbnailUrls.length ? thumbnailUrls : null,
+      cover_image_url:     cover,
+      cover_thumbnail_url: thumbCover,
+      cover_aspect_ratio:  coverAspectRatio || null,
+      status:              flagged ? "flagged" : "visible",
     })
     .select(`
       id, title, content, post_type, text_bg_color,
-      image_urls, cover_image_url,
+      image_urls, thumbnail_urls,
+      cover_image_url, cover_thumbnail_url, cover_aspect_ratio,
       status, like_count, comment_count, created_at,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username ),

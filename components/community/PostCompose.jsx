@@ -14,7 +14,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { uploadPostImage, createPost, cleanupUploadedImages } from "@/services/communityService";
-import { compressImage } from "@/services/imageCompress";
+import { makeImageVariants } from "@/services/imageCompress";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
@@ -100,25 +100,39 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
 
     try {
       let imageUrls = [];
+      let thumbnailUrls = [];
+      let coverAspectRatio = null;
 
       if (type === "image" && pickedFiles.length > 0) {
-        /* 1) 压缩 */
+        /* 1) 生成 full + thumb 两个变体 */
         setPhase("compressing");
-        const compressed = [];
+        const variants = [];
         for (let i = 0; i < pickedFiles.length; i++) {
           if (abortRef.current.current) throw _abort();
-          compressed.push(await compressImage(pickedFiles[i]));
+          variants.push(await makeImageVariants(pickedFiles[i]));
+        }
+        // 第一张图的宽高比作为封面 aspect ratio
+        const first = variants[0];
+        if (first?.width && first?.height) {
+          coverAspectRatio = +(first.width / first.height).toFixed(4);
         }
 
-        /* 2) 上传 */
+        /* 2) 上传：每张图传 full + thumb 两份 */
         setPhase("uploading");
-        setProgress({ done: 0, total: compressed.length });
-        for (let i = 0; i < compressed.length; i++) {
+        setProgress({ done: 0, total: variants.length });
+        for (let i = 0; i < variants.length; i++) {
           if (abortRef.current.current) throw _abort();
-          const result = await uploadPostImage(compressed[i], user.id, abortRef.current);
-          uploadedRef.current.push(result);
-          imageUrls.push(result.url);
-          setProgress({ done: i + 1, total: compressed.length });
+          const { full, thumb } = variants[i];
+          const fullR = await uploadPostImage(full, user.id, abortRef.current);
+          uploadedRef.current.push(fullR);
+          imageUrls.push(fullR.url);
+
+          if (abortRef.current.current) throw _abort();
+          const thumbR = await uploadPostImage(thumb, user.id, abortRef.current);
+          uploadedRef.current.push(thumbR);
+          thumbnailUrls.push(thumbR.url);
+
+          setProgress({ done: i + 1, total: variants.length });
         }
       }
 
@@ -127,13 +141,15 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
       /* 3) 写 posts */
       setPhase("saving");
       const { post, flagged } = await createPost({
-        userId:      user.id,
-        petId:       pet?.id,
-        title:       title.trim(),
-        content:     body,
-        postType:    type,
-        imageUrls:   type === "image" ? imageUrls : [],
-        textBgColor: type === "text"  ? bgColor   : null,
+        userId:           user.id,
+        petId:            pet?.id,
+        title:            title.trim(),
+        content:          body,
+        postType:         type,
+        imageUrls:        type === "image" ? imageUrls : [],
+        thumbnailUrls:    type === "image" ? thumbnailUrls : [],
+        coverAspectRatio: type === "image" ? coverAspectRatio : null,
+        textBgColor:      type === "text"  ? bgColor : null,
       });
 
       // 成功后清空 uploadedRef（不再需要 cleanup）

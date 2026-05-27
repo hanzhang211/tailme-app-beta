@@ -287,3 +287,11 @@ WHERE  cover_image_url IS NULL
 ALTER TABLE posts DROP CONSTRAINT IF EXISTS posts_content_check;
 ALTER TABLE posts ADD  CONSTRAINT posts_content_check
   CHECK (length(content) BETWEEN 0 AND 5000);
+
+-- ============================================================
+-- v4 增量：Feed 性能优化 —— 独立缩略图 + 封面宽高比
+-- ============================================================
+ALTER TABLE posts
+  ADD COLUMN IF NOT EXISTS thumbnail_urls       text[],
+  ADD COLUMN IF NOT EXISTS cover_thumbnail_url  text,
+  ADD COLUMN IF NOT EXISTS cover_aspect_ratio   numeric;

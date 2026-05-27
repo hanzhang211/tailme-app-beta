@@ -3,12 +3,13 @@
 /**
  * components/community/PostFeed.jsx
  *
- * 小红书式双列瀑布流帖子流：
- *  - 每张卡片只显示：封面（首图 / 文字卡背景）+ 标题 + 用户 + 点赞数
- *  - 点卡片打开 PostDetail modal 看完整内容 + 评论
- *  - 顶部"发布"按钮打开 PostCompose modal
- *
- * 瀑布流实现：JS 把 posts 按当前两列累积高度分到左/右列，简单可靠。
+ * 小红书式双列瀑布流：
+ *  - 卡片只加载 thumbnail（cover_thumbnail_url，回退 cover_image_url）
+ *  - 不加载 image_urls；详情打开时由 PostDetail 单独拉
+ *  - 懒加载 (loading="lazy" decoding="async")
+ *  - skeleton 占位 + onLoad 淡入 + onError fallback
+ *  - cover_aspect_ratio 预先撑高，避免 layout shift
+ *  - IntersectionObserver 滚动分页 (cursor: before=created_at, limit=20)
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -25,24 +26,32 @@ const C = {
   sub:"#8A8074", light:"#D6D5D8", border:"#D6D5D8",
 };
 
-const COVER_MIN_RATIO = 0.7;  // 缩略图最矮
-const COVER_MAX_RATIO = 1.4;  // 最高
+const PAGE_SIZE = 20;
 
-/* 给文字卡随机分配高度（基于内容长度），让瀑布流自然 */
 function textCoverRatio(post) {
+  // 文字卡：根据内容长度撑高度（瀑布流自然错落）
   const len = ((post.title || "") + (post.content || "")).length;
-  const base = Math.min(1.3, 0.75 + len / 220);
-  return Math.min(COVER_MAX_RATIO, Math.max(COVER_MIN_RATIO, base));
+  // 返回 width/height ratio：值越小越高
+  return Math.max(0.75, Math.min(1.4, 1.2 - len / 280));
+}
+
+function imageCoverRatio(post) {
+  // 用上传时存的 ratio；老帖 / 缺失时回退 1（正方）
+  const r = Number(post.cover_aspect_ratio);
+  if (!isFinite(r) || r <= 0) return 1;
+  return Math.max(0.55, Math.min(1.6, r));   // 限幅防极端
 }
 
 export default function PostFeed({ user, pet }) {
   const [posts,    setPosts]    = useState([]);
   const [likedSet, setLikedSet] = useState(new Set());
   const [loading,  setLoading]  = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore,  setHasMore]  = useState(true);
   const [err,      setErr]      = useState(null);
 
   const [composeOpen, setComposeOpen] = useState(false);
-  const [detail,      setDetail]      = useState(null);
+  const [detailId,    setDetailId]    = useState(null);
 
   const [toastMsg, setToastMsg] = useState(null);
   const toastTimerRef = useRef();
@@ -53,39 +62,84 @@ export default function PostFeed({ user, pet }) {
       level === "error" ? 4000 : 2500);
   };
 
-  /* ── 加载 feed ─────────────────────────────────────── */
-  const refresh = async () => {
+  const sentinelRef   = useRef(null);
+  const scrollRef     = useRef(null);
+  const loadingMoreRef = useRef(false);
+
+  /* ── 首次加载 ─────────────────────────────────────── */
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const list = await listPosts({ limit: PAGE_SIZE });
+        if (!alive) return;
+        setPosts(list);
+        setHasMore(list.length === PAGE_SIZE);
+        if (user?.id && list.length) {
+          const liked = await getMyLikedPostIds(user.id, list.map((p) => p.id));
+          if (alive) setLikedSet(liked);
+        }
+      } catch (e) {
+        if (alive) setErr(e.message);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [user?.id]);
+
+  /* ── 分页加载更多 ─────────────────────────────────── */
+  const loadMore = async () => {
+    if (loadingMoreRef.current || !hasMore || posts.length === 0) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
     try {
-      const list = await listPosts();
-      setPosts(list);
-      if (user?.id) {
-        const liked = await getMyLikedPostIds(user.id, list.map((p) => p.id));
-        setLikedSet(liked);
+      const last = posts[posts.length - 1];
+      const more = await listPosts({ limit: PAGE_SIZE, before: last.created_at });
+      setPosts((prev) => [...prev, ...more]);
+      setHasMore(more.length === PAGE_SIZE);
+      if (user?.id && more.length) {
+        const liked = await getMyLikedPostIds(user.id, more.map((p) => p.id));
+        setLikedSet((prev) => {
+          const n = new Set(prev);
+          liked.forEach((id) => n.add(id));
+          return n;
+        });
       }
     } catch (e) {
-      setErr(e.message);
+      toast(e.message, "error");
     } finally {
-      setLoading(false);
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
     }
   };
-  useEffect(() => { refresh(); }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── 瀑布流分列（按累积高度） ─────────────────────── */
+  /* ── IntersectionObserver 触发分页 ────────────────── */
+  useEffect(() => {
+    if (!sentinelRef.current || !hasMore) return;
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) loadMore();
+    }, { root: scrollRef.current, rootMargin: "300px 0px" });
+    obs.observe(sentinelRef.current);
+    return () => obs.disconnect();
+  }, [hasMore, posts]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── 瀑布流分列 ──────────────────────────────────── */
   const [leftCol, rightCol] = useMemo(() => {
     const L = [], R = [];
     let lh = 0, rh = 0;
     for (const p of posts) {
-      // 估算卡片高度 = 封面比例 + 文字区固定 80px
-      const isText = p.post_type === "text" || !p.cover_image_url;
-      const ratio  = isText ? textCoverRatio(p) : 1; // 真实图片让 img 自适应，估算时按 1:1
-      const estimateH = ratio + 0.45; // ~封面 + 标题/用户区
+      const isText = p.post_type === "text" || (!p.cover_thumbnail_url && !p.cover_image_url);
+      // 估算卡片高度（用 ratio 倒数 = 高/宽）
+      const ratio = isText ? textCoverRatio(p) : imageCoverRatio(p);
+      const estimateH = 1 / ratio + 0.45;
       if (lh <= rh) { L.push(p); lh += estimateH; }
       else          { R.push(p); rh += estimateH; }
     }
     return [L, R];
   }, [posts]);
 
-  /* ── 点赞同步（详情/卡片相互更新） ─────────────────── */
+  /* ── 点赞同步 ────────────────────────────────────── */
   const handleLikeChange = (postId, isLikedNow, likeDelta) => {
     setLikedSet((prev) => {
       const n = new Set(prev);
@@ -111,10 +165,11 @@ export default function PostFeed({ user, pet }) {
     }
   };
 
-  /* ── render ─────────────────────────────────────────── */
+  /* ── render ──────────────────────────────────────── */
   return (
-    <div style={{ height:"100%", overflowY:"auto", background:C.bg, position:"relative" }}>
-      {/* 顶部发帖按钮 */}
+    <div ref={scrollRef}
+      style={{ height:"100%", overflowY:"auto", background:C.bg, position:"relative" }}>
+
       <div style={{ padding:"14px 14px 0" }}>
         <button onClick={() => setComposeOpen(true)}
           style={{ width:"100%", padding:"12px 16px", textAlign:"left",
@@ -130,15 +185,14 @@ export default function PostFeed({ user, pet }) {
         </button>
       </div>
 
-      {/* 瀑布流 */}
-      <div style={{ display:"flex", gap:8, padding:"12px 12px 90px" }}>
+      <div style={{ display:"flex", gap:8, padding:"12px 12px 0" }}>
         {[leftCol, rightCol].map((col, ci) => (
           <div key={ci} style={{ flex:1, display:"flex", flexDirection:"column", gap:8, minWidth:0 }}>
             {col.map((p) => (
               <PostCard
-                key={p.id} post={p} user={user}
+                key={p.id} post={p}
                 isLiked={likedSet.has(p.id)}
-                onOpen={() => setDetail(p)}
+                onOpen={() => setDetailId(p.id)}
                 onToggleLike={(e) => handleCardLike(p, e)}
               />
             ))}
@@ -146,7 +200,7 @@ export default function PostFeed({ user, pet }) {
         ))}
       </div>
 
-      {loading && <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>加载中...</div>}
+      {loading && <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>加载中…</div>}
       {err     && <div style={{ textAlign:"center", color:"#D94040", fontSize:12, padding:20 }}>❌ {err}</div>}
       {!loading && !err && posts.length === 0 && (
         <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"60px 0" }}>
@@ -154,24 +208,37 @@ export default function PostFeed({ user, pet }) {
         </div>
       )}
 
+      {/* 分页 sentinel */}
+      {hasMore && posts.length > 0 && (
+        <div ref={sentinelRef} style={{ height:60, display:"flex",
+                                        alignItems:"center", justifyContent:"center",
+                                        color:C.sub, fontSize:12 }}>
+          {loadingMore ? "加载中…" : ""}
+        </div>
+      )}
+      {!hasMore && posts.length > 0 && (
+        <div style={{ textAlign:"center", color:C.sub, fontSize:11, padding:"20px 0 90px" }}>
+          —— 没有更多了 ——
+        </div>
+      )}
+
       {composeOpen && (
         <PostCompose
           user={user} pet={pet}
           onClose={() => setComposeOpen(false)}
-          onSuccess={(post) => {
-            setPosts((prev) => [post, ...prev]);
-          }}
+          onSuccess={(post) => setPosts((prev) => [post, ...prev])}
           toast={toast}
         />
       )}
 
-      {detail && (
+      {detailId && (
         <PostDetail
-          post={detail} user={user} pet={pet}
-          initialLiked={likedSet.has(detail.id)}
+          postId={detailId}
+          user={user} pet={pet}
+          initialLiked={likedSet.has(detailId)}
           onLikeChange={handleLikeChange}
           onDeleted={(id) => setPosts((prev) => prev.filter((p) => p.id !== id))}
-          onClose={() => setDetail(null)}
+          onClose={() => setDetailId(null)}
           toast={toast}
         />
       )}
@@ -182,12 +249,13 @@ export default function PostFeed({ user, pet }) {
 }
 
 /* ──────────────────────────────────────────────────────
-   单张 Feed 卡片
+   单张 Feed 卡片：只显示 thumbnail
    ────────────────────────────────────────────────────── */
-function PostCard({ post, user, isLiked, onOpen, onToggleLike }) {
+function PostCard({ post, isLiked, onOpen, onToggleLike }) {
   const avatar  = avatarForBreed(post.pet?.breed);
   const display = post.user?.username || "未命名宠物";
-  const isText  = post.post_type === "text" || !post.cover_image_url;
+  const thumbUrl = post.cover_thumbnail_url || post.cover_image_url || null;
+  const isText  = post.post_type === "text" || !thumbUrl;
 
   return (
     <div onClick={onOpen}
@@ -197,7 +265,7 @@ function PostCard({ post, user, isLiked, onOpen, onToggleLike }) {
       {/* 封面 */}
       {isText ? (
         <div style={{ background: post.text_bg_color || C.tint,
-                      aspectRatio: `1 / ${textCoverRatio(post)}`,
+                      aspectRatio: `1 / ${1 / textCoverRatio(post)}`,
                       padding:"14px 14px",
                       display:"flex", flexDirection:"column", justifyContent:"center" }}>
           {post.title && (
@@ -219,9 +287,7 @@ function PostCard({ post, user, isLiked, onOpen, onToggleLike }) {
           </div>
         </div>
       ) : (
-        <img src={post.cover_image_url} alt=""
-          loading="lazy"
-          style={{ width:"100%", display:"block", aspectRatio:"auto" }} />
+        <CoverImage src={thumbUrl} ratio={imageCoverRatio(post)} />
       )}
 
       {/* 标题（图片帖外露） */}
@@ -233,7 +299,6 @@ function PostCard({ post, user, isLiked, onOpen, onToggleLike }) {
         </div>
       )}
 
-      {/* 底栏：用户 + 点赞 */}
       <div style={{ padding:"8px 10px", display:"flex", alignItems:"center", gap:6 }}>
         <div style={{ width:22, height:22, borderRadius:"50%", background:C.tint,
                       display:"flex", alignItems:"center", justifyContent:"center",
@@ -252,6 +317,43 @@ function PostCard({ post, user, isLiked, onOpen, onToggleLike }) {
           {isLiked ? "❤️" : "🤍"} {post.like_count || 0}
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────
+   封面图：skeleton + lazy + fade-in + fallback
+   ────────────────────────────────────────────────────── */
+function CoverImage({ src, ratio }) {
+  const [state, setState] = useState("loading"); // loading | loaded | error
+
+  return (
+    <div style={{ position:"relative", width:"100%",
+                  aspectRatio: `${ratio} / 1`,
+                  background: C.tint, overflow:"hidden" }}>
+      {/* skeleton 动效 */}
+      {state === "loading" && (
+        <div style={{ position:"absolute", inset:0,
+                      background: `linear-gradient(110deg, ${C.tint} 8%, #EFE4D8 18%, ${C.tint} 33%)`,
+                      backgroundSize: "200% 100%",
+                      animation: "shimmer 1.6s linear infinite" }} />
+      )}
+      {state === "error" ? (
+        <div style={{ position:"absolute", inset:0,
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      color:C.sub, fontSize:11 }}>
+          🖼 图片加载失败
+        </div>
+      ) : (
+        <img src={src} alt=""
+          loading="lazy" decoding="async"
+          onLoad={() => setState("loaded")}
+          onError={() => setState("error")}
+          style={{ width:"100%", height:"100%", objectFit:"cover", display:"block",
+                   opacity: state === "loaded" ? 1 : 0,
+                   transition:"opacity .25s ease" }} />
+      )}
+      <style>{`@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
     </div>
   );
 }
