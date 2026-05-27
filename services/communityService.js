@@ -128,16 +128,17 @@ export async function listPosts(limit = 30) {
   return data || [];
 }
 
-export async function createPost({ userId, petId, content }) {
+export async function createPost({ userId, petId, content, imageUrls }) {
   const sb = requireSupabase();
   const { flagged } = checkContent(content);
   const { data, error } = await sb
     .from("posts")
     .insert({
-      user_id: userId,
-      pet_id:  petId || null,
-      content: content.trim(),
-      status:  flagged ? "flagged" : "visible",
+      user_id:    userId,
+      pet_id:     petId || null,
+      content:    content.trim(),
+      image_urls: Array.isArray(imageUrls) && imageUrls.length ? imageUrls : null,
+      status:     flagged ? "flagged" : "visible",
     })
     .select(`
       id, content, image_urls, status, like_count, comment_count, created_at,
@@ -148,6 +149,30 @@ export async function createPost({ userId, petId, content }) {
     .single();
   if (error) throw new Error(`发帖失败: ${error.message}`);
   return { post: data, flagged };
+}
+
+/**
+ * 上传一张图片到 post-images bucket。
+ * 路径：<userId>/<timestamp>-<rand>.<ext>
+ * 返回 public URL
+ */
+export async function uploadPostImage(file, userId) {
+  const sb = requireSupabase();
+  if (!file || !userId) throw new Error("缺少 file 或 userId");
+  if (file.size > 5 * 1024 * 1024) throw new Error("图片不能超过 5MB");
+
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const safeExt = ext.length > 0 && ext.length <= 5 ? ext : "jpg";
+  const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${safeExt}`;
+
+  const { error: upErr } = await sb.storage
+    .from("post-images")
+    .upload(path, file, { cacheControl: "3600", upsert: false });
+  if (upErr) throw new Error(`上传失败: ${upErr.message}`);
+
+  const { data: pub } = sb.storage.from("post-images").getPublicUrl(path);
+  if (!pub?.publicUrl) throw new Error("获取图片 URL 失败");
+  return pub.publicUrl;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -192,6 +217,7 @@ export async function listComments(postId) {
     .from("comments")
     .select(`
       id, content, status, created_at, user_id, pet_id,
+      parent_id, like_count,
       user:users!user_id ( username ),
       pet:pets!pet_id ( name, breed )
     `)
@@ -202,26 +228,61 @@ export async function listComments(postId) {
   return data || [];
 }
 
-export async function createComment({ postId, userId, petId, content }) {
+export async function createComment({ postId, userId, petId, content, parentId }) {
   const sb = requireSupabase();
   const { flagged } = checkContent(content);
   const { data, error } = await sb
     .from("comments")
     .insert({
-      post_id: postId,
-      user_id: userId,
-      pet_id:  petId || null,
-      content: content.trim(),
-      status:  flagged ? "flagged" : "visible",
+      post_id:   postId,
+      user_id:   userId,
+      pet_id:    petId || null,
+      parent_id: parentId || null,
+      content:   content.trim(),
+      status:    flagged ? "flagged" : "visible",
     })
     .select(`
       id, content, status, created_at, user_id, pet_id,
+      parent_id, like_count,
       user:users!user_id ( username ),
       pet:pets!pet_id ( name, breed )
     `)
     .single();
   if (error) throw new Error(`评论失败: ${error.message}`);
   return { comment: data, flagged };
+}
+
+/* ══════════════════════════════════════════════════════════
+   评论点赞
+══════════════════════════════════════════════════════════ */
+export async function getMyLikedCommentIds(userId, commentIds) {
+  if (!commentIds.length || !userId) return new Set();
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from("comment_likes")
+    .select("comment_id")
+    .eq("user_id", userId)
+    .in("comment_id", commentIds);
+  if (error) throw new Error(`查询评论点赞失败: ${error.message}`);
+  return new Set((data || []).map((r) => r.comment_id));
+}
+
+export async function likeComment(commentId, userId) {
+  const sb = requireSupabase();
+  const { error } = await sb
+    .from("comment_likes")
+    .insert({ comment_id: commentId, user_id: userId });
+  if (error && error.code !== "23505") throw new Error(`点赞失败: ${error.message}`);
+}
+
+export async function unlikeComment(commentId, userId) {
+  const sb = requireSupabase();
+  const { error } = await sb
+    .from("comment_likes")
+    .delete()
+    .eq("comment_id", commentId)
+    .eq("user_id", userId);
+  if (error) throw new Error(`取消点赞失败: ${error.message}`);
 }
 
 /* ══════════════════════════════════════════════════════════

@@ -205,3 +205,56 @@ CREATE POLICY "delete_likes"    ON post_likes FOR DELETE USING (true);
 -- 11. （已移除 posts_feed view —— 前端用 nested select 直查）
 -- ──────────────────────────────────────────────
 DROP VIEW IF EXISTS posts_feed;
+
+-- ============================================================
+-- v2 增量：评论点赞 / 评论嵌套回复 / 帖子图片
+-- ============================================================
+
+-- 评论：parent_id（自引用嵌套）+ like_count
+ALTER TABLE comments
+  ADD COLUMN IF NOT EXISTS parent_id  uuid REFERENCES comments(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS like_count int  NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_comments_parent ON comments(parent_id);
+
+-- 评论点赞表
+CREATE TABLE IF NOT EXISTS comment_likes (
+  comment_id uuid NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+  user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (comment_id, user_id)
+);
+
+CREATE OR REPLACE FUNCTION bump_comment_like() RETURNS trigger AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    UPDATE comments SET like_count = like_count + 1 WHERE id = NEW.comment_id;
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE comments SET like_count = greatest(like_count - 1, 0) WHERE id = OLD.comment_id;
+  END IF;
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_comment_likes_count ON comment_likes;
+CREATE TRIGGER trg_comment_likes_count
+  AFTER INSERT OR DELETE ON comment_likes
+  FOR EACH ROW EXECUTE FUNCTION bump_comment_like();
+
+ALTER TABLE comment_likes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "read_comment_likes"   ON comment_likes FOR SELECT USING (true);
+CREATE POLICY "insert_comment_likes" ON comment_likes FOR INSERT WITH CHECK (true);
+CREATE POLICY "delete_comment_likes" ON comment_likes FOR DELETE USING (true);
+
+ALTER PUBLICATION supabase_realtime ADD TABLE comment_likes;
+
+-- Storage bucket：帖子图片
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('post-images', 'post-images', true)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "post_images_read"   ON storage.objects;
+DROP POLICY IF EXISTS "post_images_upload" ON storage.objects;
+DROP POLICY IF EXISTS "post_images_delete" ON storage.objects;
+CREATE POLICY "post_images_read"   ON storage.objects FOR SELECT USING (bucket_id = 'post-images');
+CREATE POLICY "post_images_upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'post-images');
+CREATE POLICY "post_images_delete" ON storage.objects FOR DELETE USING (bucket_id = 'post-images');
