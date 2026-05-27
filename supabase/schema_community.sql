@@ -258,3 +258,32 @@ DROP POLICY IF EXISTS "post_images_delete" ON storage.objects;
 CREATE POLICY "post_images_read"   ON storage.objects FOR SELECT USING (bucket_id = 'post-images');
 CREATE POLICY "post_images_upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'post-images');
 CREATE POLICY "post_images_delete" ON storage.objects FOR DELETE USING (bucket_id = 'post-images');
+
+-- ============================================================
+-- v3 增量：帖子类型（图片/纯文字）+ 标题 + 封面 + 文字背景色
+-- ============================================================
+ALTER TABLE posts
+  ADD COLUMN IF NOT EXISTS title           text,
+  ADD COLUMN IF NOT EXISTS post_type       text DEFAULT 'image'
+    CHECK (post_type IN ('image','text')),
+  ADD COLUMN IF NOT EXISTS text_bg_color   text,
+  ADD COLUMN IF NOT EXISTS cover_image_url text;
+
+-- 回填：image_urls 为空的老帖归为 text 类型
+UPDATE posts
+SET    post_type = 'text'
+WHERE  post_type = 'image'
+  AND (image_urls IS NULL OR array_length(image_urls, 1) IS NULL);
+
+-- 回填：cover_image_url 用 image_urls 的第一张
+UPDATE posts
+SET    cover_image_url = image_urls[1]
+WHERE  cover_image_url IS NULL
+  AND  image_urls IS NOT NULL
+  AND  array_length(image_urls, 1) > 0;
+
+-- 索引：feed 主要按 status + created_at 排序，已有 idx_posts_status_created 够用
+-- 内容长度放宽（允许只发标题/只发图）
+ALTER TABLE posts DROP CONSTRAINT IF EXISTS posts_content_check;
+ALTER TABLE posts ADD  CONSTRAINT posts_content_check
+  CHECK (length(content) BETWEEN 0 AND 5000);

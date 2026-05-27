@@ -116,7 +116,9 @@ export async function listPosts(limit = 30) {
   const { data, error } = await sb
     .from("posts")
     .select(`
-      id, content, image_urls, status, like_count, comment_count, created_at,
+      id, title, content, post_type, text_bg_color,
+      image_urls, cover_image_url,
+      status, like_count, comment_count, created_at,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username ),
       pet:pets!posts_pet_id_fkey ( name, breed )
@@ -128,20 +130,34 @@ export async function listPosts(limit = 30) {
   return data || [];
 }
 
-export async function createPost({ userId, petId, content, imageUrls }) {
+export async function createPost({
+  userId, petId, content, title, postType, imageUrls, textBgColor,
+}) {
   const sb = requireSupabase();
-  const { flagged } = checkContent(content);
+  // 内容 + 标题都过滤
+  const { flagged: fc } = checkContent(content || "");
+  const { flagged: ft } = checkContent(title || "");
+  const flagged = fc || ft;
+
+  const cover = Array.isArray(imageUrls) && imageUrls.length ? imageUrls[0] : null;
+
   const { data, error } = await sb
     .from("posts")
     .insert({
-      user_id:    userId,
-      pet_id:     petId || null,
-      content:    content.trim(),
-      image_urls: Array.isArray(imageUrls) && imageUrls.length ? imageUrls : null,
-      status:     flagged ? "flagged" : "visible",
+      user_id:         userId,
+      pet_id:          petId || null,
+      title:           (title || "").trim() || null,
+      content:         (content || "").trim(),
+      post_type:       postType || (imageUrls?.length ? "image" : "text"),
+      text_bg_color:   textBgColor || null,
+      image_urls:      Array.isArray(imageUrls) && imageUrls.length ? imageUrls : null,
+      cover_image_url: cover,
+      status:          flagged ? "flagged" : "visible",
     })
     .select(`
-      id, content, image_urls, status, like_count, comment_count, created_at,
+      id, title, content, post_type, text_bg_color,
+      image_urls, cover_image_url,
+      status, like_count, comment_count, created_at,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username ),
       pet:pets!posts_pet_id_fkey ( name, breed )
@@ -153,26 +169,47 @@ export async function createPost({ userId, petId, content, imageUrls }) {
 
 /**
  * 上传一张图片到 post-images bucket。
- * 路径：<userId>/<timestamp>-<rand>.<ext>
- * 返回 public URL
+ * abortFlag: { current: boolean } —— 在 await 后检查；命中则抛 AbortError
  */
-export async function uploadPostImage(file, userId) {
+export async function uploadPostImage(file, userId, abortFlag) {
   const sb = requireSupabase();
   if (!file || !userId) throw new Error("缺少 file 或 userId");
-  if (file.size > 5 * 1024 * 1024) throw new Error("图片不能超过 5MB");
+  if (file.size > 10 * 1024 * 1024) throw new Error("图片不能超过 10MB");
 
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
   const safeExt = ext.length > 0 && ext.length <= 5 ? ext : "jpg";
   const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${safeExt}`;
+
+  if (abortFlag?.current) {
+    const e = new Error("已取消"); e.name = "AbortError"; throw e;
+  }
 
   const { error: upErr } = await sb.storage
     .from("post-images")
     .upload(path, file, { cacheControl: "3600", upsert: false });
   if (upErr) throw new Error(`上传失败: ${upErr.message}`);
 
+  // 上传完成后再检查一次取消标志：若已取消，立即删除刚上传的文件
+  if (abortFlag?.current) {
+    sb.storage.from("post-images").remove([path]).catch(() => {});
+    const e = new Error("已取消"); e.name = "AbortError"; throw e;
+  }
+
   const { data: pub } = sb.storage.from("post-images").getPublicUrl(path);
   if (!pub?.publicUrl) throw new Error("获取图片 URL 失败");
-  return pub.publicUrl;
+  return { url: pub.publicUrl, path };
+}
+
+/**
+ * 删除一批已上传的图片（取消发布时清理）。
+ * 接受 [{ path }] 数组（uploadPostImage 返回的对象）
+ */
+export async function cleanupUploadedImages(uploadedList) {
+  if (!uploadedList?.length) return;
+  const sb = requireSupabase();
+  const paths = uploadedList.map((u) => u.path).filter(Boolean);
+  if (!paths.length) return;
+  await sb.storage.from("post-images").remove(paths).catch(() => {});
 }
 
 /* ══════════════════════════════════════════════════════════
