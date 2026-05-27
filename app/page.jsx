@@ -955,11 +955,11 @@ export default function AppRoot() {
                      justifyContent:"center", gap:2, border:"none", background:"transparent",
                      cursor:"pointer", transition:"all .15s", paddingTop:t.home ? 0 : 4 }}>
             {t.home ? (
-              <div style={{ width:50, height:50, borderRadius:"50%", background:C.pri,
+              <div style={{ width:56, height:56, borderRadius:"50%", background:C.pri,
                             display:"flex", alignItems:"center", justifyContent:"center",
-                            marginTop:-14, boxShadow:"0 4px 14px rgba(230,134,69,0.4)" }}>
+                            marginTop:-16, boxShadow:"0 4px 14px rgba(230,134,69,0.4)" }}>
                 <img src="/logo.png" alt="首页"
-                     style={{ width:30, height:"auto",
+                     style={{ width:40, height:"auto",
                               filter:"brightness(0) invert(1)" }} />
               </div>
             ) : (
