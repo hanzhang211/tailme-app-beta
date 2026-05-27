@@ -157,7 +157,7 @@ const Label = ({ children, style }) => (
 );
 const Inp = (props) => (
   <input {...props} style={{ width:"100%", borderRadius:16, padding:"12px 14px", fontSize:14,
-    border:"1.5px solid #525252", background:"#FFFFFF", color:C.text, outline:"none",
+    border:"1.5px solid #7A6F62", background:"#FFFFFF", color:C.text, outline:"none",
     boxSizing:"border-box", ...props.style }} />
 );
 const ErrBox = ({ msg }) =>
@@ -236,7 +236,7 @@ function PhoneLogin({ onLogin }) {
       <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:4 }}>爪爪日记</div>
       <div style={{ fontSize:12, color:P_SUB, marginBottom:36 }}>TailMe · 让陪伴更懂你</div>
 
-      <div style={{ width:"100%", background:"white", border:"1.5px solid #525252",
+      <div style={{ width:"100%", background:"white", border:"1.5px solid #7A6F62",
                     borderRadius:28, padding:"28px 24px",
                     boxShadow:"0 6px 18px rgba(0,0,0,0.08), 0 16px 40px rgba(0,0,0,0.12)" }}>
         {step === 1 ? (
@@ -248,7 +248,7 @@ function PhoneLogin({ onLogin }) {
             <Label>手机号</Label>
             <div style={{ display:"flex", gap:10, marginBottom:4 }}>
               <div style={{ background:"#FFFFFF", borderRadius:16, padding:"12px 14px", fontSize:14,
-                            color:C.text, border:"1.5px solid #525252", whiteSpace:"nowrap", fontWeight:600 }}>
+                            color:C.text, border:"1.5px solid #7A6F62", whiteSpace:"nowrap", fontWeight:600 }}>
                 +86
               </div>
               <Inp
@@ -372,7 +372,7 @@ function Onboarding({ userId, onComplete }) {
       </div>
 
       <div style={{ flex:1, padding:"0 18px 20px" }}>
-        <div style={{ background:"white", border:"1.5px solid #525252", borderRadius:28, padding:"22px 20px",
+        <div style={{ background:"white", border:"1.5px solid #7A6F62", borderRadius:28, padding:"22px 20px",
                       boxShadow:"0 6px 18px rgba(0,0,0,0.08), 0 16px 40px rgba(0,0,0,0.12)" }}>
           {step === 1 && <>
             <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>你的毛孩子叫什么？</div>
@@ -383,7 +383,7 @@ function Onboarding({ userId, onComplete }) {
             <div style={{ position:"relative" }}>
               <select value={f.breed} onChange={(e) => upd("breed", e.target.value)}
                 style={{ width:"100%", borderRadius:16, padding:"12px 16px", fontSize:14,
-                         border:"1.5px solid #525252", background:"#FFFFFF",
+                         border:"1.5px solid #7A6F62", background:"#FFFFFF",
                          color:f.breed ? C.text : O_SUB, outline:"none", appearance:"none", boxSizing:"border-box" }}>
                 <option value="">选择品种</option>
                 {BREEDS.map((b) => <option key={b} value={b}>{b}</option>)}
