@@ -151,6 +151,20 @@ export default function PostFeed({ user, pet }) {
     ));
   };
 
+  /* 打开详情：先用 new Image() 预拉第一张 display 图，让浏览器开始下载，
+     再 setDetailId 触发详情 modal —— 用户感知"秒开" */
+  const openDetail = (post) => {
+    const firstUrl = post.cover_image_url ||
+                     (Array.isArray(post.image_urls) && post.image_urls[0]) ||
+                     null;
+    if (firstUrl && typeof window !== "undefined") {
+      const img = new Image();
+      img.fetchPriority = "high";
+      img.src = firstUrl;
+    }
+    setDetailId(post.id);
+  };
+
   const handleCardLike = async (post, e) => {
     e.stopPropagation();
     if (!user?.id) return;
@@ -192,7 +206,7 @@ export default function PostFeed({ user, pet }) {
               <PostCard
                 key={p.id} post={p}
                 isLiked={likedSet.has(p.id)}
-                onOpen={() => setDetailId(p.id)}
+                onOpen={() => openDetail(p)}
                 onToggleLike={(e) => handleCardLike(p, e)}
               />
             ))}

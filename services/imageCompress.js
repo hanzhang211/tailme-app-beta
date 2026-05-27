@@ -10,6 +10,18 @@
 const DEFAULT_MAX_DIM = 1600;   // 最长边
 const DEFAULT_QUALITY = 0.82;
 
+/** 缓存的 WebP 编码支持检测 */
+let _webpSupport = null;
+function supportsWebP() {
+  if (_webpSupport !== null) return _webpSupport;
+  try {
+    const c = document.createElement("canvas");
+    c.width = 1; c.height = 1;
+    _webpSupport = c.toDataURL("image/webp").startsWith("data:image/webp");
+  } catch { _webpSupport = false; }
+  return _webpSupport;
+}
+
 /**
  * 压缩一张图片。失败时回退到原始 File。
  * @param {File} file
@@ -72,6 +84,10 @@ export async function makeImageVariants(file) {
     const bitmap = await createImageBitmap(file);
     const w0 = bitmap.width, h0 = bitmap.height;
 
+    const useWebP = supportsWebP();
+    const mime = useWebP ? "image/webp" : "image/jpeg";
+    const ext  = useWebP ? "webp" : "jpg";
+
     const render = async (maxDim, quality, suffix) => {
       const ratio = Math.min(1, maxDim / Math.max(w0, h0));
       const w = Math.max(1, Math.round(w0 * ratio));
@@ -79,10 +95,10 @@ export async function makeImageVariants(file) {
       const canvas = document.createElement("canvas");
       canvas.width = w; canvas.height = h;
       canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
-      const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", quality));
+      const blob = await new Promise((res) => canvas.toBlob(res, mime, quality));
       if (!blob) return file;
       const base = (file.name || "photo").replace(/\.[^.]+$/, "");
-      return new File([blob], `${base}.${suffix}.jpg`, { type: "image/jpeg" });
+      return new File([blob], `${base}.${suffix}.${ext}`, { type: mime });
     };
 
     const [display, thumb] = await Promise.all([

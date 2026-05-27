@@ -137,13 +137,16 @@ export async function listPosts({ limit = 20, before } = {}) {
   return data || [];
 }
 
-/** 详情用——只取 display_image_urls（不取原图 / 不取 thumbnail） */
+/**
+ * 详情用——选 display_image_urls + thumbnail_urls 做模糊占位
+ * （不取原图 original_image_urls；老帖 image_urls 作为 display 兜底）
+ */
 export async function getPostById(id) {
   const sb = requireSupabase();
   const { data, error } = await sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
-      display_image_urls, image_urls,
+      display_image_urls, image_urls, thumbnail_urls,
       cover_image_url, cover_thumbnail_url, cover_aspect_ratio,
       status, like_count, comment_count, created_at,
       user_id, pet_id,

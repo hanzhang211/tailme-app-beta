@@ -57,11 +57,19 @@ export default function PostDetail({
   const avatar  = avatarForBreed(post?.pet?.breed);
   const display = post?.user?.username || "未命名宠物";
   const own     = post?.user_id === user?.id;
+
   // 详情图：优先 display_image_urls（1600px 压缩），老帖回退 image_urls
-  const images  = (Array.isArray(post?.display_image_urls) && post.display_image_urls.length)
+  const images = (Array.isArray(post?.display_image_urls) && post.display_image_urls.length)
     ? post.display_image_urls
     : (Array.isArray(post?.image_urls) ? post.image_urls : []);
+
+  // 每张图对应的缩略图（用于模糊占位）
+  const thumbs = (Array.isArray(post?.thumbnail_urls) && post.thumbnail_urls.length)
+    ? post.thumbnail_urls
+    : [];
+
   const isText  = post?.post_type === "text" || images.length === 0;
+  const firstAspect = Number(post?.cover_aspect_ratio) > 0 ? Number(post.cover_aspect_ratio) : 1;
 
   /* 拉详情 + 评论（详情拉完才显示，避免空白闪烁） */
   useEffect(() => {
@@ -266,16 +274,22 @@ export default function PostDetail({
           ) : (
             <div style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory",
                           background:"#000" }}>
-              {images.map((url, i) => (
-                <div key={i} onClick={() => setViewerIdx(i)}
-                  style={{ flex:"0 0 100%", scrollSnapAlign:"start",
-                           aspectRatio:"1", display:"flex",
-                           alignItems:"center", justifyContent:"center",
-                           cursor:"zoom-in" }}>
-                  <img src={url} alt=""
-                    style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain" }} />
-                </div>
-              ))}
+              {images.map((url, i) => {
+                // thumbnail 来源：第一张优先用 cover_thumbnail_url（最稳），
+                // 否则按 index 取 thumbnail_urls；都没有时（老帖）退回 display 自身
+                const thumb = (i === 0 ? (post.cover_thumbnail_url || thumbs[0]) : thumbs[i]) || null;
+                const ar = i === 0 ? firstAspect : 1;   // 后续图未存 aspect，先用 1:1 容器
+                return (
+                  <DetailImage
+                    key={i}
+                    src={url}
+                    thumb={thumb}
+                    aspectRatio={ar}
+                    eager={i === 0}
+                    onClick={() => setViewerIdx(i)}
+                  />
+                );
+              })}
             </div>
           )}
 
@@ -407,6 +421,43 @@ function CommentBlock({ c, user, replies, isLiked, likedReplies, onToggleLike, o
           indent={1}
           replyToUsername={c.user?.username} />
       ))}
+    </div>
+  );
+}
+
+/* ── 详情页单张图片：模糊缩略图占位 → 高清图渐显 ─────────── */
+function DetailImage({ src, thumb, aspectRatio, eager, onClick }) {
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <div onClick={onClick}
+      style={{ flex:"0 0 100%", scrollSnapAlign:"start",
+               position:"relative", width:"100%",
+               aspectRatio: `${aspectRatio} / 1`,
+               background:"#000", overflow:"hidden", cursor:"zoom-in" }}>
+
+      {/* 模糊缩略图作为占位（首图：肯定有 cover_thumbnail_url） */}
+      {thumb && (
+        <img src={thumb} alt="" aria-hidden="true"
+          loading="eager" decoding="async"
+          style={{ position:"absolute", inset:0, width:"100%", height:"100%",
+                   objectFit:"cover",
+                   filter:"blur(24px) saturate(1.1)",
+                   transform:"scale(1.15)",        // 放大消除模糊边缘
+                   opacity: loaded ? 0 : 1,
+                   transition:"opacity .35s ease" }} />
+      )}
+
+      {/* 高清 display 图 */}
+      <img src={src} alt=""
+        loading={eager ? "eager" : "lazy"}
+        decoding="async"
+        fetchpriority={eager ? "high" : "auto"}
+        onLoad={() => setLoaded(true)}
+        style={{ position:"absolute", inset:0, width:"100%", height:"100%",
+                 objectFit:"contain",
+                 opacity: loaded ? 1 : 0,
+                 transition:"opacity .35s ease" }} />
     </div>
   );
 }
