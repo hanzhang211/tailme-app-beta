@@ -43,8 +43,8 @@ export async function listMessages(roomId, limit = 50) {
     .from("messages")
     .select(`
       id, content, status, created_at, user_id, pet_id,
-      user:users ( username ),
-      pet:pets ( name, breed )
+      user:users!user_id ( username ),
+      pet:pets!pet_id ( name, breed )
     `)
     .eq("room_id", roomId)
     .eq("status", "visible")
@@ -68,8 +68,8 @@ export async function sendMessage({ roomId, userId, petId, content }) {
     })
     .select(`
       id, content, status, created_at, user_id, pet_id,
-      user:users ( username ),
-      pet:pets ( name, breed )
+      user:users!user_id ( username ),
+      pet:pets!pet_id ( name, breed )
     `)
     .single();
   if (error) throw new Error(`发送失败: ${error.message}`);
@@ -96,8 +96,8 @@ export function subscribeRoom(roomId, onInsert) {
           .from("messages")
           .select(`
             id, content, status, created_at, user_id, pet_id,
-            user:users ( username ),
-            pet:pets ( name, breed )
+            user:users!user_id ( username ),
+            pet:pets!pet_id ( name, breed )
           `)
           .eq("id", id)
           .maybeSingle();
@@ -118,8 +118,8 @@ export async function listPosts(limit = 30) {
     .select(`
       id, content, image_urls, status, like_count, comment_count, created_at,
       user_id, pet_id,
-      user:users ( username ),
-      pet:pets ( name, breed )
+      user:users!posts_user_id_fkey ( username ),
+      pet:pets!posts_pet_id_fkey ( name, breed )
     `)
     .eq("status", "visible")
     .order("created_at", { ascending: false })
@@ -142,8 +142,8 @@ export async function createPost({ userId, petId, content }) {
     .select(`
       id, content, image_urls, status, like_count, comment_count, created_at,
       user_id, pet_id,
-      user:users ( username ),
-      pet:pets ( name, breed )
+      user:users!posts_user_id_fkey ( username ),
+      pet:pets!posts_pet_id_fkey ( name, breed )
     `)
     .single();
   if (error) throw new Error(`发帖失败: ${error.message}`);
@@ -192,8 +192,8 @@ export async function listComments(postId) {
     .from("comments")
     .select(`
       id, content, status, created_at, user_id, pet_id,
-      user:users ( username ),
-      pet:pets ( name, breed )
+      user:users!user_id ( username ),
+      pet:pets!pet_id ( name, breed )
     `)
     .eq("post_id", postId)
     .eq("status", "visible")
@@ -216,8 +216,8 @@ export async function createComment({ postId, userId, petId, content }) {
     })
     .select(`
       id, content, status, created_at, user_id, pet_id,
-      user:users ( username ),
-      pet:pets ( name, breed )
+      user:users!user_id ( username ),
+      pet:pets!pet_id ( name, breed )
     `)
     .single();
   if (error) throw new Error(`评论失败: ${error.message}`);

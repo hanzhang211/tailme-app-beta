@@ -202,20 +202,6 @@ CREATE POLICY "delete_likes"    ON post_likes FOR DELETE USING (true);
 -- 故意不给 anon UPDATE/DELETE：所有内容删除/隐藏走 API route + service_role
 
 -- ──────────────────────────────────────────────
--- 11. 实用 view：聚合 posts + author username + pet info
---    （前端读 feed 时一次性拿全字段）
+-- 11. （已移除 posts_feed view —— 前端用 nested select 直查）
 -- ──────────────────────────────────────────────
-CREATE OR REPLACE VIEW posts_feed AS
-SELECT
-  p.id, p.content, p.image_urls, p.status,
-  p.like_count, p.comment_count, p.created_at,
-  p.user_id,
-  u.username,
-  p.pet_id,
-  pet.name AS pet_name,
-  pet.breed AS pet_breed
-FROM posts p
-LEFT JOIN users u  ON u.id = p.user_id
-LEFT JOIN pets  pet ON pet.id = p.pet_id;
-
--- view 不需要 RLS，因为底表 posts 的 RLS 已经限制了 visible
+DROP VIEW IF EXISTS posts_feed;
