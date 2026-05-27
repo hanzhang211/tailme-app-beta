@@ -55,16 +55,17 @@ export async function compressImage(file, opts = {}) {
 }
 
 /**
- * 同时生成 full + thumb 两个变体，共享一次 bitmap 解码，省 CPU。
- * @returns {Promise<{ full: File, thumb: File, width: number, height: number }>}
- *   失败时 full/thumb 都回退到原文件
+ * 同时生成 display + thumb 两个变体，共享一次 bitmap 解码。
+ *  - display：详情页用，最长边 1600px / q=0.85
+ *  - thumb：  Feed 封面用，最长边 640px / q=0.75
+ * @returns {Promise<{ display: File, thumb: File, width: number, height: number }>}
  */
 export async function makeImageVariants(file) {
   if (!file || !file.type?.startsWith("image/")) {
-    return { full: file, thumb: file, width: 0, height: 0 };
+    return { display: file, thumb: file, width: 0, height: 0 };
   }
   if (file.type === "image/gif") {
-    return { full: file, thumb: file, width: 0, height: 0 };
+    return { display: file, thumb: file, width: 0, height: 0 };
   }
 
   try {
@@ -84,15 +85,15 @@ export async function makeImageVariants(file) {
       return new File([blob], `${base}.${suffix}.jpg`, { type: "image/jpeg" });
     };
 
-    const [full, thumb] = await Promise.all([
-      render(1600, 0.82, "f"),  // 原图 / 详情用
-      render(640,  0.75, "t"),  // 缩略图 / Feed 用
+    const [display, thumb] = await Promise.all([
+      render(1600, 0.85, "d"),  // 详情用
+      render(640,  0.75, "t"),  // Feed 缩略图
     ]);
 
     bitmap.close?.();
-    return { full, thumb, width: w0, height: h0 };
+    return { display, thumb, width: w0, height: h0 };
   } catch (e) {
     console.warn("[makeImageVariants] 解码失败，回退原图:", e?.message);
-    return { full: file, thumb: file, width: 0, height: 0 };
+    return { display: file, thumb: file, width: 0, height: 0 };
   }
 }

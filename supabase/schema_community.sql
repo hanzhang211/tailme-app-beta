@@ -295,3 +295,21 @@ ALTER TABLE posts
   ADD COLUMN IF NOT EXISTS thumbnail_urls       text[],
   ADD COLUMN IF NOT EXISTS cover_thumbnail_url  text,
   ADD COLUMN IF NOT EXISTS cover_aspect_ratio   numeric;
+
+-- ============================================================
+-- v5 增量：三档图片策略
+--   thumbnail_urls       — Feed 用，~640px       (v4 已加)
+--   display_image_urls   — 详情页用，~1600px / q 0.85   (新增)
+--   original_image_urls  — 用户点"查看原图"才加载（暂未实现 UI / 上传，仅占位）
+-- 旧 image_urls 字段保留向后兼容；前端读取时优先 display_image_urls，回退 image_urls
+-- ============================================================
+ALTER TABLE posts
+  ADD COLUMN IF NOT EXISTS display_image_urls  text[],
+  ADD COLUMN IF NOT EXISTS original_image_urls text[];
+
+-- 回填：老帖的 image_urls 视为 display 级（1600px，是当时的上传质量）
+UPDATE posts
+SET    display_image_urls = image_urls
+WHERE  display_image_urls IS NULL
+  AND  image_urls IS NOT NULL
+  AND  array_length(image_urls, 1) > 0;

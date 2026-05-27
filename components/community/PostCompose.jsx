@@ -99,33 +99,32 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
     abortRef.current.current = false;
 
     try {
-      let imageUrls = [];
-      let thumbnailUrls = [];
+      let displayImageUrls = [];
+      let thumbnailUrls    = [];
       let coverAspectRatio = null;
 
       if (type === "image" && pickedFiles.length > 0) {
-        /* 1) 生成 full + thumb 两个变体 */
+        /* 1) 生成 display + thumb 两个变体 */
         setPhase("compressing");
         const variants = [];
         for (let i = 0; i < pickedFiles.length; i++) {
           if (abortRef.current.current) throw _abort();
           variants.push(await makeImageVariants(pickedFiles[i]));
         }
-        // 第一张图的宽高比作为封面 aspect ratio
         const first = variants[0];
         if (first?.width && first?.height) {
           coverAspectRatio = +(first.width / first.height).toFixed(4);
         }
 
-        /* 2) 上传：每张图传 full + thumb 两份 */
+        /* 2) 上传：每张图传 display + thumb（不传原图） */
         setPhase("uploading");
         setProgress({ done: 0, total: variants.length });
         for (let i = 0; i < variants.length; i++) {
           if (abortRef.current.current) throw _abort();
-          const { full, thumb } = variants[i];
-          const fullR = await uploadPostImage(full, user.id, abortRef.current);
-          uploadedRef.current.push(fullR);
-          imageUrls.push(fullR.url);
+          const { display, thumb } = variants[i];
+          const dispR = await uploadPostImage(display, user.id, abortRef.current);
+          uploadedRef.current.push(dispR);
+          displayImageUrls.push(dispR.url);
 
           if (abortRef.current.current) throw _abort();
           const thumbR = await uploadPostImage(thumb, user.id, abortRef.current);
@@ -146,7 +145,7 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
         title:            title.trim(),
         content:          body,
         postType:         type,
-        imageUrls:        type === "image" ? imageUrls : [],
+        displayImageUrls: type === "image" ? displayImageUrls : [],
         thumbnailUrls:    type === "image" ? thumbnailUrls : [],
         coverAspectRatio: type === "image" ? coverAspectRatio : null,
         textBgColor:      type === "text"  ? bgColor : null,

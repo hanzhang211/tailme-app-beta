@@ -57,7 +57,10 @@ export default function PostDetail({
   const avatar  = avatarForBreed(post?.pet?.breed);
   const display = post?.user?.username || "未命名宠物";
   const own     = post?.user_id === user?.id;
-  const images  = Array.isArray(post?.image_urls) ? post.image_urls : [];
+  // 详情图：优先 display_image_urls（1600px 压缩），老帖回退 image_urls
+  const images  = (Array.isArray(post?.display_image_urls) && post.display_image_urls.length)
+    ? post.display_image_urls
+    : (Array.isArray(post?.image_urls) ? post.image_urls : []);
   const isText  = post?.post_type === "text" || images.length === 0;
 
   /* 拉详情 + 评论（详情拉完才显示，避免空白闪烁） */

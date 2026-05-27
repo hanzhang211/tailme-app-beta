@@ -137,13 +137,13 @@ export async function listPosts({ limit = 20, before } = {}) {
   return data || [];
 }
 
-/** 详情用——完整字段（含 image_urls） */
+/** 详情用——只取 display_image_urls（不取原图 / 不取 thumbnail） */
 export async function getPostById(id) {
   const sb = requireSupabase();
   const { data, error } = await sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
-      image_urls, thumbnail_urls,
+      display_image_urls, image_urls,
       cover_image_url, cover_thumbnail_url, cover_aspect_ratio,
       status, like_count, comment_count, created_at,
       user_id, pet_id,
@@ -159,18 +159,17 @@ export async function getPostById(id) {
 
 export async function createPost({
   userId, petId, content, title, postType,
-  imageUrls, thumbnailUrls, coverAspectRatio,
-  textBgColor,
+  displayImageUrls, thumbnailUrls, originalImageUrls,
+  coverAspectRatio, textBgColor,
 }) {
   const sb = requireSupabase();
   const { flagged: fc } = checkContent(content || "");
   const { flagged: ft } = checkContent(title || "");
   const flagged = fc || ft;
 
-  const hasImg = Array.isArray(imageUrls) && imageUrls.length;
-  const cover  = hasImg ? imageUrls[0] : null;
-  const thumbCover = Array.isArray(thumbnailUrls) && thumbnailUrls.length
-    ? thumbnailUrls[0] : null;
+  const hasDisp = Array.isArray(displayImageUrls) && displayImageUrls.length;
+  const hasThumb = Array.isArray(thumbnailUrls) && thumbnailUrls.length;
+  const hasOrig  = Array.isArray(originalImageUrls) && originalImageUrls.length;
 
   const { data, error } = await sb
     .from("posts")
@@ -179,18 +178,21 @@ export async function createPost({
       pet_id:              petId || null,
       title:               (title || "").trim() || null,
       content:             (content || "").trim(),
-      post_type:           postType || (hasImg ? "image" : "text"),
+      post_type:           postType || (hasDisp ? "image" : "text"),
       text_bg_color:       textBgColor || null,
-      image_urls:          hasImg ? imageUrls : null,
-      thumbnail_urls:      Array.isArray(thumbnailUrls) && thumbnailUrls.length ? thumbnailUrls : null,
-      cover_image_url:     cover,
-      cover_thumbnail_url: thumbCover,
+      display_image_urls:  hasDisp ? displayImageUrls : null,
+      thumbnail_urls:      hasThumb ? thumbnailUrls : null,
+      original_image_urls: hasOrig ? originalImageUrls : null,
+      // image_urls 保留写入（向后兼容老代码读旧字段），值同 display
+      image_urls:          hasDisp ? displayImageUrls : null,
+      cover_image_url:     hasDisp ? displayImageUrls[0] : null,
+      cover_thumbnail_url: hasThumb ? thumbnailUrls[0] : null,
       cover_aspect_ratio:  coverAspectRatio || null,
       status:              flagged ? "flagged" : "visible",
     })
     .select(`
       id, title, content, post_type, text_bg_color,
-      image_urls, thumbnail_urls,
+      display_image_urls, thumbnail_urls, original_image_urls, image_urls,
       cover_image_url, cover_thumbnail_url, cover_aspect_ratio,
       status, like_count, comment_count, created_at,
       user_id, pet_id,
