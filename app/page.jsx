@@ -175,9 +175,9 @@ function LoadingScreen() {
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", alignItems:"center",
                   justifyContent:"center", background:"#EEE9E1" }}>
-      <div style={{ marginBottom:16, animation:"float 3s ease-in-out infinite" }}><Logo size={52} /></div>
-      <div style={{ fontSize:20, fontWeight:800, color:C.text }}>爪爪日记</div>
-      <div style={{ fontSize:12, color:"#8A8074", marginTop:6 }}>正在加载...</div>
+      <div style={{ marginBottom:20, animation:"float 3s ease-in-out infinite" }}><Logo size={96} /></div>
+      <div style={{ fontSize:24, fontWeight:800, color:C.text }}>爪爪日记</div>
+      <div style={{ fontSize:13, color:"#8A8074", marginTop:8 }}>正在加载...</div>
       <style>{`@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}`}</style>
     </div>
   );
