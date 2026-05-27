@@ -852,10 +852,11 @@ function SocialTab() {
    user_id 持久化至 localStorage("tailme_user_id")
 ══════════════════════════════════════════════════════════════ */
 const TABS = [
-  { icon:"🏠", label:"首页" },
   { icon:"🗺️", label:"地图" },
   { icon:"💬", label:"社群" },
+  { home:true, label:"首页" },
   { icon:"🐾", label:"狗友" },
+  { icon:"⋯",  label:"更多" },   // 预留页
 ];
 
 // 状态：loading | login | onboarding | app
@@ -866,7 +867,7 @@ export default function AppRoot() {
   const [screen, setScreen] = useState(S.LOADING);
   const [userId, setUserId] = useState(null);
   const [pet, setPet]       = useState(null);
-  const [tab, setTab]       = useState(0);
+  const [tab, setTab]       = useState(2);   // 默认中间的首页
 
   /* 启动时：读取 localStorage → 验证 userId → 查询宠物 */
   useEffect(() => {
@@ -934,10 +935,17 @@ export default function AppRoot() {
   return shell(
     <>
       <div style={{ position:"absolute", top:0, left:0, right:0, bottom:60, overflow:"hidden" }}>
-        {tab === 0 && <HomeTab pet={pet} />}
-        {tab === 1 && <MapTab />}
-        {tab === 2 && <CommunityTab pet={pet} />}
+        {tab === 0 && <MapTab />}
+        {tab === 1 && <CommunityTab pet={pet} />}
+        {tab === 2 && <HomeTab pet={pet} />}
         {tab === 3 && <SocialTab />}
+        {tab === 4 && (
+          <div style={{ height:"100%", display:"flex", flexDirection:"column",
+                        alignItems:"center", justifyContent:"center", color:C.sub, background:C.bg }}>
+            <div style={{ fontSize:48, marginBottom:12 }}>⋯</div>
+            <div style={{ fontSize:14 }}>页面建设中</div>
+          </div>
+        )}
       </div>
       <div style={{ position:"absolute", bottom:0, left:0, right:0, height:60,
                     background:"white", borderTop:`1px solid ${C.border}`, display:"flex", zIndex:100 }}>
@@ -945,16 +953,27 @@ export default function AppRoot() {
           <button key={i} onClick={() => setTab(i)}
             style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center",
                      justifyContent:"center", gap:2, border:"none", background:"transparent",
-                     cursor:"pointer", transition:"all .15s", paddingTop:4 }}>
-            <div style={{ fontSize:20, lineHeight:1, height:20, display:"flex", alignItems:"center",
-                          filter: t.label === "狗友" ? "none" : (tab===i ? "none" : "grayscale(1) opacity(0.5)") }}>
-              {t.label === "狗友"
-                ? <PawIcon size={20} color={tab===i ? "#E68645" : "#C5C8CE"} />
-                : t.icon}
-            </div>
+                     cursor:"pointer", transition:"all .15s", paddingTop:t.home ? 0 : 4 }}>
+            {t.home ? (
+              <div style={{ width:50, height:50, borderRadius:"50%", background:C.pri,
+                            display:"flex", alignItems:"center", justifyContent:"center",
+                            marginTop:-14, boxShadow:"0 4px 14px rgba(230,134,69,0.4)" }}>
+                <img src="/logo.png" alt="首页"
+                     style={{ width:30, height:"auto",
+                              filter:"brightness(0) invert(1)" }} />
+              </div>
+            ) : (
+              <div style={{ fontSize:20, lineHeight:1, height:20, display:"flex", alignItems:"center",
+                            filter: t.label === "狗友" ? "none" : (tab===i ? "none" : "grayscale(1) opacity(0.5)") }}>
+                {t.label === "狗友"
+                  ? <PawIcon size={20} color={tab===i ? "#E68645" : "#C5C8CE"} />
+                  : t.icon}
+              </div>
+            )}
             <div style={{ fontSize:10, fontWeight:tab===i ? 700 : 500,
-                          color:tab===i ? C.pri : "#8A8F98", transition:"color .15s" }}>{t.label}</div>
-            {tab === i && <div style={{ width:18, height:2.5, borderRadius:4, background:C.grad, marginTop:1 }}/>}
+                          color:tab===i ? C.pri : "#8A8074", transition:"color .15s",
+                          marginTop:t.home ? 2 : 0 }}>{t.label}</div>
+            {tab === i && !t.home && <div style={{ width:18, height:2.5, borderRadius:4, background:C.grad, marginTop:1 }}/>}
           </button>
         ))}
       </div>
