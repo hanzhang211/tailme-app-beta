@@ -9,7 +9,7 @@
  * user_id 持久化在 localStorage，刷新页面自动恢复登录态。
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   getOrCreateUserByPhone,
   getUserById,
@@ -17,16 +17,16 @@ import {
   savePetProfile,
   saveFeedingRecord,
   saveHealthUpload,
+  setUsername,
+  isUsernameTaken,
 } from "@/services/supabaseService";
+import { checkUsername } from "@/services/contentFilter";
 import MapTab from "@/components/map/MapTab";
+import CommunityTab from "@/components/community/CommunityTab";
 
 /* ══════════════════════════════════════════════════════════════
-   未来接入真实服务的 stub（聊天 / AI）
-   地图已迁移至 components/map/MapTab.jsx（高德 JS API）
+   AI Stub（社群已迁至 components/community/CommunityTab.jsx 真实数据）
 ══════════════════════════════════════════════════════════════ */
-const chatService = {
-  sendMessage: async () => {},
-};
 const _delay = (ms) => new Promise((r) => setTimeout(r, ms));
 const aiHealthService = {
   analyzeFoodImage:  async () => { await _delay(2200); return AI_RES.food;  },
@@ -58,34 +58,6 @@ const isHungry = (bt, dt) => {
   const [bh, bm] = bt.split(":").map(Number);
   const [dh, dm] = dt.split(":").map(Number);
   return (m > bh * 60 + bm + 180 && m < dh * 60 + dm - 120) || m > dh * 60 + dm + 180;
-};
-
-const CHATS = {
-  "腊肠犬群": { count:1243, msgs:[
-    { id:1, u:"Lucy妈咪",   av:"🐾", t:"14:32", m:"我家腊肠最近有点挑食，你们也会这样吗？" },
-    { id:2, u:"热狗老爸",   av:"🌭", t:"14:35", m:"可以试试少量鸡胸肉拌粮，我家豆豆超爱！" },
-    { id:3, u:"小饺子主人", av:"🥟", t:"14:38", m:"周末有人一起去梧桐树下那家咖啡吗？！" },
-    { id:4, u:"Lucy妈咪",   av:"🐾", t:"14:40", m:"我要去！贝贝最近需要多出门社交 🐕" },
-    { id:5, u:"小香肠爸",   av:"🍖", t:"14:45", m:"腊肠背部要注意，不要让他们跳高台阶哦" },
-  ]},
-  "柴犬群": { count:2341, msgs:[
-    { id:1, u:"柴警察局",   av:"🚔", t:"13:10", m:"我家柴犬今天换了新粮，满地打滚不吃 😂" },
-    { id:2, u:"橘子皮皮",   av:"🍊", t:"13:15", m:"太正常了！新旧粮要慢慢混合过渡～" },
-    { id:3, u:"小花椒",     av:"🌶️", t:"13:22", m:"大家推荐浦东哪里遛柴犬吗？" },
-    { id:4, u:"阿福主人",   av:"🦊", t:"13:30", m:"世纪公园超棒！早上7点前基本可以不牵绳 🌳" },
-  ]},
-  "柯基群": { count:1876, msgs:[
-    { id:1, u:"屁股观察员", av:"🍑", t:"12:05", m:"柯基的小屁股真的治愈一切烦恼 ✨" },
-    { id:2, u:"面包超人",   av:"🍞", t:"12:08", m:"同意！每天看他走路就心情好" },
-    { id:3, u:"可乐柯基妈", av:"🥤", t:"12:15", m:"我家可乐今天学会接飞盘了！激动！" },
-    { id:4, u:"屁股观察员", av:"🍑", t:"12:20", m:"好厉害！我家那个只会追不会接 😂" },
-  ]},
-  "金毛群": { count:3241, msgs:[
-    { id:1, u:"阳光团长",   av:"☀️", t:"11:30", m:"金毛真的太粘人了，上厕所都要跟着 😂" },
-    { id:2, u:"小黄人爸",   av:"💛", t:"11:35", m:"这不是优点吗！我超爱被粘" },
-    { id:3, u:"黄油面包",   av:"🧈", t:"11:42", m:"大家金毛一天喂几顿？我家喂两次感觉总是很饿" },
-    { id:4, u:"阳光团长",   av:"☀️", t:"11:50", m:"金毛这品种本来就很馋，两次够了哈哈" },
-  ]},
 };
 
 const DOGS = [
@@ -451,6 +423,75 @@ function Onboarding({ userId, onComplete }) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   USERNAME SETUP
+   宠物档案创建后、进入 App 前的步骤；老用户没 username 也会被拉进来
+══════════════════════════════════════════════════════════════ */
+function UsernameSetup({ userId, onComplete }) {
+  const [name, setName]       = useState("");
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState(null);
+
+  const handleSubmit = async () => {
+    setError(null);
+    const check = checkUsername(name);
+    if (!check.ok) { setError(check.reason); return; }
+    setSaving(true);
+    try {
+      // 先查重（友好提示）
+      const taken = await isUsernameTaken(name.trim());
+      if (taken) {
+        setError("该用户名已被占用，请换一个");
+        return;
+      }
+      const updated = await setUsername(userId, name.trim());
+      onComplete(updated);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ height:"100%", background:"#EEE9E1",
+                  display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 28px" }}>
+      <div style={{ marginBottom:14 }}><Logo size={72} /></div>
+      <div style={{ fontSize:22, fontWeight:800, color:C.text, marginBottom:4 }}>设置用户名</div>
+      <div style={{ fontSize:12, color:"#8A8074", marginBottom:28, textAlign:"center", lineHeight:1.6 }}>
+        用户名是你在社群里的唯一身份<br/>2–20 个字符 · 不能重复 · 不能包含敏感词
+      </div>
+
+      <div style={{ width:"100%", background:"white", border:"1.5px solid #7A6F62",
+                    borderRadius:28, padding:"24px 22px",
+                    boxShadow:"0 6px 18px rgba(0,0,0,0.08), 0 16px 40px rgba(0,0,0,0.12)" }}>
+        <Label>用户名</Label>
+        <Inp
+          value={name}
+          onChange={(e) => { setName(e.target.value); setError(null); }}
+          onKeyDown={(e) => e.key === "Enter" && !saving && handleSubmit()}
+          maxLength={20}
+          placeholder="比如：小明_豆豆爸"
+        />
+        <ErrBox msg={error} />
+        <button
+          onClick={handleSubmit}
+          disabled={saving || name.trim().length < 2}
+          style={{ marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14,
+                   fontWeight:700,
+                   background: !saving && name.trim().length >= 2 ? C.pri : "#F2E5DA",
+                   color:      !saving && name.trim().length >= 2 ? "white" : "#8A8074",
+                   border:     !saving && name.trim().length >= 2 ? "none" : "1px solid #D6D5D8",
+                   cursor:     !saving && name.trim().length >= 2 ? "pointer" : "default",
+                   transition:"all .2s" }}>
+          {saving ? "保存中..." : "进入爪爪日记 →"}
+        </button>
+      </div>
+      <style>{`@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}`}</style>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
    HOME TAB
 ══════════════════════════════════════════════════════════════ */
 function HomeTab({ pet }) {
@@ -677,98 +718,9 @@ function HomeTab({ pet }) {
 ══════════════════════════════════════════════════════════════ */
 
 /* ══════════════════════════════════════════════════════════════
-   COMMUNITY TAB
+   COMMUNITY TAB — 已迁至 components/community/CommunityTab.jsx
+   （Supabase 真实数据 + Realtime + 内容过滤）
 ══════════════════════════════════════════════════════════════ */
-function CommunityTab({ pet }) {
-  const groups  = Object.keys(CHATS);
-  const defG    = pet?.breed && CHATS[`${pet.breed}群`] ? `${pet.breed}群` : groups[0];
-  const [ag, setAg]     = useState(defG);
-  const [msgs, setMsgs] = useState(() => {
-    const m = {};
-    groups.forEach((g) => { m[g] = [...CHATS[g].msgs]; });
-    return m;
-  });
-  const [inp, setInp] = useState("");
-  const chatRef = useRef();
-
-  useEffect(() => {
-    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
-  }, [msgs, ag]);
-
-  const send = async () => {
-    if (!inp.trim()) return;
-    const newMsg = {
-      id: Date.now(), u:`${pet?.name || "我"}的主人`, av:"😊",
-      t: new Date().toLocaleTimeString("zh", { hour:"2-digit", minute:"2-digit" }),
-      m: inp.trim(), own: true,
-    };
-    setMsgs((p) => ({ ...p, [ag]: [...p[ag], newMsg] }));
-    await chatService.sendMessage(ag, inp.trim());
-    setInp("");
-  };
-
-  return (
-    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:C.bg }}>
-      <div style={{ background:"white", padding:"52px 18px 0", flexShrink:0 }}>
-        <div style={{ fontSize:20, fontWeight:800, color:C.text, marginBottom:2 }}>💬 宠物社群</div>
-        <div style={{ fontSize:12, color:C.sub, marginBottom:12 }}>同品种交流，找到你的狗友</div>
-        <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:12, scrollbarWidth:"none" }}>
-          {groups.map((g) => (
-            <button key={g} onClick={() => setAg(g)}
-              style={{ flexShrink:0, padding:"6px 14px", borderRadius:20, fontSize:12, fontWeight:600,
-                       cursor:"pointer", transition:"all .2s",
-                       background:ag===g ? C.grad : C.light, color:ag===g ? "white" : "#3B4252",
-                       border:`1.5px solid ${ag===g ? "transparent" : C.border}` }}>
-              {g}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div style={{ background:C.tint, padding:"7px 18px", borderBottom:`1px solid ${C.border}`,
-                    flexShrink:0, display:"flex", alignItems:"center", gap:10 }}>
-        <span style={{ fontSize:13, fontWeight:700, color:C.text }}>🐕 {ag}</span>
-        <span style={{ fontSize:11, color:C.sub }}>{CHATS[ag]?.count.toLocaleString()} 人在群里</span>
-      </div>
-      <div ref={chatRef} style={{ flex:1, overflowY:"auto", padding:"12px 14px" }}>
-        {(msgs[ag] || []).map((msg) => (
-          <div key={msg.id} style={{ display:"flex", gap:10, marginBottom:14,
-                                     flexDirection:msg.own ? "row-reverse" : "row" }}>
-            <div style={{ width:34, height:34, borderRadius:"50%", background:C.tint,
-                          display:"flex", alignItems:"center", justifyContent:"center",
-                          fontSize:16, flexShrink:0 }}>
-              {msg.av}
-            </div>
-            <div style={{ maxWidth:"72%", display:"flex", flexDirection:"column",
-                          alignItems:msg.own ? "flex-end" : "flex-start" }}>
-              {!msg.own && <div style={{ fontSize:11, color:C.sub, marginBottom:3, paddingLeft:4 }}>{msg.u}</div>}
-              <div style={{ padding:"10px 14px", fontSize:13, lineHeight:1.55,
-                            borderRadius:msg.own ? "18px 4px 18px 18px" : "4px 18px 18px 18px",
-                            background:msg.own ? C.accent : "white", color:msg.own ? "white" : C.text,
-                            boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
-                {msg.m}
-              </div>
-              <div style={{ fontSize:10, color:"#8A8F98", marginTop:3, paddingLeft:4, paddingRight:4 }}>{msg.t}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div style={{ background:"white", borderTop:`1px solid ${C.border}`, padding:"10px 14px 18px",
-                    display:"flex", gap:10, flexShrink:0 }}>
-        <input value={inp} onChange={(e) => setInp(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder={`和 ${ag} 的朋友聊聊...`}
-          style={{ flex:1, borderRadius:22, padding:"10px 16px", fontSize:13,
-                   border:`1.5px solid ${C.border}`, background:"#FAFAFA", color:C.text, outline:"none" }}/>
-        <button onClick={send}
-          style={{ width:40, height:40, borderRadius:"50%", background:C.grad, border:"none",
-                   cursor:"pointer", color:"white", fontSize:16, flexShrink:0,
-                   display:"flex", alignItems:"center", justifyContent:"center" }}>
-          ➤
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /* ══════════════════════════════════════════════════════════════
    SOCIAL TAB
@@ -860,58 +812,67 @@ const TABS = [
 ];
 
 // 状态：loading | login | onboarding | app
-const S = { LOADING:"loading", LOGIN:"login", ONBOARDING:"onboarding", APP:"app" };
+const S = { LOADING:"loading", LOGIN:"login", ONBOARDING:"onboarding", USERNAME:"username", APP:"app" };
 const LS_KEY = "tailme_user_id";
 
 export default function AppRoot() {
   const [screen, setScreen] = useState(S.LOADING);
-  const [userId, setUserId] = useState(null);
+  const [user, setUser]     = useState(null);   // 完整 user 对象（含 username/role）
   const [pet, setPet]       = useState(null);
   const [tab, setTab]       = useState(2);   // 默认中间的首页
 
-  /* 启动时：读取 localStorage → 验证 userId → 查询宠物 */
+  const userId = user?.id ?? null;
+
+  /* 状态分发：拿到 user + pets 之后决定下一步 */
+  const routeAfterLoad = (loadedUser, pets) => {
+    setUser(loadedUser);
+    if (!pets || pets.length === 0) { setScreen(S.ONBOARDING); return; }
+    setPet(pets[0]);
+    if (!loadedUser?.username) { setScreen(S.USERNAME); return; }
+    setScreen(S.APP);
+  };
+
+  /* 启动时：读取 localStorage → 验证 user → 查询宠物 → 决定下一步 */
   useEffect(() => {
     const storedId = localStorage.getItem(LS_KEY);
     if (!storedId) { setScreen(S.LOGIN); return; }
 
-    // 验证 user 在 DB 中确实存在（防止 DB 重置后本地残留 id）
-    getUserById(storedId)
-      .then(() => loadPets(storedId))
-      .catch(() => {
-        // user 不存在 → 清除本地缓存，重新登录
+    (async () => {
+      try {
+        const u    = await getUserById(storedId);
+        const pets = await getUserPets(storedId);
+        routeAfterLoad(u, pets);
+      } catch {
         localStorage.removeItem(LS_KEY);
         setScreen(S.LOGIN);
-      });
+      }
+    })();
   }, []);
 
-  const loadPets = async (uid) => {
+  /* 登录成功 → 保存 userId → 拉 user + pets → 路由 */
+  const handleLogin = async (uid) => {
+    localStorage.setItem(LS_KEY, uid);
+    setScreen(S.LOADING);
     try {
+      const u    = await getUserById(uid);
       const pets = await getUserPets(uid);
-      setUserId(uid);
-      if (pets && pets.length > 0) {
-        setPet(pets[0]);
-        setScreen(S.APP);
-      } else {
-        setScreen(S.ONBOARDING);
-      }
+      routeAfterLoad(u, pets);
     } catch {
-      // 查询宠物失败也进入 onboarding，让用户重新创建
-      setUserId(uid);
+      setUser({ id: uid });
       setScreen(S.ONBOARDING);
     }
   };
 
-  /* 登录成功 → 保存 userId → 查询宠物 */
-  const handleLogin = (uid) => {
-    localStorage.setItem(LS_KEY, uid);
-    setUserId(uid);
-    setScreen(S.LOADING);
-    loadPets(uid);
-  };
-
-  /* 宠物创建成功 → 进入主页 */
+  /* 宠物创建成功 → 检查 username 是否已设 */
   const handlePetCreated = (newPet) => {
     setPet(newPet);
+    if (!user?.username) { setScreen(S.USERNAME); return; }
+    setScreen(S.APP);
+  };
+
+  /* 用户名设置完成 → 进入 App */
+  const handleUsernameSet = (updatedUser) => {
+    setUser(updatedUser);
     setScreen(S.APP);
   };
 
@@ -930,13 +891,14 @@ export default function AppRoot() {
   if (screen === S.LOADING)    return shell(<LoadingScreen />, false);
   if (screen === S.LOGIN)      return shell(<PhoneLogin onLogin={handleLogin} />, false);
   if (screen === S.ONBOARDING) return shell(<Onboarding userId={userId} onComplete={handlePetCreated} />, true);
+  if (screen === S.USERNAME)   return shell(<UsernameSetup userId={userId} onComplete={handleUsernameSet} />, false);
 
   // S.APP
   return shell(
     <>
       <div style={{ position:"absolute", top:0, left:0, right:0, bottom:60, overflow:"hidden" }}>
         {tab === 0 && <MapTab />}
-        {tab === 1 && <CommunityTab pet={pet} />}
+        {tab === 1 && <CommunityTab user={user} pet={pet} />}
         {tab === 2 && <HomeTab pet={pet} />}
         {tab === 3 && <SocialTab />}
         {tab === 4 && (

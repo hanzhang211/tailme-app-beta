@@ -113,6 +113,37 @@ export async function savePetProfile(formData, userId) {
   return data;
 }
 
+/* ── 用户名唯一性检查（大小写不敏感）──────────────────────────── */
+export async function isUsernameTaken(username) {
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from("users")
+    .select("id")
+    .ilike("username", username)
+    .maybeSingle();
+  if (error) throw new Error(`查询用户名失败: ${error.message}`);
+  return !!data;
+}
+
+/* ── 设置用户名（首次或修改）────────────────────────────────────
+   23505 = unique violation → 提示重名
+   ─────────────────────────────────────────────────────────── */
+export async function setUsername(userId, username) {
+  const sb = requireSupabase();
+  if (!userId) throw new Error("setUsername: userId 不能为空");
+  const { data, error } = await sb
+    .from("users")
+    .update({ username: username.trim() })
+    .eq("id", userId)
+    .select()
+    .single();
+  if (error) {
+    if (error.code === "23505") throw new Error("该用户名已被占用，请换一个");
+    throw new Error(`设置用户名失败: ${error.message}`);
+  }
+  return data;
+}
+
 /* ── 保存喂食记录 ─────────────────────────────────────────────── */
 export async function saveFeedingRecord(record) {
   const sb = requireSupabase();

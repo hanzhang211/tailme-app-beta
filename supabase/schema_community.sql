@@ -1,0 +1,221 @@
+-- ============================================================
+-- tailme-app-beta — Community schema
+-- 在 Supabase SQL Editor 一次性执行
+-- ============================================================
+
+-- ──────────────────────────────────────────────
+-- 1. users 扩展：username + role
+-- ──────────────────────────────────────────────
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS username text,
+  ADD COLUMN IF NOT EXISTS role text NOT NULL DEFAULT 'user'
+    CHECK (role IN ('user','admin'));
+
+-- 唯一约束（已有数据全 NULL 时安全）
+CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique
+  ON users (lower(username))
+  WHERE username IS NOT NULL;
+
+-- ──────────────────────────────────────────────
+-- 2. 聊天室（按品种预置）
+-- ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS chat_rooms (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        text NOT NULL,
+  breed       text UNIQUE,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- 预置：1 个全员房 + 30 个品种房
+INSERT INTO chat_rooms (name, breed) VALUES ('全员闲聊', NULL)
+  ON CONFLICT DO NOTHING;
+INSERT INTO chat_rooms (name, breed)
+SELECT b || '群', b FROM unnest(ARRAY[
+  '腊肠犬','柴犬','柯基','金毛','拉布拉多','边牧','法斗','比熊','贵宾','泰迪',
+  '阿拉斯加','哈士奇','德牧','博美','马尔济斯','巴哥','吉娃娃','秋田','雪纳瑞','约克夏',
+  '杜宾','萨摩耶','罗威纳','伯恩山','斗牛犬','灵缇','纽芬兰','牛头梗','可卡','其他'
+]) AS t(b)
+ON CONFLICT (breed) DO NOTHING;
+
+-- ──────────────────────────────────────────────
+-- 3. 消息（实时聊天）
+-- ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS messages (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_id     uuid NOT NULL REFERENCES chat_rooms(id) ON DELETE CASCADE,
+  user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pet_id      uuid REFERENCES pets(id) ON DELETE SET NULL,
+  content     text NOT NULL CHECK (length(content) BETWEEN 1 AND 2000),
+  status      text NOT NULL DEFAULT 'visible'
+              CHECK (status IN ('visible','hidden','flagged')),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_messages_room_created
+  ON messages (room_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_user ON messages (user_id);
+
+-- ──────────────────────────────────────────────
+-- 4. 帖子
+-- ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS posts (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pet_id        uuid REFERENCES pets(id) ON DELETE SET NULL,
+  content       text NOT NULL CHECK (length(content) BETWEEN 1 AND 5000),
+  image_urls    text[],
+  status        text NOT NULL DEFAULT 'visible'
+                CHECK (status IN ('visible','hidden','flagged')),
+  like_count    int  NOT NULL DEFAULT 0,
+  comment_count int  NOT NULL DEFAULT 0,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_posts_status_created
+  ON posts (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_user ON posts (user_id);
+
+-- ──────────────────────────────────────────────
+-- 5. 点赞
+-- ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS post_likes (
+  post_id     uuid NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (post_id, user_id)
+);
+
+-- ──────────────────────────────────────────────
+-- 6. 评论
+-- ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS comments (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id     uuid NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pet_id      uuid REFERENCES pets(id) ON DELETE SET NULL,
+  content     text NOT NULL CHECK (length(content) BETWEEN 1 AND 1000),
+  status      text NOT NULL DEFAULT 'visible'
+              CHECK (status IN ('visible','hidden','flagged')),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_comments_post
+  ON comments (post_id, created_at);
+
+-- ──────────────────────────────────────────────
+-- 7. 举报
+-- ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS reports (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  reporter_id   uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  target_type   text NOT NULL CHECK (target_type IN ('post','comment','message')),
+  target_id     uuid NOT NULL,
+  reason        text,
+  status        text NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending','resolved','dismissed')),
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_reports_status
+  ON reports (status, created_at);
+
+-- ──────────────────────────────────────────────
+-- 8. Trigger：自动维护 like_count / comment_count
+-- ──────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION bump_post_counter() RETURNS trigger AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF TG_TABLE_NAME = 'post_likes' THEN
+      UPDATE posts SET like_count = like_count + 1 WHERE id = NEW.post_id;
+    ELSIF TG_TABLE_NAME = 'comments' AND NEW.status = 'visible' THEN
+      UPDATE posts SET comment_count = comment_count + 1 WHERE id = NEW.post_id;
+    END IF;
+  ELSIF TG_OP = 'DELETE' THEN
+    IF TG_TABLE_NAME = 'post_likes' THEN
+      UPDATE posts SET like_count = greatest(like_count - 1, 0) WHERE id = OLD.post_id;
+    ELSIF TG_TABLE_NAME = 'comments' AND OLD.status = 'visible' THEN
+      UPDATE posts SET comment_count = greatest(comment_count - 1, 0) WHERE id = OLD.post_id;
+    END IF;
+  ELSIF TG_OP = 'UPDATE' AND TG_TABLE_NAME = 'comments' THEN
+    -- 状态变化时调整
+    IF OLD.status = 'visible' AND NEW.status <> 'visible' THEN
+      UPDATE posts SET comment_count = greatest(comment_count - 1, 0) WHERE id = NEW.post_id;
+    ELSIF OLD.status <> 'visible' AND NEW.status = 'visible' THEN
+      UPDATE posts SET comment_count = comment_count + 1 WHERE id = NEW.post_id;
+    END IF;
+  END IF;
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_post_likes_count ON post_likes;
+CREATE TRIGGER trg_post_likes_count
+  AFTER INSERT OR DELETE ON post_likes
+  FOR EACH ROW EXECUTE FUNCTION bump_post_counter();
+
+DROP TRIGGER IF EXISTS trg_comments_count ON comments;
+CREATE TRIGGER trg_comments_count
+  AFTER INSERT OR DELETE OR UPDATE ON comments
+  FOR EACH ROW EXECUTE FUNCTION bump_post_counter();
+
+-- ──────────────────────────────────────────────
+-- 9. Realtime publication
+-- ──────────────────────────────────────────────
+ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+ALTER PUBLICATION supabase_realtime ADD TABLE posts;
+ALTER PUBLICATION supabase_realtime ADD TABLE comments;
+ALTER PUBLICATION supabase_realtime ADD TABLE post_likes;
+
+-- ──────────────────────────────────────────────
+-- 10. RLS — anon 直连用的策略
+-- 注意：业务侧的 owner 校验由 Next.js API route 做（service_role）
+-- ──────────────────────────────────────────────
+ALTER TABLE chat_rooms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE posts      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comments   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reports    ENABLE ROW LEVEL SECURITY;
+
+-- 房间：任意人可读
+CREATE POLICY "read_rooms" ON chat_rooms
+  FOR SELECT USING (true);
+
+-- 帖子/评论/消息：anon 只能读 visible
+CREATE POLICY "read_visible_posts" ON posts
+  FOR SELECT USING (status = 'visible');
+CREATE POLICY "read_visible_comments" ON comments
+  FOR SELECT USING (status = 'visible');
+CREATE POLICY "read_visible_messages" ON messages
+  FOR SELECT USING (status = 'visible');
+
+-- 点赞：可读全部
+CREATE POLICY "read_likes" ON post_likes
+  FOR SELECT USING (true);
+
+-- INSERT：anon 可写（带 user_id），关键词命中时由前端预设 status='flagged'
+CREATE POLICY "insert_posts"    ON posts    FOR INSERT WITH CHECK (true);
+CREATE POLICY "insert_comments" ON comments FOR INSERT WITH CHECK (true);
+CREATE POLICY "insert_messages" ON messages FOR INSERT WITH CHECK (true);
+CREATE POLICY "insert_likes"    ON post_likes FOR INSERT WITH CHECK (true);
+CREATE POLICY "insert_reports"  ON reports  FOR INSERT WITH CHECK (true);
+
+-- 取消点赞：anon 直接 delete（仅 post_likes 例外，便于轻量操作）
+CREATE POLICY "delete_likes"    ON post_likes FOR DELETE USING (true);
+
+-- 故意不给 anon UPDATE/DELETE：所有内容删除/隐藏走 API route + service_role
+
+-- ──────────────────────────────────────────────
+-- 11. 实用 view：聚合 posts + author username + pet info
+--    （前端读 feed 时一次性拿全字段）
+-- ──────────────────────────────────────────────
+CREATE OR REPLACE VIEW posts_feed AS
+SELECT
+  p.id, p.content, p.image_urls, p.status,
+  p.like_count, p.comment_count, p.created_at,
+  p.user_id,
+  u.username,
+  p.pet_id,
+  pet.name AS pet_name,
+  pet.breed AS pet_breed
+FROM posts p
+LEFT JOIN users u  ON u.id = p.user_id
+LEFT JOIN pets  pet ON pet.id = p.pet_id;
+
+-- view 不需要 RLS，因为底表 posts 的 RLS 已经限制了 visible
