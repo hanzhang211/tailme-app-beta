@@ -106,17 +106,21 @@ const AI_RES = {
    THEME
 ══════════════════════════════════════════════════════════════ */
 const C = {
-  pri:"#1E3A5F",      // 主强调 / 按钮 / 选中态 (深藏青，偏黑)
-  grad:"#1E3A5F",
-  accent:"#0891B2",   // 次级 / 标签 / 文字 (青蓝)
-  tint:"#E0F4F7",     // 柔青蓝 / 装饰背景 / 选中底
-  bg:"#FFFFFF", card:"#FFFFFF", text:"#1A1006", sub:"#8A8F98",
-  light:"#F7F8FA", border:"#ECEEF2",
+  pri:"#E68645",      // 橙色强调 / 按钮 / 选中态 / CTA
+  grad:"#E68645",
+  accent:"#E68645",   // 同强调色（用于小图标、选中文字等）
+  tint:"#F2E5DA",     // 浅粉米色 / 装饰背景 / 选中底
+  bg:"#EEE9E1",       // 米白主背景
+  card:"#FFFFFF",
+  text:"#1A1006",
+  sub:"#8A8074",      // 暖灰文字
+  light:"#D6D5D8",    // 浅灰紫 / 辅助填充
+  border:"#D6D5D8",
 };
 const cardStyle = { background:C.card, borderRadius:20, padding:16, marginBottom:12, boxShadow:"0 2px 14px rgba(0,0,0,0.05)" };
 const btnStyle  = (active) => ({
-  background: active ? C.grad : "#F7F8FA", color: active ? "#fff" : "#3B4252",
-  border:`1.5px solid ${active ? C.pri : "#ECEEF2"}`, borderRadius:16,
+  background: active ? C.pri : "#FFFFFF", color: active ? "#fff" : "#1A1006",
+  border:`2px solid ${active ? C.pri : "#000000"}`, borderRadius:16,
   padding:"10px 0", fontSize:13, fontWeight:600, cursor:"pointer", flex:1, transition:"all .2s",
 });
 
@@ -131,7 +135,7 @@ function Logo({ size = 52 }) {
 }
 
 // 装饰用纯爪印（无轨道），可控颜色
-function PawIcon({ size = 16, color = "#1E3A5F" }) {
+function PawIcon({ size = 16, color = "#E68645" }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color}
          xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
@@ -153,7 +157,7 @@ const Label = ({ children, style }) => (
 );
 const Inp = (props) => (
   <input {...props} style={{ width:"100%", borderRadius:16, padding:"12px 14px", fontSize:14,
-    border:"1.5px solid #ECEEF2", background:"#F7F8FA", color:C.text, outline:"none",
+    border:"2px solid #000000", background:"#FFFFFF", color:C.text, outline:"none",
     boxSizing:"border-box", ...props.style }} />
 );
 const ErrBox = ({ msg }) =>
@@ -170,10 +174,10 @@ const ErrBox = ({ msg }) =>
 function LoadingScreen() {
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", alignItems:"center",
-                  justifyContent:"center", background:"#FFFFFF" }}>
+                  justifyContent:"center", background:"#EEE9E1" }}>
       <div style={{ marginBottom:16, animation:"float 3s ease-in-out infinite" }}><Logo size={52} /></div>
       <div style={{ fontSize:20, fontWeight:800, color:C.text }}>爪爪日记</div>
-      <div style={{ fontSize:12, color:"#8A8F98", marginTop:6 }}>正在加载...</div>
+      <div style={{ fontSize:12, color:"#8A8074", marginTop:6 }}>正在加载...</div>
       <style>{`@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}`}</style>
     </div>
   );
@@ -221,18 +225,18 @@ function PhoneLogin({ onLogin }) {
   };
 
   // PhoneLogin 本地白底冷调
-  const P_SURFACE = "#F7F8FA";
-  const P_BORDER  = "#ECEEF2";
-  const P_SUB     = "#8A8F98";
+  const P_SURFACE = "#F2E5DA";   // 浅粉米色 / 禁用按钮 / 区号块
+  const P_BORDER  = "#000000";   // 黑色边框
+  const P_SUB     = "#8A8074";   // 暖灰文字
 
   return (
-    <div style={{ height:"100%", background:"#FFFFFF",
+    <div style={{ height:"100%", background:"#EEE9E1",
                   display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 28px" }}>
       <div style={{ marginBottom:12 }}><Logo size={96} /></div>
       <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:4 }}>爪爪日记</div>
       <div style={{ fontSize:12, color:P_SUB, marginBottom:36 }}>TailMe · 让陪伴更懂你</div>
 
-      <div style={{ width:"100%", background:"white", border:"2.5px solid #1E3A5F",
+      <div style={{ width:"100%", background:"white", border:"2.5px solid #000000",
                     borderRadius:28, padding:"28px 24px",
                     boxShadow:"0 16px 44px rgba(0,0,0,0.14)" }}>
         {step === 1 ? (
@@ -243,8 +247,8 @@ function PhoneLogin({ onLogin }) {
             </div>
             <Label>手机号</Label>
             <div style={{ display:"flex", gap:10, marginBottom:4 }}>
-              <div style={{ background:P_SURFACE, borderRadius:16, padding:"12px 14px", fontSize:14,
-                            color:C.text, border:`1.5px solid ${P_BORDER}`, whiteSpace:"nowrap" }}>
+              <div style={{ background:"#FFFFFF", borderRadius:16, padding:"12px 14px", fontSize:14,
+                            color:C.text, border:"2px solid #000000", whiteSpace:"nowrap", fontWeight:600 }}>
                 +86
               </div>
               <Inp
@@ -260,7 +264,7 @@ function PhoneLogin({ onLogin }) {
             <button
               onClick={handleSendCode}
               style={{ marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14,
-                       fontWeight:700, background:isValidPhone ? "#1E3A5F" : P_SURFACE,
+                       fontWeight:700, background:isValidPhone ? "#E68645" : P_SURFACE,
                        color:isValidPhone ? "white" : P_SUB,
                        border:isValidPhone ? "none" : `1px solid ${P_BORDER}`,
                        cursor:isValidPhone ? "pointer" : "default", transition:"all .2s" }}>
@@ -297,7 +301,7 @@ function PhoneLogin({ onLogin }) {
               onClick={handleVerify}
               disabled={loading || code.length < 6}
               style={{ marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14,
-                       fontWeight:700, background:!loading && code.length >= 6 ? "#1E3A5F" : P_SURFACE,
+                       fontWeight:700, background:!loading && code.length >= 6 ? "#E68645" : P_SURFACE,
                        color:!loading && code.length >= 6 ? "white" : P_SUB,
                        border:!loading && code.length >= 6 ? "none" : `1px solid ${P_BORDER}`,
                        cursor:!loading && code.length >= 6 ? "pointer" : "default",
@@ -345,10 +349,10 @@ function Onboarding({ userId, onComplete }) {
   };
 
   // Onboarding 本地白底冷调
-  const O_BG       = "#FFFFFF";
-  const O_SURFACE  = "#F7F8FA";
-  const O_BORDER   = "#ECEEF2";
-  const O_SUB      = "#8A8F98";
+  const O_BG       = "#EEE9E1";  // 米白主背景
+  const O_SURFACE  = "#F2E5DA";  // 浅粉米色
+  const O_BORDER   = "#D6D5D8";  // 浅灰紫描边
+  const O_SUB      = "#8A8074";  // 暖灰
 
   return (
     <div style={{ minHeight:"100%", background:O_BG, display:"flex", flexDirection:"column" }}>
@@ -361,14 +365,14 @@ function Onboarding({ userId, onComplete }) {
         <div style={{ display:"flex", gap:6, marginBottom:4 }}>
           {[1,2,3].map((i) => (
             <div key={i} style={{ flex:1, height:4, borderRadius:4, transition:"background .3s",
-                                   background: i <= step ? "#1E3A5F" : O_BORDER }} />
+                                   background: i <= step ? "#E68645" : O_BORDER }} />
           ))}
         </div>
         <div style={{ textAlign:"center", fontSize:11, color:O_SUB }}>第 {step} / 3 步</div>
       </div>
 
       <div style={{ flex:1, padding:"0 18px 20px" }}>
-        <div style={{ background:"white", border:"2.5px solid #1E3A5F", borderRadius:28, padding:"22px 20px",
+        <div style={{ background:"white", border:"2.5px solid #000000", borderRadius:28, padding:"22px 20px",
                       boxShadow:"0 16px 44px rgba(0,0,0,0.14)" }}>
           {step === 1 && <>
             <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>你的毛孩子叫什么？</div>
@@ -379,7 +383,7 @@ function Onboarding({ userId, onComplete }) {
             <div style={{ position:"relative" }}>
               <select value={f.breed} onChange={(e) => upd("breed", e.target.value)}
                 style={{ width:"100%", borderRadius:16, padding:"12px 16px", fontSize:14,
-                         border:`1.5px solid ${O_BORDER}`, background:O_SURFACE,
+                         border:"2px solid #000000", background:"#FFFFFF",
                          color:f.breed ? C.text : O_SUB, outline:"none", appearance:"none", boxSizing:"border-box" }}>
                 <option value="">选择品种</option>
                 {BREEDS.map((b) => <option key={b} value={b}>{b}</option>)}
@@ -427,7 +431,7 @@ function Onboarding({ userId, onComplete }) {
 
         <button onClick={next} disabled={!ok || saving}
           style={{ marginTop:14, width:"100%", padding:"15px 0", borderRadius:20, fontSize:14, fontWeight:700,
-                   background:ok && !saving ? "#1E3A5F" : O_SURFACE, color:ok && !saving ? "white" : O_SUB,
+                   background:ok && !saving ? "#E68645" : O_SURFACE, color:ok && !saving ? "white" : O_SUB,
                    border:ok && !saving ? "none" : `1px solid ${O_BORDER}`,
                    cursor:ok && !saving ? "pointer" : "default", transition:"all .2s" }}>
           {saving ? "保存中..." : step < 3 ? "继续 →" : `开始和 ${f.name || "它"} 的旅程 🐾`}
@@ -492,11 +496,11 @@ function HomeTab({ pet }) {
   };
 
   // HomeTab 本地白底科技风配色（仅作用于本 Tab，保留橙色作为点缀）
-  const H_BG       = "#FFFFFF";
-  const H_SURFACE  = "#F7F8FA";  // 浅灰填充（替代原 C.light 暖黄）
-  const H_BORDER   = "#E5E7EB";  // 浅灰描边
-  const H_SHADOW   = "0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)";  // 柔阴影
-  const H_SUB      = "#8A8F98";  // 次级文字（替代暖灰 C.sub）
+  const H_BG       = "#EEE9E1";  // 米白主背景
+  const H_SURFACE  = "#F2E5DA";  // 浅粉米色 / 信息块填充
+  const H_BORDER   = "#D6D5D8";  // 浅灰紫描边
+  const H_SHADOW   = "0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)";  // 轻柔阴影
+  const H_SUB      = "#8A8074";  // 次级暖灰文字
 
   return (
     <div style={{ height:"100%", overflowY:"auto", background:H_BG }}>
@@ -519,13 +523,13 @@ function HomeTab({ pet }) {
           <div style={{ position:"relative", padding:"4px 10px" }}>
             <div style={{ fontSize:120, lineHeight:1,
                           animation:"float 3s ease-in-out infinite",
-                          filter:"drop-shadow(0 6px 12px rgba(8,145,178,0.18))" }}>
+                          filter:"drop-shadow(0 6px 12px rgba(230,134,69,0.18))" }}>
               🐶
             </div>
             {hungry && (
               <div style={{ position:"absolute", top:0, right:-4, background:C.accent, borderRadius:20,
                             padding:"3px 9px", fontSize:10, fontWeight:700, color:"white",
-                            boxShadow:"0 2px 10px rgba(8,145,178,0.35)" }}>
+                            boxShadow:"0 2px 10px rgba(230,134,69,0.35)" }}>
                 😋 饿了
               </div>
             )}
@@ -776,7 +780,7 @@ function SocialTab() {
     <div style={{ height:"100%", overflowY:"auto", background:C.bg }}>
       <div style={{ background:"white", padding:"52px 18px 16px" }}>
         <div style={{ fontSize:20, fontWeight:800, color:C.text, display:"flex", alignItems:"center", gap:8 }}>
-          <PawIcon size={20} color="#1E3A5F" /> 附近狗狗
+          <PawIcon size={20} color="#E68645" /> 附近狗狗
         </div>
         <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>找到附近的狗友，一起遛弯</div>
       </div>
@@ -911,7 +915,7 @@ export default function AppRoot() {
   };
 
   const shell = (content, scroll = false) => (
-    <div style={{ background:"#FFFFFF", minHeight:"100vh",
+    <div style={{ background:"#EEE9E1", minHeight:"100vh",
                   display:"flex", justifyContent:"center", alignItems:"flex-start" }}>
       <div style={{ width:"100%", maxWidth:430, height:"100vh", position:"relative",
                     background:C.bg, overflow:"hidden", boxShadow:"0 0 80px rgba(0,0,0,0.08)" }}>
@@ -945,7 +949,7 @@ export default function AppRoot() {
             <div style={{ fontSize:20, lineHeight:1, height:20, display:"flex", alignItems:"center",
                           filter: t.label === "狗友" ? "none" : (tab===i ? "none" : "grayscale(1) opacity(0.5)") }}>
               {t.label === "狗友"
-                ? <PawIcon size={20} color={tab===i ? "#1E3A5F" : "#C5C8CE"} />
+                ? <PawIcon size={20} color={tab===i ? "#E68645" : "#C5C8CE"} />
                 : t.icon}
             </div>
             <div style={{ fontSize:10, fontWeight:tab===i ? 700 : 500,

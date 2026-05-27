@@ -28,15 +28,15 @@ import {
 
 /* ── theme ─────────────────────────────────────────────── */
 const C = {
-  pri:    "#1E3A5F",   // 强调 / 按钮 / 选中态
-  grad:   "#1E3A5F",
-  accent: "#0891B2",   // 次级 / 标签 / 文字
-  tint:   "#E0F4F7",   // 柔青蓝 / 装饰背景 / 选中底
-  bg:     "#FFFFFF",
+  pri:    "#E68645",   // 橙色强调 / 按钮 / 选中态
+  grad:   "#E68645",
+  accent: "#E68645",
+  tint:   "#F2E5DA",   // 浅粉米色 / 装饰背景 / 选中底
+  bg:     "#EEE9E1",   // 米白主背景
   text:   "#1A1006",
-  sub:    "#9B8B76",
-  light:  "#F7F8FA",
-  border: "#ECEEF2",
+  sub:    "#8A8074",
+  light:  "#D6D5D8",   // 浅灰紫
+  border: "#D6D5D8",
   err:    "#FFF0F0",
   errT:   "#C0392B",
 };
@@ -52,7 +52,7 @@ const ME_MARKER = `
   </div>`;
 
 const poiMarker = (icon) =>
-  `<div style="width:32px;height:32px;border-radius:50%;background:#1E3A5F;
+  `<div style="width:32px;height:32px;border-radius:50%;background:#E68645;
     border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;
     font-size:13px;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,0.4)">${icon}</div>`;
 
