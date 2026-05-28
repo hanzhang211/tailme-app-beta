@@ -3,11 +3,14 @@
 /**
  * components/community/ChatRoom.jsx
  *
- * 真实聊天：
- *  - 顶部品种群切换（来自 chat_rooms 表）
- *  - 默认进入用户当前宠物品种对应的群（找不到则进"全员"）
- *  - 历史消息 + Realtime 订阅新消息
- *  - 自己的消息可长按删除（调 /api/community/delete）
+ * 入口结构（3 层）：
+ *   lobby  —— 大厅，只显示 3 个入口：全部闲聊 / 我的品种 / 更多品种
+ *   more   —— 更多品种群聊列表（除我的品种和全部闲聊以外）
+ *   room   —— 真正进入聊天的房间（消息流 + 输入 + Realtime）
+ *
+ * 数据：
+ *   chat_rooms 表已预置 1 个 breed=NULL（全员）+ 30 个品种房，无需新 SQL。
+ *   显示名统一在 UI 计算：breed=NULL → "全部闲聊"，否则 "<breed>群聊"。
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -28,63 +31,69 @@ const C = {
 
 function fmtTime(iso) {
   if (!iso) return "";
-  const d = new Date(iso);
-  return d.toLocaleTimeString("zh", { hour:"2-digit", minute:"2-digit" });
+  return new Date(iso).toLocaleTimeString("zh", { hour:"2-digit", minute:"2-digit" });
 }
 
+const roomDisplay = (r) => !r ? "" : (r.breed === null ? "全部闲聊" : `${r.breed}群聊`);
+
 export default function ChatRoom({ user, pet }) {
-  const [rooms,    setRooms]    = useState([]);
-  const [activeId, setActiveId] = useState(null);
-  const [msgs,     setMsgs]     = useState([]);
-  const [inp,      setInp]      = useState("");
-  const [loading,  setLoading]  = useState(true);
-  const [err,      setErr]      = useState(null);
-  const scrollRef = useRef(null);
+  const [rooms,        setRooms]        = useState([]);
+  const [view,         setView]         = useState("lobby");   // lobby | more | room
+  const [activeRoomId, setActiveRoomId] = useState(null);
+  const [loadingRooms, setLoadingRooms] = useState(true);
+  const [errRooms,     setErrRooms]     = useState(null);
+
+  /* 室内状态 */
+  const [msgs,     setMsgs]    = useState([]);
+  const [inp,      setInp]     = useState("");
+  const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [errMsgs,  setErrMsgs] = useState(null);
+  const scrollRef  = useRef(null);
   const channelRef = useRef(null);
 
-  /* 拉房间列表，定位默认房间 */
+  /* ── 拉房间列表 ────────────────────────────────── */
   useEffect(() => {
     (async () => {
       try {
         const rs = await listChatRooms();
         setRooms(rs);
-        const myBreed = pet?.breed;
-        const matched = rs.find((r) => r.breed === myBreed);
-        const fallback = rs.find((r) => r.breed === null) || rs[0];
-        setActiveId((matched || fallback)?.id);
       } catch (e) {
-        setErr(e.message);
-        setLoading(false);
+        setErrRooms(e.message);
+      } finally {
+        setLoadingRooms(false);
       }
     })();
-  }, [pet?.breed]);
+  }, []);
 
-  /* 切换房间：加载历史 + 订阅 */
+  const myBreed     = pet?.breed || null;
+  const generalRoom = rooms.find((r) => r.breed === null);
+  const myBreedRoom = myBreed ? rooms.find((r) => r.breed === myBreed) : null;
+  const otherRooms  = rooms.filter((r) => r.breed && r.breed !== myBreed);
+  const activeRoom  = rooms.find((r) => r.id === activeRoomId);
+
+  /* ── 进入某个房间：加载历史 + 订阅 ─────────────── */
   useEffect(() => {
-    if (!activeId) return;
+    if (view !== "room" || !activeRoomId) return;
     let alive = true;
-    setLoading(true);
-    setErr(null);
+    setLoadingMsgs(true);
+    setErrMsgs(null);
+    setMsgs([]);
 
     (async () => {
       try {
-        const list = await listMessages(activeId);
+        const list = await listMessages(activeRoomId);
         if (!alive) return;
         setMsgs(list);
       } catch (e) {
-        if (alive) setErr(e.message);
+        if (alive) setErrMsgs(e.message);
       } finally {
-        if (alive) setLoading(false);
+        if (alive) setLoadingMsgs(false);
       }
     })();
 
-    const channel = subscribeRoom(activeId, (newMsg) => {
+    const channel = subscribeRoom(activeRoomId, (newMsg) => {
       if (!alive) return;
-      setMsgs((prev) => {
-        // 去重（自己刚 send 时本地已 append）
-        if (prev.some((m) => m.id === newMsg.id)) return prev;
-        return [...prev, newMsg];
-      });
+      setMsgs((prev) => prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]);
     });
     channelRef.current = channel;
 
@@ -92,29 +101,32 @@ export default function ChatRoom({ user, pet }) {
       alive = false;
       try { channel.unsubscribe(); } catch {}
     };
-  }, [activeId]);
+  }, [view, activeRoomId]);
 
-  /* 滚动到底 */
+  /* 滚到底 */
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [msgs, activeId]);
+  }, [msgs, view]);
+
+  const enterRoom = (roomId) => {
+    setActiveRoomId(roomId);
+    setView("room");
+  };
+  const backToLobby = () => { setView("lobby"); setActiveRoomId(null); setMsgs([]); };
 
   const handleSend = async () => {
     const text = inp.trim();
-    if (!text || !activeId || !user?.id) return;
+    if (!text || !activeRoomId || !user?.id) return;
     setInp("");
     try {
       const saved = await sendMessage({
-        roomId: activeId, userId: user.id, petId: pet?.id, content: text,
+        roomId: activeRoomId, userId: user.id, petId: pet?.id, content: text,
       });
-      // 立即本地 append（Realtime 也会 push 一次，会被去重）
       setMsgs((prev) => prev.some((m) => m.id === saved.id) ? prev : [...prev, saved]);
       if (saved.status === "flagged") {
         alert("你的消息包含敏感词，已待审核，暂未公开显示");
       }
-    } catch (e) {
-      setErr(e.message);
-    }
+    } catch (e) { setErrMsgs(e.message); }
   };
 
   const handleDelete = async (m) => {
@@ -123,9 +135,7 @@ export default function ChatRoom({ user, pet }) {
     try {
       await deleteOwnContent({ userId: user.id, targetType: "message", targetId: m.id });
       setMsgs((prev) => prev.filter((x) => x.id !== m.id));
-    } catch (e) {
-      alert(e.message);
-    }
+    } catch (e) { alert(e.message); }
   };
 
   const handleReport = async (m) => {
@@ -136,47 +146,98 @@ export default function ChatRoom({ user, pet }) {
         reporterId: user.id, targetType: "message", targetId: m.id, reason,
       });
       alert("已举报，管理员会处理");
-    } catch (e) {
-      alert(e.message);
-    }
+    } catch (e) { alert(e.message); }
   };
 
-  const activeRoom = rooms.find((r) => r.id === activeId);
+  /* ════════════════════════════════════════════════
+     view: lobby
+     ════════════════════════════════════════════════ */
+  if (view === "lobby") {
+    if (loadingRooms) return <Center>加载中...</Center>;
+    if (errRooms)     return <Center color="#D94040">❌ {errRooms}</Center>;
+    return (
+      <div style={{ height:"100%", overflowY:"auto", background:C.bg, padding:"14px 16px" }}>
+        <div style={{ fontSize:13, color:C.sub, marginBottom:12 }}>
+          选择你想加入的群聊
+        </div>
 
+        {generalRoom && (
+          <LobbyCard
+            icon="🐾"
+            title="全部闲聊"
+            subtitle="大家一起随便聊聊毛孩子"
+            onClick={() => enterRoom(generalRoom.id)}
+          />
+        )}
+
+        {myBreedRoom && (
+          <LobbyCard
+            icon={avatarForBreed(myBreed)}
+            title={`我的品种：${myBreed}群聊`}
+            subtitle="和同品种家长交流经验"
+            badge="我的品种"
+            onClick={() => enterRoom(myBreedRoom.id)}
+          />
+        )}
+
+        <LobbyCard
+          icon="🌍"
+          title="更多品种群聊"
+          subtitle="看看其他毛孩子圈子"
+          chevron
+          onClick={() => setView("more")}
+        />
+      </div>
+    );
+  }
+
+  /* ════════════════════════════════════════════════
+     view: more
+     ════════════════════════════════════════════════ */
+  if (view === "more") {
+    return (
+      <div style={{ height:"100%", overflowY:"auto", background:C.bg }}>
+        <SubHeader title="更多品种群聊" onBack={() => setView("lobby")} />
+        <div style={{ padding:"6px 14px 24px" }}>
+          {otherRooms.length === 0 && (
+            <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>
+              暂无其他品种群聊
+            </div>
+          )}
+          {otherRooms.map((r) => (
+            <button key={r.id} onClick={() => enterRoom(r.id)}
+              style={{ width:"100%", display:"flex", alignItems:"center", gap:12,
+                       padding:"12px 14px", marginBottom:8,
+                       background:"white", border:`1px solid ${C.border}`,
+                       borderRadius:14, cursor:"pointer", textAlign:"left",
+                       boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+              <span style={{ width:36, height:36, borderRadius:"50%", background:C.tint,
+                             display:"flex", alignItems:"center", justifyContent:"center",
+                             fontSize:18, flexShrink:0 }}>
+                {avatarForBreed(r.breed)}
+              </span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:14, fontWeight:600, color:C.text }}>{r.breed}群聊</div>
+              </div>
+              <span style={{ color:C.sub, fontSize:16 }}>›</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* ════════════════════════════════════════════════
+     view: room
+     ════════════════════════════════════════════════ */
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:C.bg }}>
-      {/* 房间选择 */}
-      <div style={{ background:"#fff", borderBottom:`1px solid ${C.border}`,
-                    padding:"8px 14px", display:"flex", gap:8,
-                    overflowX:"auto", scrollbarWidth:"none", flexShrink:0 }}>
-        {rooms.map((r) => {
-          const on = r.id === activeId;
-          return (
-            <button key={r.id} onClick={() => setActiveId(r.id)}
-              style={{ flexShrink:0, padding:"6px 13px", borderRadius:20, fontSize:12,
-                       fontWeight:600, cursor:"pointer", whiteSpace:"nowrap",
-                       background:on ? C.pri : C.tint, color:on ? "#fff" : C.text,
-                       border:`1.5px solid ${on ? C.pri : "transparent"}`,
-                       transition:"all .15s" }}>
-              {r.name}
-            </button>
-          );
-        })}
-      </div>
+      <SubHeader title={roomDisplay(activeRoom)} onBack={backToLobby} />
 
-      {/* 房间名 */}
-      {activeRoom && (
-        <div style={{ background:C.tint, padding:"7px 18px", borderBottom:`1px solid ${C.border}`,
-                      flexShrink:0, fontSize:12, color:C.text, fontWeight:600 }}>
-          🐕 {activeRoom.name}
-        </div>
-      )}
-
-      {/* 消息流 */}
       <div ref={scrollRef} style={{ flex:1, overflowY:"auto", padding:"12px 14px" }}>
-        {loading && <div style={{ textAlign:"center", color:C.sub, fontSize:12 }}>加载中...</div>}
-        {err     && <div style={{ textAlign:"center", color:"#D94040", fontSize:12 }}>❌ {err}</div>}
-        {!loading && !err && msgs.length === 0 && (
+        {loadingMsgs && <div style={{ textAlign:"center", color:C.sub, fontSize:12 }}>加载中...</div>}
+        {errMsgs     && <div style={{ textAlign:"center", color:"#D94040", fontSize:12 }}>❌ {errMsgs}</div>}
+        {!loadingMsgs && !errMsgs && msgs.length === 0 && (
           <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"40px 0" }}>
             这里还没有消息，做第一个发言的人吧 🐾
           </div>
@@ -208,7 +269,7 @@ export default function ChatRoom({ user, pet }) {
                 </div>
                 <div style={{ fontSize:10, color:C.sub, marginTop:3, paddingLeft:4, paddingRight:4 }}>
                   {fmtTime(m.created_at)}
-                  {own && <span style={{ marginLeft:6, opacity:0.6 }}>（长按删除）</span>}
+                  {own  && <span style={{ marginLeft:6, opacity:0.6 }}>（长按删除）</span>}
                   {!own && <span style={{ marginLeft:6, opacity:0.6 }}>（长按举报）</span>}
                 </div>
               </div>
@@ -217,18 +278,16 @@ export default function ChatRoom({ user, pet }) {
         })}
       </div>
 
-      {/* 输入栏 */}
       <div style={{ background:"white", borderTop:`1px solid ${C.border}`, padding:"10px 14px 18px",
                     display:"flex", gap:10, flexShrink:0 }}>
         <input
           value={inp}
           onChange={(e) => setInp(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder={activeRoom ? `在 ${activeRoom.name} 说点什么...` : "正在加载房间..."}
-          disabled={!activeId}
+          placeholder={activeRoom ? `在 ${roomDisplay(activeRoom)} 说点什么...` : ""}
           style={{ flex:1, borderRadius:22, padding:"10px 16px", fontSize:13,
                    border:`1.5px solid ${C.border}`, background:C.bg, color:C.text, outline:"none" }} />
-        <button onClick={handleSend} disabled={!inp.trim() || !activeId}
+        <button onClick={handleSend} disabled={!inp.trim()}
           style={{ width:40, height:40, borderRadius:"50%",
                    background: inp.trim() ? C.pri : C.light,
                    border:"none", cursor: inp.trim() ? "pointer" : "default",
@@ -238,5 +297,60 @@ export default function ChatRoom({ user, pet }) {
         </button>
       </div>
     </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────
+   小组件
+   ────────────────────────────────────────────────── */
+function Center({ children, color }) {
+  return (
+    <div style={{ height:"100%", display:"flex", alignItems:"center", justifyContent:"center",
+                  color: color || C.sub, fontSize:13 }}>
+      {children}
+    </div>
+  );
+}
+
+function SubHeader({ title, onBack }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:10,
+                  background:"white", borderBottom:`1px solid ${C.border}`,
+                  padding:"10px 14px", flexShrink:0 }}>
+      <button onClick={onBack}
+        style={{ background:"transparent", border:"none", cursor:"pointer",
+                 fontSize:18, color:C.text, padding:"2px 6px" }}>‹</button>
+      <div style={{ fontSize:15, fontWeight:700, color:C.text }}>{title}</div>
+    </div>
+  );
+}
+
+function LobbyCard({ icon, title, subtitle, badge, chevron, onClick }) {
+  return (
+    <button onClick={onClick}
+      style={{ width:"100%", display:"flex", alignItems:"center", gap:14,
+               background:"white", border:`1px solid ${C.border}`,
+               borderRadius:18, padding:"16px 16px", marginBottom:12,
+               cursor:"pointer", textAlign:"left",
+               boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+      <span style={{ width:48, height:48, borderRadius:"50%", background:C.tint,
+                     display:"flex", alignItems:"center", justifyContent:"center",
+                     fontSize:24, flexShrink:0 }}>
+        {icon}
+      </span>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <span style={{ fontSize:15, fontWeight:700, color:C.text }}>{title}</span>
+          {badge && (
+            <span style={{ fontSize:10, padding:"2px 8px", borderRadius:10,
+                           background:C.pri, color:"white", fontWeight:600 }}>
+              {badge}
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize:12, color:C.sub, marginTop:3 }}>{subtitle}</div>
+      </div>
+      {chevron && <span style={{ color:C.sub, fontSize:18 }}>›</span>}
+    </button>
   );
 }
