@@ -42,6 +42,7 @@ export default function ChatRoom({ user, pet }) {
   const [activeRoomId, setActiveRoomId] = useState(null);
   const [loadingRooms, setLoadingRooms] = useState(true);
   const [errRooms,     setErrRooms]     = useState(null);
+  const [moreQuery,    setMoreQuery]    = useState("");
 
   /* 室内状态 */
   const [msgs,     setMsgs]    = useState([]);
@@ -195,16 +196,38 @@ export default function ChatRoom({ user, pet }) {
      view: more
      ════════════════════════════════════════════════ */
   if (view === "more") {
+    const q = moreQuery.trim().toLowerCase();
+    const filtered = q
+      ? otherRooms.filter((r) => (r.breed || "").toLowerCase().includes(q))
+      : otherRooms;
     return (
-      <div style={{ height:"100%", overflowY:"auto", background:C.bg }}>
-        <SubHeader title="更多品种群聊" onBack={() => setView("lobby")} />
-        <div style={{ padding:"6px 14px 24px" }}>
-          {otherRooms.length === 0 && (
+      <div style={{ height:"100%", display:"flex", flexDirection:"column", background:C.bg }}>
+        <SubHeader title="更多品种群聊" onBack={() => { setView("lobby"); setMoreQuery(""); }} />
+        <div style={{ padding:"10px 14px 0", flexShrink:0 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8,
+                        background:"white", border:`1px solid ${C.border}`,
+                        borderRadius:22, padding:"8px 14px" }}>
+            <span style={{ fontSize:14, color:C.sub }}>🔍</span>
+            <input
+              value={moreQuery}
+              onChange={(e) => setMoreQuery(e.target.value)}
+              placeholder="搜索品种..."
+              style={{ flex:1, border:"none", outline:"none", background:"transparent",
+                       fontSize:13, color:C.text, minWidth:0 }} />
+            {moreQuery && (
+              <button onClick={() => setMoreQuery("")}
+                style={{ background:"transparent", border:"none", cursor:"pointer",
+                         color:C.sub, fontSize:14, padding:"0 4px" }}>×</button>
+            )}
+          </div>
+        </div>
+        <div style={{ flex:1, overflowY:"auto", padding:"10px 14px 24px" }}>
+          {filtered.length === 0 && (
             <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>
-              暂无其他品种群聊
+              {q ? `没找到包含"${moreQuery.trim()}"的品种群聊` : "暂无其他品种群聊"}
             </div>
           )}
-          {otherRooms.map((r) => (
+          {filtered.map((r) => (
             <button key={r.id} onClick={() => enterRoom(r.id)}
               style={{ width:"100%", display:"flex", alignItems:"center", gap:12,
                        padding:"12px 14px", marginBottom:8,
