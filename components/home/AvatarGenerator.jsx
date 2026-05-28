@@ -89,7 +89,7 @@ export default function AvatarGenerator({ user, pet, onSaved, onClose }) {
 
       // 2) 调 Replicate（30-60s）
       const { aiUrl: resultUrl, thumbUrl: resultThumb } = await generateAIAvatar(
-        { userId: user.id, petId: pet.id, photoUrl },
+        { userId: user.id, petId: pet.id, photoUrl, petType: pet?.pet_type || "dog" },
         abortRef.current.signal
       );
 

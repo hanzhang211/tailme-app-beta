@@ -45,13 +45,13 @@ export async function uploadOriginalPhoto(file, userId, petId) {
  * @param signal AbortSignal（用户取消时中止）
  * @returns { aiUrl }
  */
-export async function generateAIAvatar({ userId, petId, photoUrl }, signal) {
+export async function generateAIAvatar({ userId, petId, photoUrl, petType = "dog" }, signal) {
   if (!userId || !petId || !photoUrl) throw new Error("缺少 userId / petId / photoUrl");
 
   const res = await fetch("/api/generate-pet-avatar", {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify({ userId, petId, photoUrl }),
+    body:    JSON.stringify({ userId, petId, photoUrl, petType }),
     signal,
   });
   if (!res.ok) {

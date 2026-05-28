@@ -11,21 +11,17 @@
 import { useState } from "react";
 import { savePetProfile, updatePet } from "@/services/supabaseService";
 import { PERSONALITIES, todayISO } from "@/services/petAge";
+import { DOG_BREEDS, CAT_BREEDS } from "@/services/breedAvatar";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
   sub:"#8A8074", light:"#D6D5D8", border:"#7A6F62",
 };
 
-const BREEDS = [
-  "腊肠犬","柴犬","柯基","金毛","拉布拉多","边牧","法斗","比熊","贵宾","泰迪",
-  "阿拉斯加","哈士奇","德牧","博美","马尔济斯","巴哥","吉娃娃","秋田","雪纳瑞","约克夏",
-  "杜宾","萨摩耶","罗威纳","伯恩山","斗牛犬","灵缇","纽芬兰","牛头梗","可卡","其他",
-];
-
 export default function PetEditor({ pet, userId, onClose, onSaved, toast }) {
   const isEdit = !!pet;
   const [f, setF] = useState({
+    pet_type:    pet?.pet_type || "dog",
     name:        pet?.name || "",
     breed:       pet?.breed || "",
     birthday:    pet?.birthday || "",
@@ -35,6 +31,8 @@ export default function PetEditor({ pet, userId, onClose, onSaved, toast }) {
     neutered:    pet ? (pet.neutered    ? "yes" : "no") : "",
     vaccinated:  pet ? (pet.vaccinated  ? "yes" : "no") : "",
   });
+  const breedList = f.pet_type === "cat" ? CAT_BREEDS : DOG_BREEDS;
+  const setType = (t) => setF((p) => ({ ...p, pet_type: t, breed: "" }));
   const upd = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState(null);
@@ -49,6 +47,7 @@ export default function PetEditor({ pet, userId, onClose, onSaved, toast }) {
     try {
       if (isEdit) {
         const updated = await updatePet(pet.id, {
+          pet_type:    f.pet_type,
           name:        f.name.trim(),
           breed:       f.breed,
           birthday:    f.birthday,
@@ -102,19 +101,26 @@ export default function PetEditor({ pet, userId, onClose, onSaved, toast }) {
         </div>
 
         <div style={{ flex:1, overflowY:"auto", padding:"18px 16px 100px" }}>
+          <Field label="TA 是？">
+            <div style={{ display:"flex", gap:8 }}>
+              <ChipBtn on={f.pet_type === "dog"} onClick={() => setType("dog")}>🐶 小狗</ChipBtn>
+              <ChipBtn on={f.pet_type === "cat"} onClick={() => setType("cat")}>🐱 小猫</ChipBtn>
+            </div>
+          </Field>
+
           <Field label="名字">
             <input value={f.name} onChange={(e) => upd("name", e.target.value)}
               placeholder="比如：豆豆、可乐、花花..."
               style={inpStyle()} />
           </Field>
 
-          <Field label="品种">
+          <Field label={f.pet_type === "cat" ? "猫咪品种" : "狗狗品种"}>
             <div style={{ position:"relative" }}>
               <select value={f.breed} onChange={(e) => upd("breed", e.target.value)}
                 style={{ ...inpStyle(), appearance:"none",
                          color: f.breed ? C.text : C.sub }}>
                 <option value="">选择品种</option>
-                {BREEDS.map((b) => <option key={b} value={b}>{b}</option>)}
+                {breedList.map((b) => <option key={b} value={b}>{b}</option>)}
               </select>
               <span style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)",
                              color:C.sub, pointerEvents:"none", fontSize:12 }}>▾</span>

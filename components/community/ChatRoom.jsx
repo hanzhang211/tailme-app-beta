@@ -69,8 +69,12 @@ export default function ChatRoom({ user, pet }) {
   }, []);
 
   const myBreed     = pet?.breed || null;
+  const myPetType   = pet?.pet_type || "dog";
   const generalRoom = rooms.find((r) => r.breed === null);
   const myBreedRoom = myBreed ? rooms.find((r) => r.breed === myBreed) : null;
+  // 按 pet_type 分组（无 pet_type 字段的旧数据当作 dog）
+  const dogRooms    = rooms.filter((r) => r.breed && (r.pet_type === "dog" || !r.pet_type));
+  const catRooms    = rooms.filter((r) => r.breed && r.pet_type === "cat");
   const otherRooms  = rooms.filter((r) => r.breed && r.breed !== myBreed);
   const activeRoom  = rooms.find((r) => r.id === activeRoomId);
 
@@ -160,22 +164,18 @@ export default function ChatRoom({ user, pet }) {
     if (errRooms)     return <Center color="#D94040">❌ {errRooms}</Center>;
     return (
       <div style={{ height:"100%", overflowY:"auto", background:C.bg, padding:"14px 16px" }}>
-        <div style={{ fontSize:13, color:C.sub, marginBottom:12 }}>
-          选择你想加入的群聊
-        </div>
+        <div style={{ fontSize:13, color:C.sub, marginBottom:12 }}>选择你想加入的群聊</div>
 
+        {/* 全部闲聊 */}
         {generalRoom && (
-          <LobbyCard
-            icon="🐾"
-            title="全部闲聊"
-            subtitle="大家一起随便聊聊毛孩子"
-            onClick={() => enterRoom(generalRoom.id)}
-          />
+          <LobbyCard icon="🐾" title="全部闲聊" subtitle="大家一起随便聊聊毛孩子"
+            onClick={() => enterRoom(generalRoom.id)} />
         )}
 
+        {/* 我的品种 */}
         {myBreedRoom && (
           <LobbyCard
-            icon={avatarForBreed(myBreed)}
+            icon={avatarForBreed(myBreed, myPetType)}
             title={`我的品种：${myBreed}群聊`}
             subtitle="和同品种家长交流经验"
             badge="我的品种"
@@ -183,37 +183,67 @@ export default function ChatRoom({ user, pet }) {
           />
         )}
 
-        <LobbyCard
-          icon="🌍"
-          title="更多品种群聊"
-          subtitle="看看其他毛孩子圈子"
-          chevron
-          onClick={() => setView("more")}
-        />
+        {/* 汪星人社区 */}
+        {dogRooms.length > 0 && (
+          <>
+            <div style={{ fontSize:12, fontWeight:700, color:C.sub, margin:"14px 0 8px", letterSpacing:0.5 }}>
+              🐶 汪星人社区
+            </div>
+            <LobbyCard icon="🐶" title="狗狗乐园"
+              subtitle={`${dogRooms.length} 个品种群聊 · 柴犬、金毛、柯基…`}
+              chevron onClick={() => { setMoreQuery(""); setView("more-dog"); }} />
+          </>
+        )}
+
+        {/* 喵星人社区 */}
+        {catRooms.length > 0 && (
+          <>
+            <div style={{ fontSize:12, fontWeight:700, color:C.sub, margin:"14px 0 8px", letterSpacing:0.5 }}>
+              🐱 喵星人社区
+            </div>
+            <LobbyCard icon="🐱" title="猫咪星球"
+              subtitle={`${catRooms.length} 个猫咪群聊 · 布偶、英短、金渐层…`}
+              chevron onClick={() => { setMoreQuery(""); setView("more-cat"); }} />
+          </>
+        )}
+
+        {/* 如果猫咪社区还没有房间（SQL 还没跑） */}
+        {catRooms.length === 0 && (
+          <>
+            <div style={{ fontSize:12, fontWeight:700, color:C.sub, margin:"14px 0 8px", letterSpacing:0.5 }}>
+              🐱 喵星人社区
+            </div>
+            <div style={{ background:"white", border:`1px solid ${C.border}`, borderRadius:14,
+                          padding:"14px 16px", textAlign:"center", color:C.sub, fontSize:12 }}>
+              猫咪社区即将开放 🐱
+            </div>
+          </>
+        )}
       </div>
     );
   }
 
   /* ════════════════════════════════════════════════
-     view: more
+     view: more-dog / more-cat
      ════════════════════════════════════════════════ */
-  if (view === "more") {
-    const q = moreQuery.trim().toLowerCase();
+  if (view === "more-dog" || view === "more-cat") {
+    const isCat    = view === "more-cat";
+    const roomList = isCat ? catRooms : dogRooms;
+    const title    = isCat ? "🐱 猫咪星球" : "🐶 狗狗乐园";
+    const q        = moreQuery.trim().toLowerCase();
     const filtered = q
-      ? otherRooms.filter((r) => (r.breed || "").toLowerCase().includes(q))
-      : otherRooms;
+      ? roomList.filter((r) => (r.breed || "").toLowerCase().includes(q))
+      : roomList;
     return (
       <div style={{ height:"100%", display:"flex", flexDirection:"column", background:C.bg }}>
-        <SubHeader title="更多品种群聊" onBack={() => { setView("lobby"); setMoreQuery(""); }} />
+        <SubHeader title={title} onBack={() => { setView("lobby"); setMoreQuery(""); }} />
         <div style={{ padding:"10px 14px 0", flexShrink:0 }}>
           <div style={{ display:"flex", alignItems:"center", gap:8,
                         background:"white", border:`1px solid ${C.border}`,
                         borderRadius:22, padding:"8px 14px" }}>
             <span style={{ fontSize:14, color:C.sub }}>🔍</span>
-            <input
-              value={moreQuery}
-              onChange={(e) => setMoreQuery(e.target.value)}
-              placeholder="搜索品种..."
+            <input value={moreQuery} onChange={(e) => setMoreQuery(e.target.value)}
+              placeholder={isCat ? "搜索猫咪品种..." : "搜索狗狗品种..."}
               style={{ flex:1, border:"none", outline:"none", background:"transparent",
                        fontSize:13, color:C.text, minWidth:0 }} />
             {moreQuery && (
@@ -226,7 +256,7 @@ export default function ChatRoom({ user, pet }) {
         <div style={{ flex:1, overflowY:"auto", padding:"10px 14px 24px" }}>
           {filtered.length === 0 && (
             <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>
-              {q ? `没找到包含"${moreQuery.trim()}"的品种群聊` : "暂无其他品种群聊"}
+              {q ? `没找到"${moreQuery.trim()}"相关群聊` : (isCat ? "暂无猫咪群聊" : "暂无其他狗狗群聊")}
             </div>
           )}
           {filtered.map((r) => (
@@ -239,7 +269,7 @@ export default function ChatRoom({ user, pet }) {
               <span style={{ width:36, height:36, borderRadius:"50%", background:C.tint,
                              display:"flex", alignItems:"center", justifyContent:"center",
                              fontSize:18, flexShrink:0 }}>
-                {avatarForBreed(r.breed)}
+                {avatarForBreed(r.breed, isCat ? "cat" : "dog")}
               </span>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:14, fontWeight:600, color:C.text }}>{r.breed}群聊</div>

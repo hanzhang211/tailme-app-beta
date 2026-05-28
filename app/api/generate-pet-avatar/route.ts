@@ -24,8 +24,7 @@ export const maxDuration = 90;
 
 const REPLICATE_MODEL = "black-forest-labs/flux-kontext-pro";
 
-const PROMPT = [
-  "Create a cute 3D chibi pet avatar icon based on the uploaded pet photo.",
+const BASE_REQUIREMENTS = [
   "Requirements:",
   "- preserve the original pet's fur color, face shape, ears, and expression",
   "- soft Pixar-style 3D rendering",
@@ -45,7 +44,23 @@ const PROMPT = [
   "minimal, soft lighting, high detail, kawaii, polished 3D mascot icon",
 ].join("\n");
 
-async function callReplicate(photoUrl: string, token: string) {
+const DOG_PROMPT = [
+  "Create a cute 3D chibi dog avatar icon based on the uploaded dog photo.",
+  BASE_REQUIREMENTS,
+].join("\n");
+
+const CAT_PROMPT = [
+  "Create a cute 3D chibi cat avatar icon based on the uploaded cat photo.",
+  "- emphasize the cat's unique ear shape, whiskers, and eye color",
+  "- capture the cat's elegant and mysterious charm",
+  BASE_REQUIREMENTS,
+].join("\n");
+
+function getPrompt(petType?: string) {
+  return petType === "cat" ? CAT_PROMPT : DOG_PROMPT;
+}
+
+async function callReplicate(photoUrl: string, token: string, petType?: string) {
   const createResp = await fetch(
     `https://api.replicate.com/v1/models/${REPLICATE_MODEL}/predictions`,
     {
@@ -57,7 +72,7 @@ async function callReplicate(photoUrl: string, token: string) {
       },
       body: JSON.stringify({
         input: {
-          prompt:             PROMPT,
+          prompt:             getPrompt(petType),
           input_image:        photoUrl,
           aspect_ratio:       "1:1",
           output_format:      "png",
@@ -116,7 +131,7 @@ export async function POST(req: Request) {
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "请求体格式错误" }, { status: 400 }); }
 
-  const { userId, petId, photoUrl } = body || {};
+  const { userId, petId, photoUrl, petType } = body || {};
   if (!userId || !petId || !photoUrl) {
     return NextResponse.json({ error: "缺少 userId / petId / photoUrl" }, { status: 400 });
   }
@@ -135,7 +150,7 @@ export async function POST(req: Request) {
   // 1) 调 Replicate
   let replicateUrl: string;
   try {
-    replicateUrl = await callReplicate(photoUrl, token);
+    replicateUrl = await callReplicate(photoUrl, token, petType);
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "生成失败" }, { status: 502 });
   }

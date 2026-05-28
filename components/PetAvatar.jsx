@@ -44,7 +44,7 @@ export default function PetAvatar({ pet, size = 34, bg = "#F2E5DA" }) {
         fontSize: Math.round(size * 0.5), lineHeight: 1, flexShrink: 0,
       }}
     >
-      {avatarForBreed(pet?.breed)}
+      {avatarForBreed(pet?.breed, pet?.pet_type)}
     </div>
   );
 }

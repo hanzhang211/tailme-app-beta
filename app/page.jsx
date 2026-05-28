@@ -33,6 +33,7 @@ import HealthPage  from "@/components/home/HealthPage";
 import NewsPage, { NewsCover } from "@/components/home/NewsPage";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
 import PetAvatar from "@/components/PetAvatar";
+import { DOG_BREEDS, CAT_BREEDS } from "@/services/breedAvatar";
 import { getMonthlyTotal } from "@/services/petExpenseService";
 import { getTodayRecipe }  from "@/services/petRecipeService";
 import { getLatestNews }   from "@/services/petNewsService";
@@ -50,11 +51,8 @@ const aiHealthService = {
 /* ══════════════════════════════════════════════════════════════
    STATIC DATA（地图/聊天/附近狗狗 UI 数据）
 ══════════════════════════════════════════════════════════════ */
-const BREEDS = [
-  "腊肠犬","柴犬","柯基","金毛","拉布拉多","边牧","法斗","比熊","贵宾","泰迪",
-  "阿拉斯加","哈士奇","德牧","博美","马尔济斯","巴哥","吉娃娃","秋田","雪纳瑞","约克夏",
-  "杜宾","萨摩耶","罗威纳","伯恩山","斗牛犬","灵缇","纽芬兰","牛头梗","可卡","其他",
-];
+// 品种列表 (来自 breedAvatar，顶部 import 已加)
+// DOG_BREEDS / CAT_BREEDS 在 import 区引入后此处仅作注释占位
 
 const feedAmt = (w) => {
   const n = parseFloat(w) || 5;
@@ -331,9 +329,11 @@ function PhoneLogin({ onLogin }) {
 function Onboarding({ userId, onComplete }) {
   const [step, setStep]     = useState(1);
   const [f, setF]           = useState({
-    name:"", breed:"", birthday:"", personality:"",
+    pet_type:"dog", name:"", breed:"", birthday:"", personality:"",
     weight:"", gender:"", neutered:"", vaccinated:"",
   });
+  const breedList  = f.pet_type === "cat" ? CAT_BREEDS : DOG_BREEDS;
+  const setType    = (t) => setF((p) => ({ ...p, pet_type: t, breed: "" }));
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState(null);
 
@@ -388,17 +388,35 @@ function Onboarding({ userId, onComplete }) {
                       boxShadow:"0 6px 18px rgba(0,0,0,0.08), 0 16px 40px rgba(0,0,0,0.12)" }}>
           {step === 1 && <>
             <div style={{ fontSize:19, fontWeight:700, color:C.text, marginBottom:3 }}>你的毛孩子叫什么？</div>
-            <div style={{ fontSize:12, color:O_SUB, marginBottom:20 }}>先来认识一下 🐶</div>
+            <div style={{ fontSize:12, color:O_SUB, marginBottom:16 }}>
+              {f.pet_type === "cat" ? "先来认识一下 🐱" : "先来认识一下 🐶"}
+            </div>
+            {/* 宠物类型选择 */}
+            <Label>TA 是？</Label>
+            <div style={{ display:"flex", gap:10, marginBottom:16 }}>
+              {[["dog","🐶 小狗"],["cat","🐱 小猫"]].map(([t, label]) => {
+                const on = f.pet_type === t;
+                return (
+                  <button key={t} onClick={() => setType(t)}
+                    style={{ flex:1, padding:"12px 0", borderRadius:16, fontSize:14, fontWeight: on ? 700 : 600,
+                             background: on ? "#E68645" : "#FFFFFF", color: on ? "white" : C.text,
+                             border:`1.5px solid ${on ? "#E68645" : "#7A6F62"}`,
+                             cursor:"pointer", transition:"all .15s" }}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
             <Label>宠物名字</Label>
             <Inp value={f.name} onChange={(e) => upd("name", e.target.value)} placeholder="比如：豆豆、可乐、花花..." />
-            <Label style={{ marginTop:16 }}>狗狗品种</Label>
+            <Label style={{ marginTop:16 }}>{f.pet_type === "cat" ? "猫咪品种" : "狗狗品种"}</Label>
             <div style={{ position:"relative" }}>
               <select value={f.breed} onChange={(e) => upd("breed", e.target.value)}
                 style={{ width:"100%", borderRadius:16, padding:"12px 16px", fontSize:14,
                          border:"1.5px solid #7A6F62", background:"#FFFFFF",
                          color:f.breed ? C.text : O_SUB, outline:"none", appearance:"none", boxSizing:"border-box" }}>
                 <option value="">选择品种</option>
-                {BREEDS.map((b) => <option key={b} value={b}>{b}</option>)}
+                {breedList.map((b) => <option key={b} value={b}>{b}</option>)}
               </select>
               <span style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)",
                              color:O_SUB, pointerEvents:"none", fontSize:12 }}>▾</span>
