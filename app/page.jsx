@@ -33,6 +33,7 @@ import HealthPage  from "@/components/home/HealthPage";
 import NewsPage, { NewsCover } from "@/components/home/NewsPage";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
 import PetAvatar from "@/components/PetAvatar";
+import MapIcon from "@/components/MapIcon";
 import { DOG_BREEDS, CAT_BREEDS } from "@/services/breedAvatar";
 import { getMonthlyTotal } from "@/services/petExpenseService";
 import { getTodayRecipe }  from "@/services/petRecipeService";
@@ -137,18 +138,6 @@ function Logo({ size = 52 }) {
 }
 
 // 装饰用纯爪印（无轨道），可控颜色
-function MapTabIcon({ size = 22, color = "#E68645" }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-         stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-         xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
-         style={{ display:"inline-block", verticalAlign:"middle" }}>
-      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
-      <line x1="9" y1="3" x2="9" y2="18"/>
-      <line x1="15" y1="6" x2="15" y2="21"/>
-    </svg>
-  );
-}
 
 function PawIcon({ size = 16, color = "#E68645" }) {
   return (
@@ -1552,7 +1541,7 @@ export default function AppRoot() {
                 {t.label === "狗友"
                   ? <PawIcon size={20} color={tab===i ? "#E68645" : "#C5C8CE"} />
                   : t.label === "地图"
-                    ? <MapTabIcon size={22} color={tab===i ? "#E68645" : "#C5C8CE"} />
+                    ? <MapIcon size={22} color={tab===i ? "#E68645" : "#C5C8CE"} />
                     : <span style={{ fontSize:20, lineHeight:1,
                                      filter: tab===i ? "none" : "grayscale(1) opacity(0.5)" }}>
                         {t.icon}
