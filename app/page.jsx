@@ -29,8 +29,10 @@ import ProfileTab from "@/components/profile/ProfileTab";
 import ExpensePage from "@/components/home/ExpensePage";
 import RecipePage  from "@/components/home/RecipePage";
 import HealthPage  from "@/components/home/HealthPage";
+import NewsPage, { NewsCover } from "@/components/home/NewsPage";
 import { getMonthlyTotal } from "@/services/petExpenseService";
 import { getTodayRecipe }  from "@/services/petRecipeService";
+import { getLatestNews }   from "@/services/petNewsService";
 
 /* ══════════════════════════════════════════════════════════════
    AI Stub（社群已迁至 components/community/CommunityTab.jsx 真实数据）
@@ -629,12 +631,14 @@ function HomeTab({ user, pet, onPetUpdate }) {
   const [subPage, setSubPage] = useState(null);
   const [monthExpense, setMonthExpense] = useState(null);
   const [todayRecipe,  setTodayRecipe]  = useState(null);
+  const [latestNews,   setLatestNews]   = useState(null);
 
   useEffect(() => {
     if (!user?.id) return;
     let alive = true;
     getMonthlyTotal(user.id).then((v) => { if (alive) setMonthExpense(v); }).catch(() => {});
     getTodayRecipe().then((r) => { if (alive) setTodayRecipe(r); }).catch(() => {});
+    getLatestNews().then((n) => { if (alive) setLatestNews(n); }).catch(() => {});
     return () => { alive = false; };
   }, [user?.id, subPage]);   // 从子页面返回时刷新
   // 年龄显示：优先用 birthday 计算（整数岁/月/日）；老数据回退到 pet.age
@@ -704,6 +708,9 @@ function HomeTab({ user, pet, onPetUpdate }) {
   }
   if (subPage === "health") {
     return <HealthPage user={user} pet={pet} onPetUpdate={onPetUpdate} onBack={() => setSubPage(null)} />;
+  }
+  if (subPage === "news") {
+    return <NewsPage onBack={() => setSubPage(null)} />;
   }
 
   return (
@@ -825,6 +832,26 @@ function HomeTab({ user, pet, onPetUpdate }) {
           </div>
           <ErrBox msg={feedError} />
         </div>
+
+        {/* 活动推送 / 资讯 */}
+        <button onClick={() => setSubPage("news")}
+          style={{ width:"100%", background:"white", border:`1px solid ${H_BORDER}`,
+                   borderRadius:20, padding:14, marginBottom:12, boxShadow:H_SHADOW,
+                   cursor:"pointer", textAlign:"left",
+                   display:"flex", alignItems:"center", gap:12 }}>
+          <NewsCover news={latestNews} size={64} />
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
+              <span style={{ fontSize:11, color:C.accent, fontWeight:700 }}>📰 活动推送</span>
+              <span style={{ fontSize:10, color:H_SUB }}>· 更多 ›</span>
+            </div>
+            <div style={{ fontSize:13, fontWeight:700, color:C.text, lineHeight:1.4,
+                          display:"-webkit-box", WebkitLineClamp:2,
+                          WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+              {latestNews?.title || "暂无资讯，去看看更多 →"}
+            </div>
+          </div>
+        </button>
 
         {/* AI Upload */}
         <div style={{ background:"white", border:`1px solid ${H_BORDER}`, borderRadius:20,
