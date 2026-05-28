@@ -227,20 +227,29 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
           )}
         </div>
 
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-          {pets.map((p) => (
-            <PetCard key={p.id} pet={p}
-              isActive={pet?.id === p.id}
-              onSelect={() => onSetActivePet?.(p)}
-              onAvatar={() => setAvatarPet(p)}
-              onEdit={() => setEditorPet(p)}
-            />
-          ))}
-          {pets.length === 0 && (
-            <div style={{ gridColumn:"1 / -1", textAlign:"center", color:C.sub, fontSize:12,
-                          padding:"24px 0" }}>还没有毛孩子，去添加一只吧 🐾</div>
-          )}
-        </div>
+        {pets.length === 0 ? (
+          <div style={{ textAlign:"center", color:C.sub, fontSize:12, padding:"24px 0" }}>
+            还没有毛孩子，去添加一只吧 🐾
+          </div>
+        ) : (
+          <style>{`.pet-carousel::-webkit-scrollbar{display:none}`}</style>
+          <div className="pet-carousel"
+            style={{ display:"flex", gap:10, overflowX:"auto", overflowY:"hidden",
+                     scrollSnapType:"x mandatory", WebkitOverflowScrolling:"touch",
+                     paddingBottom:6, scrollbarWidth:"none", msOverflowStyle:"none" }}>
+            {pets.map((p) => (
+              <div key={p.id}
+                style={{ flex:"0 0 80%", maxWidth:300, scrollSnapAlign:"start" }}>
+                <PetCard pet={p}
+                  isActive={pet?.id === p.id}
+                  onSelect={() => onSetActivePet?.(p)}
+                  onAvatar={() => setAvatarPet(p)}
+                  onEdit={() => setEditorPet(p)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Tab 切换 ────────────────────────────────────── */}
