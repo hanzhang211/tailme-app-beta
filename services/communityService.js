@@ -126,12 +126,16 @@ export function subscribeRoom(roomId, onInsert) {
  */
 export function subscribeComments(postId, { onInsert, onDelete } = {}) {
   const sb = requireSupabase();
+  // 临时调试日志 — 验证完可删
+  const tag = `[RT-comments ${postId.slice(0, 8)}]`;
+  console.log(`${tag} 建立订阅`);
   const channel = sb
     .channel(`post:${postId}:comments`)
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "comments", filter: `post_id=eq.${postId}` },
       async (payload) => {
+        console.log(`${tag} 收到 INSERT payload`, payload.new?.id, payload.new?.content);
         const id = payload.new?.id;
         if (!id || !onInsert) return;
         const { data } = await sb
@@ -144,7 +148,12 @@ export function subscribeComments(postId, { onInsert, onDelete } = {}) {
           `)
           .eq("id", id)
           .maybeSingle();
-        if (data && data.status === "visible") onInsert(data);
+        if (data && data.status === "visible") {
+          console.log(`${tag} 调用 onInsert，append 到 state`);
+          onInsert(data);
+        } else {
+          console.log(`${tag} fetch 回来 data=null 或非 visible，跳过`);
+        }
       }
     )
     .on(
@@ -152,10 +161,13 @@ export function subscribeComments(postId, { onInsert, onDelete } = {}) {
       { event: "DELETE", schema: "public", table: "comments", filter: `post_id=eq.${postId}` },
       (payload) => {
         const id = payload.old?.id;
+        console.log(`${tag} 收到 DELETE`, id);
         if (id && onDelete) onDelete(id);
       }
     )
-    .subscribe();
+    .subscribe((status, err) => {
+      console.log(`${tag} channel status:`, status, err?.message || "");
+    });
   return channel;
 }
 

@@ -26,6 +26,11 @@ import { formatPetAge, formatBirthday, PERSONALITIES, todayISO } from "@/service
 import MapTab from "@/components/map/MapTab";
 import CommunityTab from "@/components/community/CommunityTab";
 import ProfileTab from "@/components/profile/ProfileTab";
+import ExpensePage from "@/components/home/ExpensePage";
+import RecipePage  from "@/components/home/RecipePage";
+import HealthPage  from "@/components/home/HealthPage";
+import { getMonthlyTotal } from "@/services/petExpenseService";
+import { getTodayRecipe }  from "@/services/petRecipeService";
 
 /* ══════════════════════════════════════════════════════════════
    AI Stub（社群已迁至 components/community/CommunityTab.jsx 真实数据）
@@ -619,7 +624,19 @@ function PetProfileComplete({ pet, onClose, onSaved }) {
   );
 }
 
-function HomeTab({ pet, onPetUpdate }) {
+function HomeTab({ user, pet, onPetUpdate }) {
+  // 子页面：null | 'expenses' | 'recipes' | 'health'
+  const [subPage, setSubPage] = useState(null);
+  const [monthExpense, setMonthExpense] = useState(null);
+  const [todayRecipe,  setTodayRecipe]  = useState(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    getMonthlyTotal(user.id).then((v) => { if (alive) setMonthExpense(v); }).catch(() => {});
+    getTodayRecipe().then((r) => { if (alive) setTodayRecipe(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [user?.id, subPage]);   // 从子页面返回时刷新
   // 年龄显示：优先用 birthday 计算（整数岁/月/日）；老数据回退到 pet.age
   const ageLabel      = formatPetAge(pet.birthday) || (pet.age != null ? `${pet.age}岁` : "未设置");
   const birthdayLabel = formatBirthday(pet.birthday);
@@ -678,6 +695,16 @@ function HomeTab({ pet, onPetUpdate }) {
   const H_BORDER   = "#D6D5D8";  // 浅灰紫描边
   const H_SHADOW   = "0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)";  // 轻柔阴影
   const H_SUB      = "#8A8074";  // 次级暖灰文字
+
+  if (subPage === "expenses") {
+    return <ExpensePage user={user} pets={pet ? [pet] : []} onBack={() => setSubPage(null)} />;
+  }
+  if (subPage === "recipes") {
+    return <RecipePage onBack={() => setSubPage(null)} />;
+  }
+  if (subPage === "health") {
+    return <HealthPage user={user} pet={pet} onPetUpdate={onPetUpdate} onBack={() => setSubPage(null)} />;
+  }
 
   return (
     <div style={{ height:"100%", overflowY:"auto", background:H_BG }}>
@@ -739,23 +766,27 @@ function HomeTab({ pet, onPetUpdate }) {
       </div>
 
       <div style={{ padding:"14px 14px 90px" }}>
-        {/* Quick stats */}
+        {/* 3 个入口卡：记账 / 食谱 / 健康 */}
         <div style={{ display:"flex", gap:10, marginBottom:12 }}>
-          {[
-            ["💪","今日状态","活力满满"],
-            ["💉","疫苗", pet.vaccinated ? "已齐全" : "未完成"],
-            [pet.neutered ? "✅" : "⭕","绝育", pet.neutered ? "已绝育" : "未绝育"],
-          ].map(([ico, lbl, val], i) => (
-            <div key={i} style={{ flex:1, background:"white", border:`1px solid ${H_BORDER}`,
-                                   borderRadius:16, padding:"12px 6px", textAlign:"center",
-                                   boxShadow:H_SHADOW }}>
-              <div style={{ width:34, height:34, borderRadius:"50%", background:C.tint,
-                            display:"inline-flex", alignItems:"center", justifyContent:"center",
-                            fontSize:18, lineHeight:1 }}>{ico}</div>
-              <div style={{ fontSize:10, color:H_SUB, marginTop:6 }}>{lbl}</div>
-              <div style={{ fontSize:11, fontWeight:700, color:C.text, marginTop:2 }}>{val}</div>
-            </div>
-          ))}
+          <HomeNavCard
+            icon="💰" label="宠物记账"
+            value={monthExpense == null ? "—" : `¥${Number(monthExpense).toFixed(0)}`}
+            sub="本月"
+            onClick={() => setSubPage("expenses")}
+            H_BORDER={H_BORDER} H_SHADOW={H_SHADOW} H_SUB={H_SUB} tint={C.tint} text={C.text} />
+          <HomeNavCard
+            icon="🍱" label="宠物食谱"
+            value={todayRecipe?.title || "看看推荐"}
+            sub="今日推荐"
+            single
+            onClick={() => setSubPage("recipes")}
+            H_BORDER={H_BORDER} H_SHADOW={H_SHADOW} H_SUB={H_SUB} tint={C.tint} text={C.text} />
+          <HomeNavCard
+            icon="🏥" label="宠物健康"
+            value={(pet?.neutered ? "已绝育" : "未绝育")}
+            sub={pet?.vaccinated ? "疫苗齐全" : "疫苗待补"}
+            onClick={() => setSubPage("health")}
+            H_BORDER={H_BORDER} H_SHADOW={H_SHADOW} H_SUB={H_SUB} tint={C.tint} text={C.text} />
         </div>
 
         {/* Feeding */}
@@ -858,6 +889,33 @@ function HomeTab({ pet, onPetUpdate }) {
         @keyframes spin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
       `}</style>
     </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HOME NAV CARD — 首页 3 个入口的统一样式
+══════════════════════════════════════════════════════════════ */
+function HomeNavCard({ icon, label, value, sub, single, onClick, H_BORDER, H_SHADOW, H_SUB, tint, text }) {
+  return (
+    <button onClick={onClick}
+      style={{ flex:1, background:"white", border:`1px solid ${H_BORDER}`,
+               borderRadius:16, padding:"12px 8px",
+               boxShadow:H_SHADOW, cursor:"pointer",
+               display:"flex", flexDirection:"column", alignItems:"center",
+               gap:6, minWidth:0 }}>
+      <div style={{ width:34, height:34, borderRadius:"50%", background:tint,
+                    display:"inline-flex", alignItems:"center", justifyContent:"center",
+                    fontSize:18, lineHeight:1 }}>{icon}</div>
+      <div style={{ fontSize:10, color:H_SUB }}>{label}</div>
+      <div style={{ fontSize: single ? 11 : 12, fontWeight:700, color:text, marginTop:1,
+                    maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis",
+                    whiteSpace:"nowrap", padding:"0 2px" }}>
+        {value}
+      </div>
+      {sub && (
+        <div style={{ fontSize:9, color:H_SUB }}>{sub}</div>
+      )}
+    </button>
   );
 }
 
@@ -1058,7 +1116,7 @@ export default function AppRoot() {
       <div style={{ position:"absolute", top:0, left:0, right:0, bottom:60, overflow:"hidden" }}>
         {tab === 0 && <SocialTab />}
         {tab === 1 && <MapTab />}
-        {tab === 2 && <HomeTab pet={pet} onPetUpdate={setPet} />}
+        {tab === 2 && <HomeTab user={user} pet={pet} onPetUpdate={setPet} />}
         {tab === 3 && <CommunityTab user={user} pet={pet} />}
         {tab === 4 && <ProfileTab user={user} pet={pet} onLogout={handleLogout} />}
       </div>
