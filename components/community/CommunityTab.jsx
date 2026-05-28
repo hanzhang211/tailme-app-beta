@@ -15,7 +15,7 @@ const C = {
   sub:"#8A8074", light:"#D6D5D8", border:"#D6D5D8",
 };
 
-export default function CommunityTab({ user, pet }) {
+export default function CommunityTab({ user, pet, pets = [] }) {
   const [mode, setMode] = useState("feed"); // 'feed' | 'chat'
 
   return (
@@ -48,7 +48,7 @@ export default function CommunityTab({ user, pet }) {
 
       <div style={{ flex:1, minHeight:0 }}>
         {mode === "feed" ? <PostFeed user={user} pet={pet} />
-                         : <ChatRoom user={user} pet={pet} />}
+                         : <ChatRoom user={user} pet={pet} pets={pets} />}
       </div>
     </div>
   );

@@ -34,6 +34,24 @@ export async function listChatRooms() {
   return data;
 }
 
+/* 按品种查找房间，不存在则创建 */
+export async function getOrCreateChatRoom(breed, petType = "dog") {
+  const sb = requireSupabase();
+  const { data: existing } = await sb
+    .from("chat_rooms")
+    .select("*")
+    .eq("breed", breed)
+    .maybeSingle();
+  if (existing) return existing;
+  const { data, error } = await sb
+    .from("chat_rooms")
+    .insert({ name: `${breed}群聊`, breed, pet_type: petType })
+    .select()
+    .single();
+  if (error) throw new Error(`创建房间失败: ${error.message}`);
+  return data;
+}
+
 /* ══════════════════════════════════════════════════════════
    消息（聊天）
 ══════════════════════════════════════════════════════════ */

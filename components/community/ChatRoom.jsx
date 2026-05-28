@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   listChatRooms,
+  getOrCreateChatRoom,
   listMessages,
   sendMessage,
   subscribeRoom,
@@ -38,7 +39,7 @@ function fmtTime(iso) {
 
 const roomDisplay = (r) => !r ? "" : (r.breed === null ? "全部闲聊" : `${r.breed}群聊`);
 
-export default function ChatRoom({ user, pet }) {
+export default function ChatRoom({ user, pet, pets = [] }) {
   const [rooms,        setRooms]        = useState([]);
   const [view,         setView]         = useState("lobby");   // lobby | more | room
   const [activeRoomId, setActiveRoomId] = useState(null);
@@ -68,15 +69,19 @@ export default function ChatRoom({ user, pet }) {
     })();
   }, []);
 
-  const myBreed     = pet?.breed || null;
-  const myPetType   = pet?.pet_type || "dog";
   const generalRoom = rooms.find((r) => r.breed === null);
-  const myBreedRoom = myBreed ? rooms.find((r) => r.breed === myBreed) : null;
-  // 按 pet_type 分组（无 pet_type 字段的旧数据当作 dog）
+  // 按 pet_type 分组（旧数据无 pet_type 当作 dog）
   const dogRooms    = rooms.filter((r) => r.breed && (r.pet_type === "dog" || !r.pet_type));
   const catRooms    = rooms.filter((r) => r.breed && r.pet_type === "cat");
-  const otherRooms  = rooms.filter((r) => r.breed && r.breed !== myBreed);
   const activeRoom  = rooms.find((r) => r.id === activeRoomId);
+
+  // 当前用户所有宠物的品种去重列表（保留 pet_type 信息）
+  const myBreeds = (() => {
+    const seen = new Set();
+    return pets
+      .filter((p) => p.breed && !seen.has(p.breed) && seen.add(p.breed))
+      .map((p) => ({ breed: p.breed, pet_type: p.pet_type || "dog" }));
+  })();
 
   /* ── 进入某个房间：加载历史 + 订阅 ─────────────── */
   useEffect(() => {
@@ -120,6 +125,17 @@ export default function ChatRoom({ user, pet }) {
     setView("room");
   };
   const backToLobby = () => { setView("lobby"); setActiveRoomId(null); setMsgs([]); };
+
+  // 按品种进入房间，如果不存在则自动创建
+  const enterBreedRoom = async ({ breed, pet_type }) => {
+    const existing = rooms.find((r) => r.breed === breed);
+    if (existing) { enterRoom(existing.id); return; }
+    try {
+      const created = await getOrCreateChatRoom(breed, pet_type);
+      setRooms((prev) => [...prev, created]);
+      enterRoom(created.id);
+    } catch (e) { alert(e.message); }
+  };
 
   const handleSend = async () => {
     const text = inp.trim();
@@ -172,15 +188,27 @@ export default function ChatRoom({ user, pet }) {
             onClick={() => enterRoom(generalRoom.id)} />
         )}
 
-        {/* 我的品种 */}
-        {myBreedRoom && (
-          <LobbyCard
-            icon={avatarForBreed(myBreed, myPetType)}
-            title={`我的品种：${myBreed}群聊`}
-            subtitle="和同品种家长交流经验"
-            badge="我的品种"
-            onClick={() => enterRoom(myBreedRoom.id)}
-          />
+        {/* 我的毛孩子群聊 */}
+        <div style={{ fontSize:12, fontWeight:700, color:C.sub, margin:"4px 0 8px", letterSpacing:0.5 }}>
+          🐾 我的毛孩子群聊
+        </div>
+        {myBreeds.length === 0 ? (
+          <div style={{ background:"white", border:`1px solid ${C.border}`, borderRadius:14,
+                        padding:"14px 16px", textAlign:"center", color:C.sub, fontSize:12,
+                        marginBottom:4 }}>
+            添加毛孩子后，会自动看到 TA 的品种群聊哦 🐾
+          </div>
+        ) : (
+          myBreeds.map(({ breed, pet_type }) => (
+            <LobbyCard
+              key={breed}
+              icon={avatarForBreed(breed, pet_type)}
+              title={`${breed}群聊`}
+              subtitle={`和${breed}家长一起交流经验`}
+              badge="我的品种"
+              onClick={() => enterBreedRoom({ breed, pet_type })}
+            />
+          ))
         )}
 
         {/* 汪星人社区 */}
