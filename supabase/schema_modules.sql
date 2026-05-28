@@ -78,10 +78,9 @@ DROP POLICY IF EXISTS "recipes_read"   ON pet_recipes;
 DROP POLICY IF EXISTS "recipes_insert" ON pet_recipes;
 DROP POLICY IF EXISTS "recipes_update" ON pet_recipes;
 DROP POLICY IF EXISTS "recipes_delete" ON pet_recipes;
+-- 食谱：anon 只读；写操作必须走 /api/admin/recipes（service_role 校验 role='admin'）
 CREATE POLICY "recipes_read"   ON pet_recipes         FOR SELECT USING (true);
-CREATE POLICY "recipes_insert" ON pet_recipes         FOR INSERT WITH CHECK (true);
-CREATE POLICY "recipes_update" ON pet_recipes         FOR UPDATE USING (true);
-CREATE POLICY "recipes_delete" ON pet_recipes         FOR DELETE USING (true);
+-- 故意不创建 INSERT / UPDATE / DELETE policy → anon 无法直接写
 
 DROP POLICY IF EXISTS "health_read"   ON pet_health_records;
 DROP POLICY IF EXISTS "health_insert" ON pet_health_records;

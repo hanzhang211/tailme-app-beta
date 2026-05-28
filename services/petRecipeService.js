@@ -47,6 +47,49 @@ export async function getTodayRecipe() {
 }
 
 /* ──────────────────────────────────────────────
+   Admin 操作 —— 走 /api/admin/recipes（service_role 校验 role='admin'）
+   ────────────────────────────────────────────── */
+export async function adminCreateRecipe(adminId, recipe) {
+  const res = await fetch("/api/admin/recipes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ adminId, recipe }),
+  });
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({ error: "创建失败" }));
+    throw new Error(error || "创建失败");
+  }
+  const json = await res.json();
+  return json.recipe;
+}
+
+export async function adminUpdateRecipe(adminId, recipeId, patch) {
+  const res = await fetch("/api/admin/recipes", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ adminId, recipeId, patch }),
+  });
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({ error: "更新失败" }));
+    throw new Error(error || "更新失败");
+  }
+  const json = await res.json();
+  return json.recipe;
+}
+
+export async function adminDeleteRecipe(adminId, recipeId) {
+  const res = await fetch("/api/admin/recipes", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ adminId, recipeId }),
+  });
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({ error: "删除失败" }));
+    throw new Error(error || "删除失败");
+  }
+}
+
+/* ──────────────────────────────────────────────
    预留：用户自建食谱（UI 后期接入）
    ────────────────────────────────────────────── */
 export async function createRecipe(payload, userId) {
