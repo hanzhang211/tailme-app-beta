@@ -58,19 +58,20 @@ export async function generateAIAvatar({ userId, petId, photoUrl }, signal) {
     const { error } = await res.json().catch(() => ({ error: "生成失败" }));
     throw new Error(error || "生成失败");
   }
-  const { aiUrl } = await res.json();
+  const { aiUrl, thumbUrl } = await res.json();
   if (!aiUrl) throw new Error("AI 服务未返回图片");
-  return aiUrl;
+  return { aiUrl, thumbUrl: thumbUrl ?? null };
 }
 
 /**
  * 保存 AI 头像 / 原图 URL 到 pets 表。
  */
-export async function saveAIAvatarToPet(petId, userId, { aiAvatarUrl, originalPhotoUrl }) {
+export async function saveAIAvatarToPet(petId, userId, { aiAvatarUrl, originalPhotoUrl, petAvatarThumbUrl }) {
   if (!petId || !userId) throw new Error("缺少 petId / userId");
   const patch = {};
-  if (aiAvatarUrl      !== undefined) patch.ai_avatar_url      = aiAvatarUrl;
-  if (originalPhotoUrl !== undefined) patch.original_photo_url = originalPhotoUrl;
+  if (aiAvatarUrl        !== undefined) patch.ai_avatar_url        = aiAvatarUrl;
+  if (originalPhotoUrl   !== undefined) patch.original_photo_url   = originalPhotoUrl;
+  if (petAvatarThumbUrl  !== undefined) patch.pet_avatar_thumb_url = petAvatarThumbUrl;
   if (Object.keys(patch).length === 0) return;
 
   const { data, error } = await sb().from("pets")

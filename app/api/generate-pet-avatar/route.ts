@@ -149,13 +149,14 @@ export async function POST(req: Request) {
   const bytes    = new Uint8Array(arrayBuf);
 
   // 3) 上传到 Supabase Storage（service_role 绕过 RLS）
-  const path = `${userId}/${petId}/ai-${Date.now()}.png`;
+  // 使用固定路径（upsert），方便 CDN 缓存和 thumb URL 稳定
+  const path = `${userId}/${petId}/avatar-full.png`;
   const { error: upErr } = await supabaseAdmin.storage
     .from("pet-avatars")
     .upload(path, bytes, {
       contentType: "image/png",
       cacheControl: "86400",
-      upsert: false,
+      upsert: true,
     });
   if (upErr) {
     return NextResponse.json({ error: `保存失败: ${upErr.message}` }, { status: 500 });
@@ -166,5 +167,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "获取 public URL 失败" }, { status: 500 });
   }
 
-  return NextResponse.json({ aiUrl: pub.publicUrl });
+  // 生成 300×300 WebP 缩略图 URL（Supabase Storage Image Transform）
+  const { data: thumb } = supabaseAdmin.storage.from("pet-avatars").getPublicUrl(path, {
+    transform: { width: 300, height: 300, resize: "cover", format: "webp", quality: 80 },
+  });
+
+  return NextResponse.json({ aiUrl: pub.publicUrl, thumbUrl: thumb?.publicUrl ?? null });
 }

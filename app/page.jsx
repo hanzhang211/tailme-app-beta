@@ -635,7 +635,9 @@ function HomeTab({ user, pet, onPetUpdate }) {
   const [latestNews,   setLatestNews]   = useState(null);
   const [avatarOpen,   setAvatarOpen]   = useState(false);
   const [avatarBroken, setAvatarBroken] = useState(false);
-  useEffect(() => { setAvatarBroken(false); }, [pet?.id, pet?.ai_avatar_url]);
+  const [avatarLoaded, setAvatarLoaded] = useState(false);
+  const avatarSrc = pet.pet_avatar_thumb_url || pet.ai_avatar_url || null;
+  useEffect(() => { setAvatarBroken(false); setAvatarLoaded(false); }, [pet?.id, avatarSrc]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -751,13 +753,19 @@ function HomeTab({ user, pet, onPetUpdate }) {
         </div>
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
           <div style={{ position:"relative", padding:"4px 10px" }}>
-            {pet.ai_avatar_url && !avatarBroken ? (
-              <img src={pet.ai_avatar_url} alt={pet.name}
-                onError={() => setAvatarBroken(true)}
-                style={{ width:140, height:140, borderRadius:"50%", objectFit:"cover",
-                         display:"block",
-                         animation:"float 3s ease-in-out infinite",
-                         boxShadow:"0 8px 22px rgba(230,134,69,0.22)" }} />
+            {avatarSrc && !avatarBroken ? (
+              <div style={{ width:140, height:140, borderRadius:"50%", overflow:"hidden", flexShrink:0,
+                            background:H_SURFACE,
+                            boxShadow:"0 8px 22px rgba(230,134,69,0.22)",
+                            animation:"float 3s ease-in-out infinite" }}>
+                <img src={avatarSrc} alt={pet.name}
+                  fetchPriority="high"
+                  onLoad={() => setAvatarLoaded(true)}
+                  onError={() => setAvatarBroken(true)}
+                  style={{ width:"100%", height:"100%", objectFit:"cover", display:"block",
+                           opacity: avatarLoaded ? 1 : 0,
+                           transition:"opacity 0.45s ease" }} />
+              </div>
             ) : (
               <div style={{ fontSize:120, lineHeight:1,
                             animation:"float 3s ease-in-out infinite",

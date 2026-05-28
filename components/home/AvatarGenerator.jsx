@@ -34,6 +34,7 @@ export default function AvatarGenerator({ user, pet, onSaved, onClose }) {
   const [previewSrc,    setPreviewSrc]    = useState(null);     // dataURL
   const [originalUrl,   setOriginalUrl]   = useState(null);     // Storage 上原图 public URL
   const [aiUrl,         setAiUrl]         = useState(null);
+  const [thumbUrl,      setThumbUrl]      = useState(null);
   const [errMsg,        setErrMsg]        = useState(null);
   const [elapsed,       setElapsed]       = useState(0);
   const abortRef    = useRef(null);
@@ -87,12 +88,13 @@ export default function AvatarGenerator({ user, pet, onSaved, onClose }) {
       }
 
       // 2) 调 Replicate（30-60s）
-      const result = await generateAIAvatar(
+      const { aiUrl: resultUrl, thumbUrl: resultThumb } = await generateAIAvatar(
         { userId: user.id, petId: pet.id, photoUrl },
         abortRef.current.signal
       );
 
-      setAiUrl(result);
+      setAiUrl(resultUrl);
+      setThumbUrl(resultThumb);
       setPhase(PHASES.RESULT);
     } catch (err) {
       if (err.name === "AbortError") {
@@ -109,8 +111,9 @@ export default function AvatarGenerator({ user, pet, onSaved, onClose }) {
     if (!aiUrl || !pet?.id || !user?.id) return;
     try {
       const updated = await saveAIAvatarToPet(pet.id, user.id, {
-        aiAvatarUrl:      aiUrl,
-        originalPhotoUrl: originalUrl,
+        aiAvatarUrl:       aiUrl,
+        originalPhotoUrl:  originalUrl,
+        petAvatarThumbUrl: thumbUrl,
       });
       onSaved?.(updated);
       onClose?.();
@@ -125,6 +128,7 @@ export default function AvatarGenerator({ user, pet, onSaved, onClose }) {
     setPreviewSrc(null);
     setOriginalUrl(null);
     setAiUrl(null);
+    setThumbUrl(null);
     setErrMsg(null);
     setPhase(PHASES.PICK);
   };
