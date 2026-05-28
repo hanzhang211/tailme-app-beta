@@ -9,7 +9,7 @@
  * user_id 持久化在 localStorage，刷新页面自动恢复登录态。
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   getOrCreateUserByPhone,
   getUserById,
@@ -31,6 +31,7 @@ import RecipePage  from "@/components/home/RecipePage";
 import HealthPage  from "@/components/home/HealthPage";
 import NewsPage, { NewsCover } from "@/components/home/NewsPage";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
+import PetAvatar from "@/components/PetAvatar";
 import { getMonthlyTotal } from "@/services/petExpenseService";
 import { getTodayRecipe }  from "@/services/petRecipeService";
 import { getLatestNews }   from "@/services/petNewsService";
@@ -640,9 +641,34 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   useEffect(() => { setAvatarBroken(false); setAvatarLoaded(false); }, [pet?.id, avatarSrc]);
 
   // 多宠物 carousel
-  const petIdx  = pets.findIndex((p) => p.id === pet?.id);
-  const hasPrev = petIdx > 0;
-  const hasNext = petIdx < pets.length - 1;
+  const petIdx      = pets.findIndex((p) => p.id === pet?.id);
+  const hasPrev     = petIdx > 0;
+  const hasNext     = petIdx < pets.length - 1;
+  const showCarousel = pets.length > 1;
+
+  // Swipe 手势
+  const touchStartX = useRef(null);
+  const [dragX, setDragX] = useState(0);
+  const onTouchStart = (e) => {
+    if (!showCarousel) return;
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const onTouchMove = (e) => {
+    if (touchStartX.current === null || !showCarousel) return;
+    const dx = e.touches[0].clientX - touchStartX.current;
+    // 边界时 rubber-band 效果
+    if (dx > 0 && !hasPrev) setDragX(dx * 0.25);
+    else if (dx < 0 && !hasNext) setDragX(dx * 0.25);
+    else setDragX(dx);
+  };
+  const onTouchEnd = () => {
+    if (touchStartX.current === null) return;
+    const THRESHOLD = 40;
+    if (dragX <= -THRESHOLD && hasNext) onSwitchPet?.(pets[petIdx + 1]);
+    else if (dragX >= THRESHOLD && hasPrev) onSwitchPet?.(pets[petIdx - 1]);
+    setDragX(0);
+    touchStartX.current = null;
+  };
 
   useEffect(() => {
     if (!user?.id) return;
@@ -757,46 +783,113 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                                     fontSize:16, textDecoration:"none" }}>🔔</a>
         </div>
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
-          <div style={{ position:"relative", padding:"4px 10px" }}>
-            {avatarSrc && !avatarBroken ? (
-              <div style={{ width:140, height:140, borderRadius:"50%", overflow:"hidden", flexShrink:0,
-                            background:H_SURFACE,
-                            boxShadow:"0 8px 22px rgba(230,134,69,0.22)",
-                            animation:"float 3s ease-in-out infinite" }}>
-                <img src={avatarSrc} alt={pet.name}
-                  fetchPriority="high"
-                  onLoad={() => setAvatarLoaded(true)}
-                  onError={() => setAvatarBroken(true)}
-                  style={{ width:"100%", height:"100%", objectFit:"cover", display:"block",
-                           opacity: avatarLoaded ? 1 : 0,
-                           transition:"opacity 0.45s ease" }} />
+
+          {/* ── Swipe carousel：左 ghost / 主头像 / 右 ghost ── */}
+          <div
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            onTouchCancel={onTouchEnd}
+            style={{ width:"100%", overflow:"hidden", touchAction: showCarousel ? "pan-y" : "auto",
+                     userSelect:"none" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"center",
+                          transform: `translateX(${dragX}px)`,
+                          transition: dragX === 0
+                            ? "transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)"
+                            : "none",
+                          willChange:"transform" }}>
+
+              {/* 左侧 ghost */}
+              {showCarousel && (
+                <div onClick={() => hasPrev && onSwitchPet?.(pets[petIdx - 1])}
+                  style={{ width:88, display:"flex", justifyContent:"center", alignItems:"center",
+                           flexShrink:0, flexDirection:"column", gap:4,
+                           opacity: hasPrev ? 0.48 : 0,
+                           transform:"scale(0.58)", transformOrigin:"right center",
+                           pointerEvents: hasPrev ? "auto" : "none",
+                           cursor: hasPrev ? "pointer" : "default",
+                           transition:"opacity 0.3s ease" }}>
+                  {hasPrev && (
+                    <>
+                      <PetAvatar pet={pets[petIdx - 1]} size={76} bg={H_SURFACE} />
+                      <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
+                                    textAlign:"center", maxWidth:70,
+                                    overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {pets[petIdx - 1].name}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* 主头像 */}
+              <div style={{ position:"relative", padding:"4px 10px", flexShrink:0 }}>
+                {avatarSrc && !avatarBroken ? (
+                  <div style={{ width:140, height:140, borderRadius:"50%", overflow:"hidden", flexShrink:0,
+                                background:H_SURFACE,
+                                boxShadow:"0 8px 22px rgba(230,134,69,0.22)",
+                                animation:"float 3s ease-in-out infinite" }}>
+                    <img src={avatarSrc} alt={pet.name}
+                      fetchPriority="high"
+                      onLoad={() => setAvatarLoaded(true)}
+                      onError={() => setAvatarBroken(true)}
+                      style={{ width:"100%", height:"100%", objectFit:"cover", display:"block",
+                               opacity: avatarLoaded ? 1 : 0,
+                               transition:"opacity 0.45s ease" }} />
+                  </div>
+                ) : (
+                  <div style={{ fontSize:120, lineHeight:1,
+                                animation:"float 3s ease-in-out infinite",
+                                filter:"drop-shadow(0 6px 12px rgba(230,134,69,0.18))" }}>
+                    🐶
+                  </div>
+                )}
+                <button onClick={() => setAvatarOpen(true)}
+                  title="生成 AI 专属头像"
+                  style={{ position:"absolute", bottom:6, right:6,
+                           width:34, height:34, borderRadius:"50%",
+                           background:C.pri, border:"2.5px solid white",
+                           color:"white", fontSize:16, cursor:"pointer",
+                           boxShadow:"0 3px 10px rgba(230,134,69,0.4)",
+                           display:"flex", alignItems:"center", justifyContent:"center",
+                           padding:0, lineHeight:1 }}>
+                  ✨
+                </button>
+                {hungry && (
+                  <div style={{ position:"absolute", top:0, right:-4, background:C.accent, borderRadius:20,
+                                padding:"3px 9px", fontSize:10, fontWeight:700, color:"white",
+                                boxShadow:"0 2px 10px rgba(230,134,69,0.35)" }}>
+                    😋 饿了
+                  </div>
+                )}
               </div>
-            ) : (
-              <div style={{ fontSize:120, lineHeight:1,
-                            animation:"float 3s ease-in-out infinite",
-                            filter:"drop-shadow(0 6px 12px rgba(230,134,69,0.18))" }}>
-                🐶
-              </div>
-            )}
-            <button onClick={() => setAvatarOpen(true)}
-              title="生成 AI 专属头像"
-              style={{ position:"absolute", bottom:6, right:6,
-                       width:34, height:34, borderRadius:"50%",
-                       background:C.pri, border:"2.5px solid white",
-                       color:"white", fontSize:16, cursor:"pointer",
-                       boxShadow:"0 3px 10px rgba(230,134,69,0.4)",
-                       display:"flex", alignItems:"center", justifyContent:"center",
-                       padding:0, lineHeight:1 }}>
-              ✨
-            </button>
-            {hungry && (
-              <div style={{ position:"absolute", top:0, right:-4, background:C.accent, borderRadius:20,
-                            padding:"3px 9px", fontSize:10, fontWeight:700, color:"white",
-                            boxShadow:"0 2px 10px rgba(230,134,69,0.35)" }}>
-                😋 饿了
-              </div>
-            )}
+
+              {/* 右侧 ghost */}
+              {showCarousel && (
+                <div onClick={() => hasNext && onSwitchPet?.(pets[petIdx + 1])}
+                  style={{ width:88, display:"flex", justifyContent:"center", alignItems:"center",
+                           flexShrink:0, flexDirection:"column", gap:4,
+                           opacity: hasNext ? 0.48 : 0,
+                           transform:"scale(0.58)", transformOrigin:"left center",
+                           pointerEvents: hasNext ? "auto" : "none",
+                           cursor: hasNext ? "pointer" : "default",
+                           transition:"opacity 0.3s ease" }}>
+                  {hasNext && (
+                    <>
+                      <PetAvatar pet={pets[petIdx + 1]} size={76} bg={H_SURFACE} />
+                      <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
+                                    textAlign:"center", maxWidth:70,
+                                    overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {pets[petIdx + 1].name}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* 宠物名字 + 资料 */}
           <div style={{ marginTop:12, fontSize:20, fontWeight:800, color:C.text }}>{pet.name}</div>
           <div style={{ fontSize:12, color:H_SUB, marginTop:3 }}>
             {pet.breed} · {ageLabel} · {pet.weight}kg · {pet.gender === "male" ? "男孩" : "女孩"}
@@ -808,8 +901,9 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
               {pet.personality && <span>✨ {pet.personality}</span>}
             </div>
           )}
-          {/* 多宠物 Carousel：点/左右箭头切换 */}
-          {pets.length > 1 && (
+
+          {/* 进度点 + 左右箭头（辅助） */}
+          {showCarousel && (
             <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:10 }}>
               <button
                 onClick={() => hasPrev && onSwitchPet?.(pets[petIdx - 1])}
