@@ -232,6 +232,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
             还没有毛孩子，去添加一只吧 🐾
           </div>
         ) : (
+          <>
           <style>{`.pet-carousel::-webkit-scrollbar{display:none}`}</style>
           <div className="pet-carousel"
             style={{ display:"flex", gap:10, overflowX:"auto", overflowY:"hidden",
@@ -249,6 +250,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
               </div>
             ))}
           </div>
+          </>
         )}
       </div>
 
