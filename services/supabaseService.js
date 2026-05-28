@@ -173,6 +173,21 @@ export async function setUsername(userId, username) {
   return data;
 }
 
+/* ── 读取宠物最新喂食计划 ─────────────────────────────────────── */
+export async function getFeedingRecord(petId) {
+  if (!petId) return null;
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from("feeding_records")
+    .select("breakfast, dinner")
+    .eq("pet_id", petId)
+    .order("recorded_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`获取喂食记录失败: ${error.message}`);
+  return data; // null 代表该宠物还没有喂食计划
+}
+
 /* ── 保存喂食记录 ─────────────────────────────────────────────── */
 export async function saveFeedingRecord(record) {
   const sb = requireSupabase();

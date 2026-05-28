@@ -15,6 +15,7 @@ import {
   getUserById,
   getUserPets,
   savePetProfile,
+  getFeedingRecord,
   saveFeedingRecord,
   saveHealthUpload,
   setUsername,
@@ -689,14 +690,41 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     if (!pet?.birthday && !dismissed) setCompleteOpen(true);
   }, [pet?.birthday, dismissed]);
 
-  const [bt, setBt]         = useState("08:00");
-  const [dt, setDt]         = useState("18:00");
-  const [editFeed, setEdit] = useState(false);
+  const [bt, setBt]               = useState("08:00");
+  const [dt, setDt]               = useState("18:00");
+  const [editFeed, setEdit]       = useState(false);
+  const [feedLoading, setFeedLoading]     = useState(false);
+  const [hasFeedRecord, setHasFeedRecord] = useState(false);
   const [uplType, setUpl]   = useState(null);
   const [loading, setLoad]  = useState(false);
   const [result, setResult] = useState(null);
   const [feedError, setFeedError]     = useState(null);
   const [uploadError, setUploadError] = useState(null);
+
+  // 切换宠物时重新加载该宠物的喂食计划
+  useEffect(() => {
+    if (!pet?.id) return;
+    let alive = true;
+    setFeedLoading(true);
+    setEdit(false);      // 退出编辑模式
+    setFeedError(null);
+    getFeedingRecord(pet.id)
+      .then((record) => {
+        if (!alive) return;
+        if (record) {
+          setBt(record.breakfast || "08:00");
+          setDt(record.dinner    || "18:00");
+          setHasFeedRecord(true);
+        } else {
+          setBt("08:00");
+          setDt("18:00");
+          setHasFeedRecord(false);
+        }
+      })
+      .catch(() => { if (alive) setHasFeedRecord(false); })
+      .finally(() => { if (alive) setFeedLoading(false); });
+    return () => { alive = false; };
+  }, [pet?.id]);
 
   const hungry = isHungry(bt, dt);
 
@@ -704,9 +732,11 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     if (editFeed) {
       try {
         await saveFeedingRecord({ pet_id: pet.id, breakfast: bt, dinner: dt });
+        setHasFeedRecord(true);
         setFeedError(null);
       } catch (err) {
         setFeedError(err.message);
+        return; // 保存失败不关闭编辑模式
       }
     }
     setEdit((v) => !v);
@@ -967,32 +997,61 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
               <span style={{ fontSize:18 }}>🍽️</span>
               <span style={{ fontSize:14, fontWeight:700, color:C.text }}>喂食计划</span>
             </div>
-            <button onClick={handleSaveFeed}
-              style={{ fontSize:11, background:H_SURFACE, color:C.accent,
-                       border:`1px solid ${H_BORDER}`, borderRadius:20,
-                       padding:"4px 13px", cursor:"pointer", fontWeight:600 }}>
-              {editFeed ? "完成 ✓" : "设置"}
-            </button>
+            {(hasFeedRecord || editFeed) && (
+              <button onClick={handleSaveFeed}
+                style={{ fontSize:11, background:H_SURFACE, color:C.accent,
+                         border:`1px solid ${H_BORDER}`, borderRadius:20,
+                         padding:"4px 13px", cursor:"pointer", fontWeight:600 }}>
+                {editFeed ? "完成 ✓" : "设置"}
+              </button>
+            )}
           </div>
-          <div style={{ display:"flex", gap:10, marginBottom:12 }}>
-            {[["🌅","早饭",bt,setBt],["🌆","晚饭",dt,setDt]].map(([em, lbl, val, setter]) => (
-              <div key={lbl} style={{ flex:1, background:H_SURFACE, border:`1px solid ${H_BORDER}`,
-                                       borderRadius:14, padding:12 }}>
-                <div style={{ fontSize:11, color:H_SUB, marginBottom:5 }}>{em} {lbl}</div>
-                {editFeed
-                  ? <input type="time" value={val} onChange={(e) => setter(e.target.value)}
-                      style={{ fontSize:16, fontWeight:700, color:C.text, background:"transparent",
-                               border:"none", outline:"none", width:"100%" }}/>
-                  : <div style={{ fontSize:16, fontWeight:700, color:C.text }}>{val}</div>}
+
+          {feedLoading ? (
+            /* 骨架屏 */
+            <div style={{ display:"flex", gap:10, marginBottom:12 }}>
+              {["早饭","晚饭"].map((lbl) => (
+                <div key={lbl} style={{ flex:1, background:H_SURFACE, borderRadius:14, padding:12, height:60,
+                                        animation:"pulse 1.4s ease-in-out infinite" }} />
+              ))}
+            </div>
+          ) : !hasFeedRecord ? (
+            /* 空状态 */
+            <div style={{ textAlign:"center", padding:"12px 0 8px" }}>
+              <div style={{ fontSize:13, color:H_SUB, marginBottom:12 }}>
+                还没有为 <b style={{ color:C.text }}>{pet.name}</b> 添加喂食计划
               </div>
-            ))}
-          </div>
-          <div style={{ background:C.tint, border:`1px solid ${H_BORDER}`,
-                        borderLeft:`3px solid ${C.accent}`, borderRadius:14, padding:12 }}>
-            <div style={{ fontSize:11, color:H_SUB }}>推荐喂食量（每次）</div>
-            <div style={{ fontSize:17, fontWeight:800, color:C.accent, marginTop:3 }}>{feedAmt(pet.weight)}</div>
-            <div style={{ fontSize:10, color:H_SUB, marginTop:4 }}>基于体重 {pet.weight}kg 估算 · 仅供参考</div>
-          </div>
+              <button
+                onClick={() => { setHasFeedRecord(true); setEdit(true); }}
+                style={{ background:C.pri, color:"white", border:"none", borderRadius:16,
+                         padding:"8px 22px", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                + 添加喂食计划
+              </button>
+            </div>
+          ) : (
+            /* 正常显示 */
+            <>
+              <div style={{ display:"flex", gap:10, marginBottom:12 }}>
+                {[["🌅","早饭",bt,setBt],["🌆","晚饭",dt,setDt]].map(([em, lbl, val, setter]) => (
+                  <div key={lbl} style={{ flex:1, background:H_SURFACE, border:`1px solid ${H_BORDER}`,
+                                           borderRadius:14, padding:12 }}>
+                    <div style={{ fontSize:11, color:H_SUB, marginBottom:5 }}>{em} {lbl}</div>
+                    {editFeed
+                      ? <input type="time" value={val} onChange={(e) => setter(e.target.value)}
+                          style={{ fontSize:16, fontWeight:700, color:C.text, background:"transparent",
+                                   border:"none", outline:"none", width:"100%" }}/>
+                      : <div style={{ fontSize:16, fontWeight:700, color:C.text }}>{val}</div>}
+                  </div>
+                ))}
+              </div>
+              <div style={{ background:C.tint, border:`1px solid ${H_BORDER}`,
+                            borderLeft:`3px solid ${C.accent}`, borderRadius:14, padding:12 }}>
+                <div style={{ fontSize:11, color:H_SUB }}>推荐喂食量（每次）</div>
+                <div style={{ fontSize:17, fontWeight:800, color:C.accent, marginTop:3 }}>{feedAmt(pet.weight)}</div>
+                <div style={{ fontSize:10, color:H_SUB, marginTop:4 }}>基于体重 {pet.weight}kg 估算 · 仅供参考</div>
+              </div>
+            </>
+          )}
           <ErrBox msg={feedError} />
         </div>
 
@@ -1077,6 +1136,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
       <style>{`
         @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
         @keyframes spin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.45} }
       `}</style>
     </div>
   );
