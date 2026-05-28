@@ -44,7 +44,7 @@ export async function listMessages(roomId, limit = 50) {
     .select(`
       id, content, status, created_at, user_id, pet_id,
       user:users!user_id ( username ),
-      pet:pets!pet_id ( name, breed )
+      pet:pets!pet_id ( name, breed, ai_avatar_url )
     `)
     .eq("room_id", roomId)
     .eq("status", "visible")
@@ -69,7 +69,7 @@ export async function sendMessage({ roomId, userId, petId, content }) {
     .select(`
       id, content, status, created_at, user_id, pet_id,
       user:users!user_id ( username ),
-      pet:pets!pet_id ( name, breed )
+      pet:pets!pet_id ( name, breed, ai_avatar_url )
     `)
     .single();
   if (error) throw new Error(`发送失败: ${error.message}`);
@@ -107,7 +107,7 @@ export function subscribeRoom(roomId, onInsert) {
           .select(`
             id, content, status, created_at, user_id, pet_id,
             user:users!user_id ( username ),
-            pet:pets!pet_id ( name, breed )
+            pet:pets!pet_id ( name, breed, ai_avatar_url )
           `)
           .eq("id", id)
           .maybeSingle();
@@ -144,7 +144,7 @@ export function subscribeComments(postId, { onInsert, onDelete } = {}) {
             id, content, status, created_at, user_id, pet_id,
             parent_id, like_count,
             user:users!user_id ( username ),
-            pet:pets!pet_id ( name, breed )
+            pet:pets!pet_id ( name, breed, ai_avatar_url )
           `)
           .eq("id", id)
           .maybeSingle();
@@ -188,7 +188,7 @@ export async function listPosts({ limit = 20, before } = {}) {
       like_count, comment_count, created_at,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username ),
-      pet:pets!posts_pet_id_fkey ( breed )
+      pet:pets!posts_pet_id_fkey ( breed, ai_avatar_url )
     `)
     .eq("status", "visible")
     .order("created_at", { ascending: false })
@@ -219,7 +219,7 @@ export async function listMyPosts(userId, { limit = 50, before } = {}) {
       like_count, comment_count, created_at,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username ),
-      pet:pets!posts_pet_id_fkey ( breed )
+      pet:pets!posts_pet_id_fkey ( breed, ai_avatar_url )
     `)
     .eq("user_id", userId)
     .eq("status", "visible")
@@ -252,7 +252,7 @@ export async function listLikedPosts(userId, { limit = 50 } = {}) {
       like_count, comment_count, created_at,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username ),
-      pet:pets!posts_pet_id_fkey ( breed )
+      pet:pets!posts_pet_id_fkey ( breed, ai_avatar_url )
     `)
     .in("id", ids)
     .eq("status", "visible");
@@ -290,7 +290,7 @@ export async function getPostById(id) {
       status, like_count, comment_count, created_at,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username ),
-      pet:pets!posts_pet_id_fkey ( name, breed )
+      pet:pets!posts_pet_id_fkey ( name, breed, ai_avatar_url )
     `)
     .eq("id", id)
     .eq("status", "visible")
@@ -339,7 +339,7 @@ export async function createPost({
       status, like_count, comment_count, created_at,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username ),
-      pet:pets!posts_pet_id_fkey ( name, breed )
+      pet:pets!posts_pet_id_fkey ( name, breed, ai_avatar_url )
     `)
     .single();
   if (error) throw new Error(`发帖失败: ${error.message}`);
@@ -435,7 +435,7 @@ export async function listComments(postId) {
       id, content, status, created_at, user_id, pet_id,
       parent_id, like_count,
       user:users!user_id ( username ),
-      pet:pets!pet_id ( name, breed )
+      pet:pets!pet_id ( name, breed, ai_avatar_url )
     `)
     .eq("post_id", postId)
     .eq("status", "visible")
@@ -461,7 +461,7 @@ export async function createComment({ postId, userId, petId, content, parentId }
       id, content, status, created_at, user_id, pet_id,
       parent_id, like_count,
       user:users!user_id ( username ),
-      pet:pets!pet_id ( name, breed )
+      pet:pets!pet_id ( name, breed, ai_avatar_url )
     `)
     .single();
   if (error) throw new Error(`评论失败: ${error.message}`);

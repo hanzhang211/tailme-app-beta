@@ -24,6 +24,7 @@ import {
   reportContent,
 } from "@/services/communityService";
 import { avatarForBreed } from "@/services/breedAvatar";
+import PetAvatar from "@/components/PetAvatar";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
@@ -269,16 +270,11 @@ export default function ChatRoom({ user, pet }) {
 
         {msgs.map((m) => {
           const own = m.user_id === user?.id;
-          const avatar = avatarForBreed(m.pet?.breed);
           const display = m.user?.username || "未命名宠物";
           return (
             <div key={m.id} style={{ display:"flex", gap:10, marginBottom:14,
                                      flexDirection: own ? "row-reverse" : "row" }}>
-              <div style={{ width:34, height:34, borderRadius:"50%", background:C.tint,
-                            display:"flex", alignItems:"center", justifyContent:"center",
-                            fontSize:16, flexShrink:0 }}>
-                {avatar}
-              </div>
+              <PetAvatar pet={m.pet} size={34} bg={C.tint} />
               <div style={{ maxWidth:"72%", display:"flex", flexDirection:"column",
                             alignItems: own ? "flex-end" : "flex-start" }}>
                 {!own && <div style={{ fontSize:11, color:C.sub, marginBottom:3, paddingLeft:4 }}>{display}</div>}

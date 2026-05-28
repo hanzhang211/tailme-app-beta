@@ -17,7 +17,7 @@ import {
   listPosts,
   likePost, unlikePost, getMyLikedPostIds,
 } from "@/services/communityService";
-import { avatarForBreed } from "@/services/breedAvatar";
+import PetAvatar  from "@/components/PetAvatar";
 import PostCompose from "./PostCompose";
 import PostDetail  from "./PostDetail";
 
@@ -266,7 +266,6 @@ export default function PostFeed({ user, pet }) {
    单张 Feed 卡片：只显示 thumbnail
    ────────────────────────────────────────────────────── */
 function PostCard({ post, isLiked, onOpen, onToggleLike }) {
-  const avatar  = avatarForBreed(post.pet?.breed);
   const display = post.user?.username || "未命名宠物";
   const thumbUrl = post.cover_thumbnail_url || post.cover_image_url || null;
   const isText  = post.post_type === "text" || !thumbUrl;
@@ -314,11 +313,7 @@ function PostCard({ post, isLiked, onOpen, onToggleLike }) {
       )}
 
       <div style={{ padding:"8px 10px", display:"flex", alignItems:"center", gap:6 }}>
-        <div style={{ width:22, height:22, borderRadius:"50%", background:C.tint,
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      fontSize:11, flexShrink:0 }}>
-          {avatar}
-        </div>
+        <PetAvatar pet={post.pet} size={22} bg={C.tint} />
         <div style={{ flex:1, fontSize:11, color:C.sub,
                       overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
           {display}

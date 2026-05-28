@@ -19,7 +19,7 @@ import {
   deleteOwnContent, reportContent,
   subscribeComments, unsubscribeChannel,
 } from "@/services/communityService";
-import { avatarForBreed } from "@/services/breedAvatar";
+import PetAvatar from "@/components/PetAvatar";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
@@ -55,7 +55,6 @@ export default function PostDetail({
 
   const [viewerIdx, setViewerIdx] = useState(null);
 
-  const avatar  = avatarForBreed(post?.pet?.breed);
   const display = post?.user?.username || "未命名宠物";
   const own     = post?.user_id === user?.id;
 
@@ -237,11 +236,7 @@ export default function PostDetail({
                      cursor:"pointer", padding:"4px 6px" }}>
             ←
           </button>
-          <div style={{ width:32, height:32, borderRadius:"50%", background:C.tint,
-                        display:"flex", alignItems:"center", justifyContent:"center",
-                        fontSize:16 }}>
-            {avatar}
-          </div>
+          <PetAvatar pet={post?.pet} size={32} bg={C.tint} />
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{display}</div>
             <div style={{ fontSize:10, color:C.sub }}>{post ? fmtRelTime(post.created_at) : ""}</div>
@@ -485,12 +480,7 @@ function CommentRow({ c, user, isLiked, onToggleLike, onDelete, onReply, replyHi
   return (
     <div style={{ display:"flex", gap:8, alignItems:"flex-start",
                   paddingLeft: indent ? 38 : 0, marginBottom:8 }}>
-      <div style={{ width: indent ? 26 : 32, height: indent ? 26 : 32, borderRadius:"50%",
-                    background:C.tint,
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize: indent ? 13 : 15, flexShrink:0 }}>
-        {avatarForBreed(c.pet?.breed)}
-      </div>
+      <PetAvatar pet={c.pet} size={indent ? 26 : 32} bg={C.tint} />
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ fontSize:11, color:C.sub }}>
           <span style={{ fontWeight:700, color:C.text }}>{c.user?.username || "未命名宠物"}</span>
