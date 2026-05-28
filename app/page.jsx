@@ -1541,8 +1541,11 @@ export default function AppRoot() {
                   : t.imgIcon
                     ? <img src={t.icon} alt={t.label}
                         style={{ width:28, height:28, objectFit:"contain",
-                                 opacity: tab===i ? 1 : 0.45,
-                                 transition:"opacity .15s" }} />
+                                 mixBlendMode:"multiply",
+                                 filter: tab===i
+                                   ? "sepia(1) saturate(4) hue-rotate(-10deg) brightness(0.85)"
+                                   : "grayscale(1) opacity(0.5)",
+                                 transition:"filter .15s" }} />
                     : <span style={{ fontSize:20, lineHeight:1,
                                      filter: tab===i ? "none" : "grayscale(1) opacity(0.5)" }}>
                         {t.icon}
