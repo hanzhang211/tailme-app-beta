@@ -137,6 +137,19 @@ function Logo({ size = 52 }) {
 }
 
 // 装饰用纯爪印（无轨道），可控颜色
+function MapTabIcon({ size = 22, color = "#E68645" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+         stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+         xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
+         style={{ display:"inline-block", verticalAlign:"middle" }}>
+      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
+      <line x1="9" y1="3" x2="9" y2="18"/>
+      <line x1="15" y1="6" x2="15" y2="21"/>
+    </svg>
+  );
+}
+
 function PawIcon({ size = 16, color = "#E68645" }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color}
@@ -1391,7 +1404,7 @@ function SocialTab() {
 ══════════════════════════════════════════════════════════════ */
 const TABS = [
   { icon:"🐾", label:"狗友" },
-  { icon:"/map-icon.png", imgIcon:true, label:"地图" },
+  { label:"地图" },
   { home:true, label:"首页" },
   { icon:"💬", label:"社群" },
   { icon:"👤", label:"我的" },
@@ -1538,14 +1551,8 @@ export default function AppRoot() {
               <div style={{ height:22, display:"flex", alignItems:"center", justifyContent:"center" }}>
                 {t.label === "狗友"
                   ? <PawIcon size={20} color={tab===i ? "#E68645" : "#C5C8CE"} />
-                  : t.imgIcon
-                    ? <img src={t.icon} alt={t.label}
-                        style={{ width:28, height:28, objectFit:"contain",
-                                 mixBlendMode:"multiply",
-                                 filter: tab===i
-                                   ? "sepia(1) saturate(4) hue-rotate(-10deg) brightness(0.85)"
-                                   : "grayscale(1) opacity(0.5)",
-                                 transition:"filter .15s" }} />
+                  : t.label === "地图"
+                    ? <MapTabIcon size={22} color={tab===i ? "#E68645" : "#C5C8CE"} />
                     : <span style={{ fontSize:20, lineHeight:1,
                                      filter: tab===i ? "none" : "grayscale(1) opacity(0.5)" }}>
                         {t.icon}

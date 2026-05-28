@@ -210,8 +210,12 @@ export default function MapTab() {
       {/* 顶部标题 */}
       <div style={{ background:"#fff", padding:"52px 18px 12px", flexShrink:0 }}>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <img src="/map-icon.png" alt="地图"
-            style={{ width:28, height:28, objectFit:"contain", mixBlendMode:"multiply" }} />
+          <svg width={28} height={28} viewBox="0 0 24 24" fill="none"
+            stroke={C.pri} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
+            <line x1="9" y1="3" x2="9" y2="18"/>
+            <line x1="15" y1="6" x2="15" y2="21"/>
+          </svg>
           <span style={{ fontSize:20, fontWeight:800, color:C.text }}>宠物友好地图</span>
         </div>
         <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>
