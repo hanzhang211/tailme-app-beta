@@ -211,7 +211,7 @@ export default function MapTab() {
       {/* 顶部标题 */}
       <div style={{ background:"#fff", padding:"52px 18px 12px", flexShrink:0 }}>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <MapIcon size={28} color={C.pri} />
+          <MapIcon size={34} color={C.pri} />
           <span style={{ fontSize:20, fontWeight:800, color:C.text }}>宠物友好地图</span>
         </div>
         <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>
