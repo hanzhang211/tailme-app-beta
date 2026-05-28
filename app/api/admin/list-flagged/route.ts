@@ -35,9 +35,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "需要管理员权限" }, { status: 403 });
   }
 
+  // 显式指定 FK 名消歧（posts/comments/messages 都有多条到 users 的路径）
+  const fkName = `${table}_user_id_fkey`;
   const { data, error } = await supabaseAdmin
     .from(table)
-    .select("*, user:users(username)")
+    .select(`*, user:users!${fkName}(username)`)
     .in("status", ["flagged", "hidden"])
     .order("created_at", { ascending: false })
     .limit(100);
