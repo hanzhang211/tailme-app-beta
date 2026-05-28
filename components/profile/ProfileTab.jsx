@@ -17,10 +17,10 @@ import {
   listMyPosts, listLikedPosts, getUserStats,
   deleteOwnContent,
 } from "@/services/communityService";
-import { avatarForPet, avatarForBreed } from "@/services/breedAvatar";
 import { formatPetAge, formatBirthday } from "@/services/petAge";
 
 import PostDetail    from "@/components/community/PostDetail";
+import PetAvatar     from "@/components/PetAvatar";
 import PetEditor     from "./PetEditor";
 import SettingsModal from "./SettingsModal";
 
@@ -159,7 +159,7 @@ export default function ProfileTab({ user, pet, onLogout }) {
     return [L, R];
   }, [posts]);
 
-  const userAvatar = pet ? avatarForPet(pet) : (pets[0] ? avatarForPet(pets[0]) : "🐾");
+  const headerPet = pet || pets[0] || null;
 
   return (
     <div style={{ height:"100%", overflowY:"auto", background:C.bg, position:"relative" }}>
@@ -168,11 +168,7 @@ export default function ProfileTab({ user, pet, onLogout }) {
       <div style={{ background:"white", padding:"52px 18px 18px",
                     borderBottom:`1px solid ${C.border}` }}>
         <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-          <div style={{ width:60, height:60, borderRadius:"50%",
-                        background:C.tint, display:"flex", alignItems:"center",
-                        justifyContent:"center", fontSize:30, flexShrink:0 }}>
-            {userAvatar}
-          </div>
+          <PetAvatar pet={headerPet} size={60} bg={C.tint} />
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontSize:18, fontWeight:800, color:C.text }}>
               {user?.username || "未命名"}
@@ -336,11 +332,7 @@ function PetCard({ pet }) {
                   borderRadius:14, padding:"12px 12px",
                   boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
-        <div style={{ width:30, height:30, borderRadius:"50%", background:C.tint,
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      fontSize:15, flexShrink:0 }}>
-          {avatarForBreed(pet.breed)}
-        </div>
+        <PetAvatar pet={pet} size={30} bg={C.tint} />
         <div style={{ fontSize:14, fontWeight:800, color:C.text,
                       overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
           {pet.name || "未命名"}
