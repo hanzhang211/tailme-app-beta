@@ -1540,7 +1540,7 @@ export default function AppRoot() {
                   ? <PawIcon size={20} color={tab===i ? "#E68645" : "#C5C8CE"} />
                   : t.imgIcon
                     ? <img src={t.icon} alt={t.label}
-                        style={{ width:22, height:22, objectFit:"contain",
+                        style={{ width:28, height:28, objectFit:"contain",
                                  opacity: tab===i ? 1 : 0.45,
                                  transition:"opacity .15s" }} />
                     : <span style={{ fontSize:20, lineHeight:1,
