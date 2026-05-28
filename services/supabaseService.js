@@ -173,28 +173,38 @@ export async function setUsername(userId, username) {
   return data;
 }
 
-/* ── 读取宠物最新喂食计划 ─────────────────────────────────────── */
-export async function getFeedingRecord(petId) {
-  if (!petId) return null;
+/* ── 读取宠物喂食计划（所有顿，按 feeding_order 升序）─────────── */
+export async function getFeedingPlan(petId) {
+  if (!petId) return [];
   const sb = requireSupabase();
   const { data, error } = await sb
     .from("feeding_records")
-    .select("breakfast, dinner")
+    .select("feeding_order, scheduled_time, amount, unit, note")
     .eq("pet_id", petId)
-    .order("recorded_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw new Error(`获取喂食记录失败: ${error.message}`);
-  return data; // null 代表该宠物还没有喂食计划
+    .order("feeding_order", { ascending: true });
+  if (error) throw new Error(`获取喂食计划失败: ${error.message}`);
+  return data || [];
 }
 
-/* ── 保存喂食记录 ─────────────────────────────────────────────── */
-export async function saveFeedingRecord(record) {
+/* ── 保存喂食计划（清空该宠物旧计划后重新插入）──────────────────── */
+export async function saveFeedingPlan(petId, feedings) {
+  if (!petId) throw new Error("缺少 petId");
   const sb = requireSupabase();
-  const { error } = await sb
-    .from("feeding_records")
-    .insert({ ...record, recorded_at: new Date().toISOString() });
-  if (error) throw new Error(`保存喂食记录失败: ${error.message}`);
+  const { error: delErr } = await sb
+    .from("feeding_records").delete().eq("pet_id", petId);
+  if (delErr) throw new Error(`清除旧计划失败: ${delErr.message}`);
+  if (feedings.length === 0) return;
+  const rows = feedings.map((f, i) => ({
+    pet_id:         petId,
+    feeding_order:  i + 1,
+    scheduled_time: f.time.length === 5 ? f.time + ":00" : f.time,
+    amount:         f.amount !== "" && f.amount != null ? parseFloat(f.amount) : null,
+    unit:           f.unit   || null,
+    note:           f.note   || null,
+    recorded_at:    new Date().toISOString(),
+  }));
+  const { error: insErr } = await sb.from("feeding_records").insert(rows);
+  if (insErr) throw new Error(`保存喂食计划失败: ${insErr.message}`);
 }
 
 /* ── 保存健康上传记录 ─────────────────────────────────────────── */

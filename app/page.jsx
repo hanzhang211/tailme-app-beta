@@ -15,8 +15,8 @@ import {
   getUserById,
   getUserPets,
   savePetProfile,
-  getFeedingRecord,
-  saveFeedingRecord,
+  getFeedingPlan,
+  saveFeedingPlan,
   saveHealthUpload,
   setUsername,
   isUsernameTaken,
@@ -64,6 +64,25 @@ const feedAmt = (w) => {
   if (n < 20) return "180–250g / 次";
   if (n < 30) return "300–380g / 次";
   return "400–550g / 次";
+};
+
+const FEED_LABELS    = ["第一次喂食", "第二次喂食", "第三次喂食"];
+const FEED_ICONS     = ["🌅", "🌆", "🌙"];
+const FEED_UNITS     = ["g", "勺", "杯", "罐", "袋"];
+const DEFAULT_FEEDING = { time:"08:00", amount:"", unit:"g", note:"" };
+
+const formatFeedingTime = (timeStr) => {
+  if (!timeStr) return "";
+  const parts = timeStr.split(":");
+  const h  = parseInt(parts[0], 10);
+  const m  = parseInt(parts[1] || "0", 10);
+  const mm = String(m).padStart(2, "0");
+  if (h === 0)  return `凌晨 12:${mm}`;
+  if (h < 6)   return `凌晨 ${h}:${mm}`;
+  if (h < 12)  return `早上 ${h}:${mm}`;
+  if (h === 12) return `下午 12:${mm}`;
+  if (h < 18)  return `下午 ${h - 12}:${mm}`;
+  return `晚上 ${h - 12}:${mm}`;
 };
 
 const isHungry = (bt, dt) => {
@@ -690,8 +709,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     if (!pet?.birthday && !dismissed) setCompleteOpen(true);
   }, [pet?.birthday, dismissed]);
 
-  const [bt, setBt]               = useState("08:00");
-  const [dt, setDt]               = useState("18:00");
+  const [feedings, setFeedings]   = useState([{ ...DEFAULT_FEEDING }]);
   const [editFeed, setEdit]       = useState(false);
   const [feedLoading, setFeedLoading]     = useState(false);
   const [hasFeedRecord, setHasFeedRecord] = useState(false);
@@ -706,18 +724,21 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     if (!pet?.id) return;
     let alive = true;
     setFeedLoading(true);
-    setEdit(false);      // 退出编辑模式
+    setEdit(false);
     setFeedError(null);
-    getFeedingRecord(pet.id)
-      .then((record) => {
+    getFeedingPlan(pet.id)
+      .then((rows) => {
         if (!alive) return;
-        if (record) {
-          setBt(record.breakfast || "08:00");
-          setDt(record.dinner    || "18:00");
+        if (rows.length > 0) {
+          setFeedings(rows.map((r) => ({
+            time:   (r.scheduled_time || "08:00:00").slice(0, 5),
+            amount: r.amount != null ? String(r.amount) : "",
+            unit:   r.unit  || "g",
+            note:   r.note  || "",
+          })));
           setHasFeedRecord(true);
         } else {
-          setBt("08:00");
-          setDt("18:00");
+          setFeedings([{ ...DEFAULT_FEEDING }]);
           setHasFeedRecord(false);
         }
       })
@@ -726,17 +747,23 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     return () => { alive = false; };
   }, [pet?.id]);
 
-  const hungry = isHungry(bt, dt);
+  const hungry = hasFeedRecord && feedings.length >= 2
+    ? isHungry(feedings[0].time, feedings[feedings.length - 1].time)
+    : false;
+
+  const addFeed    = () => { if (feedings.length < 3) setFeedings(p => [...p, { ...DEFAULT_FEEDING, time:"18:00" }]); };
+  const removeFeed = (i) => setFeedings(p => p.filter((_, idx) => idx !== i));
+  const updFeed    = (i, k, v) => setFeedings(p => p.map((f, idx) => idx === i ? { ...f, [k]: v } : f));
 
   const handleSaveFeed = async () => {
     if (editFeed) {
       try {
-        await saveFeedingRecord({ pet_id: pet.id, breakfast: bt, dinner: dt });
+        await saveFeedingPlan(pet.id, feedings);
         setHasFeedRecord(true);
         setFeedError(null);
       } catch (err) {
         setFeedError(err.message);
-        return; // 保存失败不关闭编辑模式
+        return;
       }
     }
     setEdit((v) => !v);
@@ -1009,38 +1036,121 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
 
           {feedLoading ? (
             /* 骨架屏 */
-            <div style={{ display:"flex", gap:10, marginBottom:12 }}>
-              {["早饭","晚饭"].map((lbl) => (
-                <div key={lbl} style={{ flex:1, background:H_SURFACE, borderRadius:14, padding:12, height:60,
-                                        animation:"pulse 1.4s ease-in-out infinite" }} />
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {[1,2].map((n) => (
+                <div key={n} style={{ background:H_SURFACE, borderRadius:14, height:58,
+                                      animation:"pulse 1.4s ease-in-out infinite" }} />
               ))}
             </div>
+
           ) : !hasFeedRecord ? (
             /* 空状态 */
             <div style={{ textAlign:"center", padding:"12px 0 8px" }}>
               <div style={{ fontSize:13, color:H_SUB, marginBottom:12 }}>
                 还没有为 <b style={{ color:C.text }}>{pet.name}</b> 添加喂食计划
               </div>
-              <button
-                onClick={() => { setHasFeedRecord(true); setEdit(true); }}
+              <button onClick={() => { setFeedings([{ ...DEFAULT_FEEDING }]); setHasFeedRecord(true); setEdit(true); }}
                 style={{ background:C.pri, color:"white", border:"none", borderRadius:16,
                          padding:"8px 22px", fontSize:13, fontWeight:700, cursor:"pointer" }}>
                 + 添加喂食计划
               </button>
             </div>
-          ) : (
-            /* 正常显示 */
+
+          ) : editFeed ? (
+            /* 编辑模式 */
             <>
-              <div style={{ display:"flex", gap:10, marginBottom:12 }}>
-                {[["🌅","早饭",bt,setBt],["🌆","晚饭",dt,setDt]].map(([em, lbl, val, setter]) => (
-                  <div key={lbl} style={{ flex:1, background:H_SURFACE, border:`1px solid ${H_BORDER}`,
-                                           borderRadius:14, padding:12 }}>
-                    <div style={{ fontSize:11, color:H_SUB, marginBottom:5 }}>{em} {lbl}</div>
-                    {editFeed
-                      ? <input type="time" value={val} onChange={(e) => setter(e.target.value)}
-                          style={{ fontSize:16, fontWeight:700, color:C.text, background:"transparent",
-                                   border:"none", outline:"none", width:"100%" }}/>
-                      : <div style={{ fontSize:16, fontWeight:700, color:C.text }}>{val}</div>}
+              {feedings.map((f, i) => (
+                <div key={i} style={{ background:H_SURFACE, border:`1px solid ${H_BORDER}`,
+                                      borderRadius:14, padding:12, marginBottom:8 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                    <span style={{ fontSize:12, fontWeight:700, color:C.text }}>
+                      {FEED_ICONS[i]} {FEED_LABELS[i]}
+                    </span>
+                    {feedings.length > 1 && (
+                      <button onClick={() => removeFeed(i)}
+                        style={{ background:"transparent", border:"none", fontSize:11,
+                                 color:"#C0392B", cursor:"pointer", padding:"2px 6px" }}>
+                        删除
+                      </button>
+                    )}
+                  </div>
+                  {/* 时间 */}
+                  <div style={{ marginBottom:8 }}>
+                    <div style={{ fontSize:11, color:H_SUB, marginBottom:4 }}>喂食时间</div>
+                    <input type="time" value={f.time}
+                      onChange={(e) => updFeed(i, "time", e.target.value)}
+                      style={{ width:"100%", borderRadius:10, padding:"8px 10px", fontSize:15,
+                               fontWeight:700, border:`1px solid ${H_BORDER}`, background:"white",
+                               boxSizing:"border-box", color:C.text }} />
+                  </div>
+                  {/* 喂食量 + 单位 */}
+                  <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                    <div style={{ flex:2 }}>
+                      <div style={{ fontSize:11, color:H_SUB, marginBottom:4 }}>喂食量</div>
+                      <input type="number" min="0" step="0.5" value={f.amount}
+                        onChange={(e) => updFeed(i, "amount", e.target.value)}
+                        placeholder="120"
+                        style={{ width:"100%", borderRadius:10, padding:"8px 10px", fontSize:14,
+                                 border:`1px solid ${H_BORDER}`, background:"white",
+                                 boxSizing:"border-box" }} />
+                    </div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:11, color:H_SUB, marginBottom:4 }}>单位</div>
+                      <select value={f.unit} onChange={(e) => updFeed(i, "unit", e.target.value)}
+                        style={{ width:"100%", borderRadius:10, padding:"8px 6px", fontSize:14,
+                                 border:`1px solid ${H_BORDER}`, background:"white",
+                                 boxSizing:"border-box" }}>
+                        {FEED_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  {/* 备注 */}
+                  <div>
+                    <div style={{ fontSize:11, color:H_SUB, marginBottom:4 }}>备注（可选）</div>
+                    <input value={f.note} onChange={(e) => updFeed(i, "note", e.target.value)}
+                      placeholder="比如：减肥餐、湿粮..."
+                      style={{ width:"100%", borderRadius:10, padding:"8px 10px", fontSize:13,
+                               border:`1px solid ${H_BORDER}`, background:"white",
+                               boxSizing:"border-box" }} />
+                  </div>
+                </div>
+              ))}
+
+              {feedings.length < 3 ? (
+                <button onClick={addFeed}
+                  style={{ width:"100%", background:"transparent", border:`1.5px dashed ${H_BORDER}`,
+                           borderRadius:14, padding:"10px 0", fontSize:13, color:H_SUB,
+                           cursor:"pointer", marginBottom:4 }}>
+                  + 添加一顿
+                </button>
+              ) : (
+                <div style={{ textAlign:"center", fontSize:11, color:H_SUB, padding:"4px 0 8px" }}>
+                  一天最多记录 3 次喂食哦 🐾
+                </div>
+              )}
+            </>
+
+          ) : (
+            /* 查看模式 */
+            <>
+              <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:10 }}>
+                {feedings.map((f, i) => (
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:10,
+                                        background:H_SURFACE, border:`1px solid ${H_BORDER}`,
+                                        borderRadius:14, padding:"10px 12px" }}>
+                    <span style={{ fontSize:22, flexShrink:0 }}>{FEED_ICONS[i]}</span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:11, color:H_SUB, marginBottom:2 }}>{FEED_LABELS[i]}</div>
+                      <div style={{ fontSize:15, fontWeight:700, color:C.text }}>
+                        {formatFeedingTime(f.time)}
+                        {f.amount && (
+                          <span style={{ fontSize:12, fontWeight:500, color:H_SUB }}>
+                            {" · "}{f.amount}{f.unit}
+                          </span>
+                        )}
+                      </div>
+                      {f.note && <div style={{ fontSize:10, color:H_SUB, marginTop:2 }}>{f.note}</div>}
+                    </div>
                   </div>
                 ))}
               </div>
