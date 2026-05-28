@@ -121,6 +121,8 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
       const next = [...prev]; next[idx] = savedPet; return next;
     });
     setEditorPet(undefined);
+    // 编辑已有宠物时通知 AppRoot 同步首页
+    onPetUpdated?.(savedPet);
   };
 
   const onAvatarSaved = (updatedPet) => {
@@ -231,6 +233,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
               isActive={pet?.id === p.id}
               onSelect={() => onSetActivePet?.(p)}
               onAvatar={() => setAvatarPet(p)}
+              onEdit={() => setEditorPet(p)}
             />
           ))}
           {pets.length === 0 && (
@@ -348,7 +351,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
 }
 
 /* ────────────────────────────────────────────────────── */
-function PetCard({ pet, isActive, onSelect, onAvatar }) {
+function PetCard({ pet, isActive, onSelect, onAvatar, onEdit }) {
   const age = formatPetAge(pet.birthday) || (pet.age != null ? `${pet.age}岁` : "");
   return (
     <div style={{ background:"white",
@@ -381,18 +384,24 @@ function PetCard({ pet, isActive, onSelect, onAvatar }) {
       </div>
 
       {/* 操作按钮行 */}
-      <div style={{ display:"flex", gap:6, marginTop:8 }}>
+      <div style={{ display:"flex", gap:5, marginTop:8, flexWrap:"wrap" }}>
         <button onClick={onAvatar}
-          style={{ flex:1, fontSize:10, fontWeight:700, color:C.pri,
+          style={{ flex:"1 1 auto", fontSize:10, fontWeight:700, color:C.pri,
                    background:C.tint, border:`1px solid ${C.border}`,
-                   borderRadius:8, padding:"5px 0", cursor:"pointer" }}>
-          {pet.ai_avatar_url ? "✨ 更换头像" : "✨ 生成头像"}
+                   borderRadius:8, padding:"5px 4px", cursor:"pointer" }}>
+          {pet.ai_avatar_url ? "✨ 换头像" : "✨ 生成头像"}
+        </button>
+        <button onClick={onEdit}
+          style={{ flex:"1 1 auto", fontSize:10, fontWeight:700, color:C.text,
+                   background:"white", border:`1px solid ${C.border}`,
+                   borderRadius:8, padding:"5px 4px", cursor:"pointer" }}>
+          📝 编辑资料
         </button>
         {!isActive && (
           <button onClick={onSelect}
-            style={{ flex:1, fontSize:10, fontWeight:700, color:"white",
+            style={{ width:"100%", fontSize:10, fontWeight:700, color:"white",
                      background:C.pri, border:"none",
-                     borderRadius:8, padding:"5px 0", cursor:"pointer" }}>
+                     borderRadius:8, padding:"5px 0", cursor:"pointer", marginTop:2 }}>
             选为当前
           </button>
         )}
