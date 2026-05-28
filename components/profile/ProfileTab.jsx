@@ -365,11 +365,13 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
 function PetCard({ pet, isActive, onSelect, onAvatar, onEdit }) {
   const age = formatPetAge(pet.birthday) || (pet.age != null ? `${pet.age}岁` : "");
   return (
-    <div style={{ background:"white",
-                  border: isActive ? `2px solid ${C.pri}` : `1px solid ${C.border}`,
-                  borderRadius:14, padding:"12px 12px",
-                  boxShadow: isActive ? `0 0 0 3px ${C.tint}` : "0 1px 4px rgba(0,0,0,0.04)",
-                  position:"relative" }}>
+    <div onClick={onSelect}
+      style={{ background:"white",
+                border: isActive ? `2px solid ${C.pri}` : `1px solid ${C.border}`,
+                borderRadius:14, padding:"12px 12px",
+                boxShadow: isActive ? `0 0 0 3px ${C.tint}` : "0 1px 4px rgba(0,0,0,0.04)",
+                position:"relative", cursor: isActive ? "default" : "pointer",
+                transition:"border 0.2s, box-shadow 0.2s" }}>
 
       {/* 当前展示标签 */}
       {isActive && (
@@ -394,28 +396,21 @@ function PetCard({ pet, isActive, onSelect, onAvatar, onEdit }) {
         {pet.personality && <div>✨ {pet.personality}</div>}
       </div>
 
-      {/* 操作按钮行 */}
-      <div style={{ display:"flex", gap:5, marginTop:8, flexWrap:"wrap" }}>
+      {/* 操作按钮行（阻止冒泡，避免触发卡片选择） */}
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ display:"flex", gap:5, marginTop:8 }}>
         <button onClick={onAvatar}
-          style={{ flex:"1 1 auto", fontSize:10, fontWeight:700, color:C.pri,
+          style={{ flex:1, fontSize:10, fontWeight:700, color:C.pri,
                    background:C.tint, border:`1px solid ${C.border}`,
                    borderRadius:8, padding:"5px 4px", cursor:"pointer" }}>
           {pet.ai_avatar_url ? "✨ 换头像" : "✨ 生成头像"}
         </button>
         <button onClick={onEdit}
-          style={{ flex:"1 1 auto", fontSize:10, fontWeight:700, color:C.text,
+          style={{ flex:1, fontSize:10, fontWeight:700, color:C.text,
                    background:"white", border:`1px solid ${C.border}`,
                    borderRadius:8, padding:"5px 4px", cursor:"pointer" }}>
           📝 编辑资料
         </button>
-        {!isActive && (
-          <button onClick={onSelect}
-            style={{ width:"100%", fontSize:10, fontWeight:700, color:"white",
-                     background:C.pri, border:"none",
-                     borderRadius:8, padding:"5px 0", cursor:"pointer", marginTop:2 }}>
-            选为当前
-          </button>
-        )}
       </div>
     </div>
   );
