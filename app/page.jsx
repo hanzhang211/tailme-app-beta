@@ -1391,7 +1391,7 @@ function SocialTab() {
 ══════════════════════════════════════════════════════════════ */
 const TABS = [
   { icon:"🐾", label:"狗友" },
-  { icon:"🗺️", label:"地图" },
+  { icon:"/map-icon.png", imgIcon:true, label:"地图" },
   { home:true, label:"首页" },
   { icon:"💬", label:"社群" },
   { icon:"👤", label:"我的" },
@@ -1535,11 +1535,18 @@ export default function AppRoot() {
                               filter:"brightness(0) invert(1)" }} />
               </div>
             ) : (
-              <div style={{ fontSize:20, lineHeight:1, height:20, display:"flex", alignItems:"center",
-                            filter: t.label === "狗友" ? "none" : (tab===i ? "none" : "grayscale(1) opacity(0.5)") }}>
+              <div style={{ height:22, display:"flex", alignItems:"center", justifyContent:"center" }}>
                 {t.label === "狗友"
                   ? <PawIcon size={20} color={tab===i ? "#E68645" : "#C5C8CE"} />
-                  : t.icon}
+                  : t.imgIcon
+                    ? <img src={t.icon} alt={t.label}
+                        style={{ width:22, height:22, objectFit:"contain",
+                                 opacity: tab===i ? 1 : 0.45,
+                                 transition:"opacity .15s" }} />
+                    : <span style={{ fontSize:20, lineHeight:1,
+                                     filter: tab===i ? "none" : "grayscale(1) opacity(0.5)" }}>
+                        {t.icon}
+                      </span>}
               </div>
             )}
             <div style={{ fontSize:10, fontWeight:tab===i ? 700 : 500,
