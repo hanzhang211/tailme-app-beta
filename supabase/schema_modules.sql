@@ -211,3 +211,25 @@ SELECT * FROM (VALUES
 WHERE NOT EXISTS (
   SELECT 1 FROM pet_news WHERE pet_news.title = t.title
 );
+
+-- ============================================================
+-- 5. AI 宠物头像（Replicate flux-kontext-pro）
+-- ============================================================
+ALTER TABLE pets
+  ADD COLUMN IF NOT EXISTS ai_avatar_url      text,
+  ADD COLUMN IF NOT EXISTS original_photo_url text;
+
+-- Storage bucket：pet-avatars（公开读，anon 可上传原图，AI 图由 service_role 写）
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('pet-avatars', 'pet-avatars', true)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "pet_avatars_read"   ON storage.objects;
+DROP POLICY IF EXISTS "pet_avatars_upload" ON storage.objects;
+DROP POLICY IF EXISTS "pet_avatars_delete" ON storage.objects;
+CREATE POLICY "pet_avatars_read"
+  ON storage.objects FOR SELECT USING (bucket_id = 'pet-avatars');
+CREATE POLICY "pet_avatars_upload"
+  ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'pet-avatars');
+CREATE POLICY "pet_avatars_delete"
+  ON storage.objects FOR DELETE USING (bucket_id = 'pet-avatars');

@@ -30,6 +30,7 @@ import ExpensePage from "@/components/home/ExpensePage";
 import RecipePage  from "@/components/home/RecipePage";
 import HealthPage  from "@/components/home/HealthPage";
 import NewsPage, { NewsCover } from "@/components/home/NewsPage";
+import AvatarGenerator from "@/components/home/AvatarGenerator";
 import { getMonthlyTotal } from "@/services/petExpenseService";
 import { getTodayRecipe }  from "@/services/petRecipeService";
 import { getLatestNews }   from "@/services/petNewsService";
@@ -627,11 +628,14 @@ function PetProfileComplete({ pet, onClose, onSaved }) {
 }
 
 function HomeTab({ user, pet, onPetUpdate }) {
-  // 子页面：null | 'expenses' | 'recipes' | 'health'
+  // 子页面：null | 'expenses' | 'recipes' | 'health' | 'news'
   const [subPage, setSubPage] = useState(null);
   const [monthExpense, setMonthExpense] = useState(null);
   const [todayRecipe,  setTodayRecipe]  = useState(null);
   const [latestNews,   setLatestNews]   = useState(null);
+  const [avatarOpen,   setAvatarOpen]   = useState(false);
+  const [avatarBroken, setAvatarBroken] = useState(false);
+  useEffect(() => { setAvatarBroken(false); }, [pet?.id, pet?.ai_avatar_url]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -722,6 +726,14 @@ function HomeTab({ user, pet, onPetUpdate }) {
           onSaved={(updated) => { setCompleteOpen(false); onPetUpdate?.(updated); }}
         />
       )}
+      {avatarOpen && (
+        <AvatarGenerator
+          user={user}
+          pet={pet}
+          onClose={() => setAvatarOpen(false)}
+          onSaved={(updated) => { setAvatarOpen(false); onPetUpdate?.(updated); }}
+        />
+      )}
       <div style={{ background:H_BG, borderBottom:`1px solid ${H_BORDER}`, padding:"52px 20px 24px",
                     position:"relative", overflow:"hidden" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18 }}>
@@ -739,11 +751,31 @@ function HomeTab({ user, pet, onPetUpdate }) {
         </div>
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
           <div style={{ position:"relative", padding:"4px 10px" }}>
-            <div style={{ fontSize:120, lineHeight:1,
-                          animation:"float 3s ease-in-out infinite",
-                          filter:"drop-shadow(0 6px 12px rgba(230,134,69,0.18))" }}>
-              🐶
-            </div>
+            {pet.ai_avatar_url && !avatarBroken ? (
+              <img src={pet.ai_avatar_url} alt={pet.name}
+                onError={() => setAvatarBroken(true)}
+                style={{ width:140, height:140, borderRadius:"50%", objectFit:"cover",
+                         display:"block",
+                         animation:"float 3s ease-in-out infinite",
+                         boxShadow:"0 8px 22px rgba(230,134,69,0.22)" }} />
+            ) : (
+              <div style={{ fontSize:120, lineHeight:1,
+                            animation:"float 3s ease-in-out infinite",
+                            filter:"drop-shadow(0 6px 12px rgba(230,134,69,0.18))" }}>
+                🐶
+              </div>
+            )}
+            <button onClick={() => setAvatarOpen(true)}
+              title="生成 AI 专属头像"
+              style={{ position:"absolute", bottom:6, right:6,
+                       width:34, height:34, borderRadius:"50%",
+                       background:C.pri, border:"2.5px solid white",
+                       color:"white", fontSize:16, cursor:"pointer",
+                       boxShadow:"0 3px 10px rgba(230,134,69,0.4)",
+                       display:"flex", alignItems:"center", justifyContent:"center",
+                       padding:0, lineHeight:1 }}>
+              ✨
+            </button>
             {hungry && (
               <div style={{ position:"absolute", top:0, right:-4, background:C.accent, borderRadius:20,
                             padding:"3px 9px", fontSize:10, fontWeight:700, color:"white",
