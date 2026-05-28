@@ -19,6 +19,7 @@ import {
   listMessages,
   sendMessage,
   subscribeRoom,
+  unsubscribeChannel,
   deleteOwnContent,
   reportContent,
 } from "@/services/communityService";
@@ -100,7 +101,7 @@ export default function ChatRoom({ user, pet }) {
 
     return () => {
       alive = false;
-      try { channel.unsubscribe(); } catch {}
+      unsubscribeChannel(channel);
     };
   }, [view, activeRoomId]);
 

@@ -17,6 +17,7 @@ import {
   likeComment, unlikeComment, getMyLikedCommentIds,
   likePost, unlikePost,
   deleteOwnContent, reportContent,
+  subscribeComments, unsubscribeChannel,
 } from "@/services/communityService";
 import { avatarForBreed } from "@/services/breedAvatar";
 
@@ -103,6 +104,20 @@ export default function PostDetail({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  /* 评论 Realtime：当前帖子的 comments INSERT / DELETE */
+  useEffect(() => {
+    if (!postId) return;
+    const channel = subscribeComments(postId, {
+      onInsert: (newC) => {
+        setComments((prev) => prev.some((c) => c.id === newC.id) ? prev : [...prev, newC]);
+      },
+      onDelete: (id) => {
+        setComments((prev) => prev.filter((c) => c.id !== id && c.parent_id !== id));
+      },
+    });
+    return () => unsubscribeChannel(channel);
+  }, [postId]);
 
   const togglePostLike = async () => {
     if (!user?.id) return;

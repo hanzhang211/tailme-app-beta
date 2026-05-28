@@ -77,9 +77,19 @@ export async function sendMessage({ roomId, userId, petId, content }) {
 }
 
 /**
+ * 统一关闭 channel：用 supabase.removeChannel（比 channel.unsubscribe 更彻底，
+ * 会清理 client 内部的 channel 注册表，避免重复订阅泄漏）。
+ */
+export function unsubscribeChannel(channel) {
+  if (!channel) return;
+  try { supabase?.removeChannel(channel); }
+  catch { try { channel.unsubscribe?.(); } catch {} }
+}
+
+/**
  * 订阅某个聊天室的新消息。
  * onInsert: (newRow) => void  收到 INSERT 时回调（payload 已经 fetch 完关联字段）
- * 返回 channel 对象，调用方必须在 unmount 时 channel.unsubscribe()
+ * 返回 channel 对象，调用方必须在 unmount 时 unsubscribeChannel(channel)
  */
 export function subscribeRoom(roomId, onInsert) {
   const sb = requireSupabase();
@@ -102,6 +112,47 @@ export function subscribeRoom(roomId, onInsert) {
           .eq("id", id)
           .maybeSingle();
         if (data && data.status === "visible") onInsert(data);
+      }
+    )
+    .subscribe();
+  return channel;
+}
+
+/**
+ * 订阅某条帖子的评论变化（INSERT / DELETE）。
+ * onInsert: (commentRow) => void  收到新评论时回调（已补 fetch 关联字段）
+ * onDelete: (id)         => void  收到删除事件时回调
+ * 调用方必须在 unmount 时 unsubscribeChannel(channel)
+ */
+export function subscribeComments(postId, { onInsert, onDelete } = {}) {
+  const sb = requireSupabase();
+  const channel = sb
+    .channel(`post:${postId}:comments`)
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "comments", filter: `post_id=eq.${postId}` },
+      async (payload) => {
+        const id = payload.new?.id;
+        if (!id || !onInsert) return;
+        const { data } = await sb
+          .from("comments")
+          .select(`
+            id, content, status, created_at, user_id, pet_id,
+            parent_id, like_count,
+            user:users!user_id ( username ),
+            pet:pets!pet_id ( name, breed )
+          `)
+          .eq("id", id)
+          .maybeSingle();
+        if (data && data.status === "visible") onInsert(data);
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "DELETE", schema: "public", table: "comments", filter: `post_id=eq.${postId}` },
+      (payload) => {
+        const id = payload.old?.id;
+        if (id && onDelete) onDelete(id);
       }
     )
     .subscribe();
@@ -302,7 +353,7 @@ export async function uploadPostImage(file, userId, abortFlag) {
 
   const { error: upErr } = await sb.storage
     .from("post-images")
-    .upload(path, file, { cacheControl: "3600", upsert: false });
+    .upload(path, file, { cacheControl: "86400", upsert: false });
   if (upErr) throw new Error(`上传失败: ${upErr.message}`);
 
   // 上传完成后再检查一次取消标志：若已取消，立即删除刚上传的文件
