@@ -19,10 +19,11 @@ import {
 } from "@/services/communityService";
 import { formatPetAge, formatBirthday } from "@/services/petAge";
 
-import PostDetail    from "@/components/community/PostDetail";
-import PetAvatar     from "@/components/PetAvatar";
-import PetEditor     from "./PetEditor";
-import SettingsModal from "./SettingsModal";
+import PostDetail      from "@/components/community/PostDetail";
+import PetAvatar       from "@/components/PetAvatar";
+import PetEditor       from "./PetEditor";
+import SettingsModal   from "./SettingsModal";
+import AvatarGenerator from "@/components/home/AvatarGenerator";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
@@ -38,7 +39,7 @@ function maskPhone(phone) {
   return s.slice(0, 3) + "****" + s.slice(-4);
 }
 
-export default function ProfileTab({ user, pet, onLogout }) {
+export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, onLogout }) {
   const [pets,        setPets]        = useState([]);
   const [stats,       setStats]       = useState({ totalLikes: 0, postCount: 0, likedCount: 0 });
   const [myPosts,     setMyPosts]     = useState([]);
@@ -48,6 +49,7 @@ export default function ProfileTab({ user, pet, onLogout }) {
   const [detailId,    setDetailId]    = useState(null);
   const [editorPet,    setEditorPet]    = useState(undefined); // undefined=closed, null=add, obj=edit
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [avatarPet,    setAvatarPet]    = useState(null); // 当前生成头像的宠物，null=关闭
 
   const [toastMsg, setToastMsg] = useState(null);
   const toastTimerRef = useRef();
@@ -115,10 +117,16 @@ export default function ProfileTab({ user, pet, onLogout }) {
   const onPetSaved = (savedPet) => {
     setPets((prev) => {
       const idx = prev.findIndex((x) => x.id === savedPet.id);
-      if (idx === -1) return [savedPet, ...prev];           // 新增
-      const next = [...prev]; next[idx] = savedPet; return next; // 编辑
+      if (idx === -1) return [savedPet, ...prev];
+      const next = [...prev]; next[idx] = savedPet; return next;
     });
     setEditorPet(undefined);
+  };
+
+  const onAvatarSaved = (updatedPet) => {
+    setPets((prev) => prev.map((p) => p.id === updatedPet.id ? updatedPet : p));
+    onPetUpdated?.(updatedPet);   // 通知 AppRoot 更新全局 pets + active pet
+    setAvatarPet(null);
   };
 
   /* ── 删除自己的帖子（从卡片小按钮） ─────────────── */
@@ -218,7 +226,13 @@ export default function ProfileTab({ user, pet, onLogout }) {
         </div>
 
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-          {pets.map((p) => <PetCard key={p.id} pet={p} />)}
+          {pets.map((p) => (
+            <PetCard key={p.id} pet={p}
+              isActive={pet?.id === p.id}
+              onSelect={() => onSetActivePet?.(p)}
+              onAvatar={() => setAvatarPet(p)}
+            />
+          ))}
           {pets.length === 0 && (
             <div style={{ gridColumn:"1 / -1", textAlign:"center", color:C.sub, fontSize:12,
                           padding:"24px 0" }}>还没有毛孩子，去添加一只吧 🐾</div>
@@ -279,11 +293,20 @@ export default function ProfileTab({ user, pet, onLogout }) {
       {/* ── modals ─────────────────────────────────────── */}
       {editorPet !== undefined && (
         <PetEditor
-          pet={editorPet}                /* null = 添加 / 对象 = 编辑 */
+          pet={editorPet}
           userId={user?.id}
           onClose={() => setEditorPet(undefined)}
           onSaved={onPetSaved}
           toast={toast}
+        />
+      )}
+
+      {avatarPet && (
+        <AvatarGenerator
+          user={user}
+          pet={avatarPet}
+          onClose={() => setAvatarPet(null)}
+          onSaved={onAvatarSaved}
         />
       )}
 
@@ -325,23 +348,54 @@ export default function ProfileTab({ user, pet, onLogout }) {
 }
 
 /* ────────────────────────────────────────────────────── */
-function PetCard({ pet }) {
+function PetCard({ pet, isActive, onSelect, onAvatar }) {
   const age = formatPetAge(pet.birthday) || (pet.age != null ? `${pet.age}岁` : "");
   return (
-    <div style={{ background:"white", border:`1px solid ${C.border}`,
+    <div style={{ background:"white",
+                  border: isActive ? `2px solid ${C.pri}` : `1px solid ${C.border}`,
                   borderRadius:14, padding:"12px 12px",
-                  boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+                  boxShadow: isActive ? `0 0 0 3px ${C.tint}` : "0 1px 4px rgba(0,0,0,0.04)",
+                  position:"relative" }}>
+
+      {/* 当前展示标签 */}
+      {isActive && (
+        <div style={{ position:"absolute", top:-1, right:8,
+                      background:C.pri, color:"white", fontSize:9, fontWeight:700,
+                      padding:"2px 7px", borderRadius:"0 0 6px 6px", letterSpacing:0.3 }}>
+          当前展示
+        </div>
+      )}
+
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
         <PetAvatar pet={pet} size={30} bg={C.tint} />
         <div style={{ fontSize:14, fontWeight:800, color:C.text,
-                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>
           {pet.name || "未命名"}
         </div>
       </div>
+
       <div style={{ fontSize:11, color:C.sub, lineHeight:1.7 }}>
         {pet.breed && <div>{pet.breed} · {age || "-"} · {pet.weight || "?"}kg · {pet.gender === "male" ? "男孩" : pet.gender === "female" ? "女孩" : "?"}</div>}
         {pet.birthday && <div>🎂 {formatBirthday(pet.birthday)}</div>}
         {pet.personality && <div>✨ {pet.personality}</div>}
+      </div>
+
+      {/* 操作按钮行 */}
+      <div style={{ display:"flex", gap:6, marginTop:8 }}>
+        <button onClick={onAvatar}
+          style={{ flex:1, fontSize:10, fontWeight:700, color:C.pri,
+                   background:C.tint, border:`1px solid ${C.border}`,
+                   borderRadius:8, padding:"5px 0", cursor:"pointer" }}>
+          {pet.ai_avatar_url ? "✨ 更换头像" : "✨ 生成头像"}
+        </button>
+        {!isActive && (
+          <button onClick={onSelect}
+            style={{ flex:1, fontSize:10, fontWeight:700, color:"white",
+                     background:C.pri, border:"none",
+                     borderRadius:8, padding:"5px 0", cursor:"pointer" }}>
+            选为当前
+          </button>
+        )}
       </div>
     </div>
   );

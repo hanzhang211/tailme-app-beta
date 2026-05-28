@@ -627,7 +627,7 @@ function PetProfileComplete({ pet, onClose, onSaved }) {
   );
 }
 
-function HomeTab({ user, pet, onPetUpdate }) {
+function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   // 子页面：null | 'expenses' | 'recipes' | 'health' | 'news'
   const [subPage, setSubPage] = useState(null);
   const [monthExpense, setMonthExpense] = useState(null);
@@ -638,6 +638,11 @@ function HomeTab({ user, pet, onPetUpdate }) {
   const [avatarLoaded, setAvatarLoaded] = useState(false);
   const avatarSrc = pet.pet_avatar_thumb_url || pet.ai_avatar_url || null;
   useEffect(() => { setAvatarBroken(false); setAvatarLoaded(false); }, [pet?.id, avatarSrc]);
+
+  // 多宠物 carousel
+  const petIdx  = pets.findIndex((p) => p.id === pet?.id);
+  const hasPrev = petIdx > 0;
+  const hasNext = petIdx < pets.length - 1;
 
   useEffect(() => {
     if (!user?.id) return;
@@ -803,6 +808,30 @@ function HomeTab({ user, pet, onPetUpdate }) {
               {pet.personality && <span>✨ {pet.personality}</span>}
             </div>
           )}
+          {/* 多宠物 Carousel：点/左右箭头切换 */}
+          {pets.length > 1 && (
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:10 }}>
+              <button
+                onClick={() => hasPrev && onSwitchPet?.(pets[petIdx - 1])}
+                style={{ background:"transparent", border:"none", fontSize:22, lineHeight:1,
+                         color: hasPrev ? C.pri : H_BORDER, cursor: hasPrev ? "pointer" : "default",
+                         padding:"0 4px" }}>‹</button>
+              <div style={{ display:"flex", gap:6 }}>
+                {pets.map((p, i) => (
+                  <div key={p.id} onClick={() => onSwitchPet?.(p)}
+                    style={{ width: i === petIdx ? 16 : 6, height:6, borderRadius:3,
+                             background: i === petIdx ? C.pri : H_BORDER,
+                             cursor:"pointer", transition:"all 0.25s ease" }} />
+                ))}
+              </div>
+              <button
+                onClick={() => hasNext && onSwitchPet?.(pets[petIdx + 1])}
+                style={{ background:"transparent", border:"none", fontSize:22, lineHeight:1,
+                         color: hasNext ? C.pri : H_BORDER, cursor: hasNext ? "pointer" : "default",
+                         padding:"0 4px" }}>›</button>
+            </div>
+          )}
+
           {hungry && (
             <div style={{ marginTop:12, background:H_SURFACE, border:`1px solid ${H_BORDER}`,
                           borderRadius:20, padding:"8px 18px", fontSize:13, color:C.accent, fontWeight:600 }}>
@@ -1088,21 +1117,39 @@ const TABS = [
 
 // 状态：loading | login | onboarding | app
 const S = { LOADING:"loading", LOGIN:"login", ONBOARDING:"onboarding", USERNAME:"username", APP:"app" };
-const LS_KEY = "tailme_user_id";
+const LS_KEY          = "tailme_user_id";
+const LS_ACTIVE_PET   = "tailme_active_pet_id";
 
 export default function AppRoot() {
   const [screen, setScreen] = useState(S.LOADING);
-  const [user, setUser]     = useState(null);   // 完整 user 对象（含 username/role）
-  const [pet, setPet]       = useState(null);
-  const [tab, setTab]       = useState(2);   // 默认中间的首页
+  const [user, setUser]     = useState(null);
+  const [pets, setPets]     = useState([]);   // 全部宠物列表
+  const [pet, setPet]       = useState(null); // 当前激活宠物
+  const [tab, setTab]       = useState(2);
 
   const userId = user?.id ?? null;
 
+  /* 切换激活宠物，同步到 localStorage */
+  const setActivePet = (newPet) => {
+    setPet(newPet);
+    if (newPet?.id) localStorage.setItem(LS_ACTIVE_PET, newPet.id);
+  };
+
+  /* 更新某只宠物的数据（头像、资料等），同步到列表 + 若是激活宠物也更新 */
+  const handlePetDataUpdated = (updatedPet) => {
+    setPets((prev) => prev.map((p) => p.id === updatedPet.id ? updatedPet : p));
+    setPet((prev) => prev?.id === updatedPet.id ? updatedPet : prev);
+  };
+
   /* 状态分发：拿到 user + pets 之后决定下一步 */
-  const routeAfterLoad = (loadedUser, pets) => {
+  const routeAfterLoad = (loadedUser, loadedPets) => {
     setUser(loadedUser);
-    if (!pets || pets.length === 0) { setScreen(S.ONBOARDING); return; }
-    setPet(pets[0]);
+    const petsArr = loadedPets || [];
+    setPets(petsArr);
+    if (petsArr.length === 0) { setScreen(S.ONBOARDING); return; }
+    const storedId = localStorage.getItem(LS_ACTIVE_PET);
+    const active   = (storedId && petsArr.find((p) => p.id === storedId)) || petsArr[0];
+    setPet(active);
     if (!loadedUser?.username) { setScreen(S.USERNAME); return; }
     setScreen(S.APP);
   };
@@ -1138,9 +1185,10 @@ export default function AppRoot() {
     }
   };
 
-  /* 宠物创建成功 → 检查 username 是否已设 */
+  /* 宠物创建成功 → 追加到列表，设为激活，检查 username */
   const handlePetCreated = (newPet) => {
-    setPet(newPet);
+    setPets((prev) => [...prev, newPet]);
+    setActivePet(newPet);
     if (!user?.username) { setScreen(S.USERNAME); return; }
     setScreen(S.APP);
   };
@@ -1154,7 +1202,9 @@ export default function AppRoot() {
   /* 退出登录 → 清 localStorage / state，回到登录页 */
   const handleLogout = () => {
     localStorage.removeItem(LS_KEY);
+    localStorage.removeItem(LS_ACTIVE_PET);
     setUser(null);
+    setPets([]);
     setPet(null);
     setTab(2);
     setScreen(S.LOGIN);
@@ -1183,9 +1233,9 @@ export default function AppRoot() {
       <div style={{ position:"absolute", top:0, left:0, right:0, bottom:60, overflow:"hidden" }}>
         {tab === 0 && <SocialTab />}
         {tab === 1 && <MapTab />}
-        {tab === 2 && <HomeTab user={user} pet={pet} onPetUpdate={setPet} />}
+        {tab === 2 && <HomeTab user={user} pet={pet} pets={pets} onPetUpdate={handlePetDataUpdated} onSwitchPet={setActivePet} />}
         {tab === 3 && <CommunityTab user={user} pet={pet} />}
-        {tab === 4 && <ProfileTab user={user} pet={pet} onLogout={handleLogout} />}
+        {tab === 4 && <ProfileTab user={user} pet={pet} onSetActivePet={setActivePet} onPetUpdated={handlePetDataUpdated} onLogout={handleLogout} />}
       </div>
       <div style={{ position:"absolute", bottom:0, left:0, right:0, height:60,
                     background:"white", borderTop:`1px solid ${C.border}`, display:"flex", zIndex:100 }}>

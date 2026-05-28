@@ -15,7 +15,7 @@ import { useEffect, useState } from "react";
 import { avatarForBreed } from "@/services/breedAvatar";
 
 export default function PetAvatar({ pet, size = 34, bg = "#F2E5DA" }) {
-  const url = pet?.ai_avatar_url;
+  const url = pet?.pet_avatar_thumb_url || pet?.ai_avatar_url;
   const [broken, setBroken] = useState(false);
   useEffect(() => { setBroken(false); }, [url]);
 
