@@ -870,6 +870,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
             style={{ width:"100%", overflow:"hidden", touchAction: showCarousel ? "pan-y" : "auto",
                      userSelect:"none" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"center",
+                          background: H_BG,
                           transform: `translateX(${dragX}px)`,
                           transition: dragX === 0
                             ? "transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)"
@@ -909,7 +910,8 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                     style={{ width:140, height:140, objectFit:"contain", display:"block",
                              opacity: avatarLoaded ? 1 : 0,
                              transition:"opacity 0.45s ease",
-                             animation:"float 3s ease-in-out infinite" }} />
+                             animation:"float 3s ease-in-out infinite",
+                             mixBlendMode:"multiply" }} />
                 ) : (
                   <div style={{ fontSize:120, lineHeight:1,
                                 animation:"float 3s ease-in-out infinite" }}>
