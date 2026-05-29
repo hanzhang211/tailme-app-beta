@@ -889,7 +889,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                            transition:"opacity 0.3s ease" }}>
                   {hasPrev && (
                     <>
-                      <PetAvatar pet={pets[petIdx - 1]} size={76} bg="transparent" />
+                      <PetAvatar pet={pets[petIdx - 1]} size={76} bg="transparent" blendMode="multiply" />
                       <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
                                     textAlign:"center", maxWidth:70,
                                     overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
@@ -950,7 +950,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                            transition:"opacity 0.3s ease" }}>
                   {hasNext && (
                     <>
-                      <PetAvatar pet={pets[petIdx + 1]} size={76} bg="transparent" />
+                      <PetAvatar pet={pets[petIdx + 1]} size={76} bg="transparent" blendMode="multiply" />
                       <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
                                     textAlign:"center", maxWidth:70,
                                     overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>

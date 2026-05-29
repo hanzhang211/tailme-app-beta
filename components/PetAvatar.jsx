@@ -14,10 +14,13 @@
 import { useEffect, useState } from "react";
 import { avatarForBreed } from "@/services/breedAvatar";
 
-export default function PetAvatar({ pet, size = 34, bg = "#F2E5DA" }) {
+export default function PetAvatar({ pet, size = 34, bg = "#F2E5DA", blendMode }) {
   const url = pet?.pet_avatar_thumb_url || pet?.ai_avatar_url;
   const [broken, setBroken] = useState(false);
   useEffect(() => { setBroken(false); }, [url]);
+
+  // blendMode="multiply" 时：去圆形裁剪，contain，融入背景（用于 carousel ghost）
+  const sticker = !!blendMode;
 
   if (url && !broken) {
     return (
@@ -28,9 +31,12 @@ export default function PetAvatar({ pet, size = 34, bg = "#F2E5DA" }) {
         decoding="async"
         onError={() => setBroken(true)}
         style={{
-          width: size, height: size, borderRadius: "50%",
-          objectFit: "cover", display: "block", flexShrink: 0,
-          background: bg,
+          width: size, height: size,
+          borderRadius: sticker ? 0 : "50%",
+          objectFit: sticker ? "contain" : "cover",
+          display: "block", flexShrink: 0,
+          background: sticker ? "transparent" : bg,
+          mixBlendMode: blendMode || undefined,
         }}
       />
     );
@@ -39,7 +45,9 @@ export default function PetAvatar({ pet, size = 34, bg = "#F2E5DA" }) {
   return (
     <div
       style={{
-        width: size, height: size, borderRadius: "50%", background: bg,
+        width: size, height: size,
+        borderRadius: sticker ? 0 : "50%",
+        background: sticker ? "transparent" : bg,
         display: "inline-flex", alignItems: "center", justifyContent: "center",
         fontSize: Math.round(size * 0.5), lineHeight: 1, flexShrink: 0,
       }}
