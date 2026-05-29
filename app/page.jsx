@@ -882,6 +882,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                 <div onClick={() => hasPrev && onSwitchPet?.(pets[petIdx - 1])}
                   style={{ width:88, display:"flex", justifyContent:"center", alignItems:"center",
                            flexShrink:0, flexDirection:"column", gap:4,
+                           background: H_BG,
                            opacity: hasPrev ? 0.48 : 0,
                            transform:"scale(0.58)", transformOrigin:"right center",
                            pointerEvents: hasPrev ? "auto" : "none",
@@ -943,6 +944,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                 <div onClick={() => hasNext && onSwitchPet?.(pets[petIdx + 1])}
                   style={{ width:88, display:"flex", justifyContent:"center", alignItems:"center",
                            flexShrink:0, flexDirection:"column", gap:4,
+                           background: H_BG,
                            opacity: hasNext ? 0.48 : 0,
                            transform:"scale(0.58)", transformOrigin:"left center",
                            pointerEvents: hasNext ? "auto" : "none",
