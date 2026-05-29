@@ -888,7 +888,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                            transition:"opacity 0.3s ease" }}>
                   {hasPrev && (
                     <>
-                      <PetAvatar pet={pets[petIdx - 1]} size={76} bg={H_SURFACE} />
+                      <PetAvatar pet={pets[petIdx - 1]} size={76} bg="transparent" />
                       <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
                                     textAlign:"center", maxWidth:70,
                                     overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
@@ -902,22 +902,17 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
               {/* 主头像 */}
               <div style={{ position:"relative", padding:"4px 10px", flexShrink:0 }}>
                 {avatarSrc && !avatarBroken ? (
-                  <div style={{ width:140, height:140, borderRadius:"50%", overflow:"hidden", flexShrink:0,
-                                background:H_SURFACE,
-                                boxShadow:"0 8px 22px rgba(230,134,69,0.22)",
-                                animation:"float 3s ease-in-out infinite" }}>
-                    <img src={avatarSrc} alt={pet.name}
-                      fetchPriority="high"
-                      onLoad={() => setAvatarLoaded(true)}
-                      onError={() => setAvatarBroken(true)}
-                      style={{ width:"100%", height:"100%", objectFit:"cover", display:"block",
-                               opacity: avatarLoaded ? 1 : 0,
-                               transition:"opacity 0.45s ease" }} />
-                  </div>
+                  <img src={avatarSrc} alt={pet.name}
+                    fetchPriority="high"
+                    onLoad={() => setAvatarLoaded(true)}
+                    onError={() => setAvatarBroken(true)}
+                    style={{ width:140, height:140, objectFit:"contain", display:"block",
+                             opacity: avatarLoaded ? 1 : 0,
+                             transition:"opacity 0.45s ease",
+                             animation:"float 3s ease-in-out infinite" }} />
                 ) : (
                   <div style={{ fontSize:120, lineHeight:1,
-                                animation:"float 3s ease-in-out infinite",
-                                filter:"drop-shadow(0 6px 12px rgba(230,134,69,0.18))" }}>
+                                animation:"float 3s ease-in-out infinite" }}>
                     🐶
                   </div>
                 )}
@@ -953,7 +948,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                            transition:"opacity 0.3s ease" }}>
                   {hasNext && (
                     <>
-                      <PetAvatar pet={pets[petIdx + 1]} size={76} bg={H_SURFACE} />
+                      <PetAvatar pet={pets[petIdx + 1]} size={76} bg="transparent" />
                       <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
                                     textAlign:"center", maxWidth:70,
                                     overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
