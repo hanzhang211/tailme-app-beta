@@ -844,9 +844,9 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           onSaved={(updated) => { setAvatarOpen(false); onPetUpdate?.(updated); }}
         />
       )}
-      <div style={{ background:H_BG, borderBottom:`1px solid ${H_BORDER}`, padding:"52px 20px 24px",
+      <div style={{ background:H_BG, borderBottom:`1px solid ${H_BORDER}`, padding:"52px 20px 36px",
                     position:"relative", overflow:"hidden" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:22 }}>
           <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
             <Logo size={32} />
             <div>
@@ -880,7 +880,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
               {/* 左侧 ghost */}
               {showCarousel && (
                 <div onClick={() => hasPrev && onSwitchPet?.(pets[petIdx - 1])}
-                  style={{ width:88, display:"flex", justifyContent:"center", alignItems:"center",
+                  style={{ width:108, display:"flex", justifyContent:"center", alignItems:"center",
                            flexShrink:0, flexDirection:"column", gap:4,
                            background: H_BG,
                            opacity: hasPrev ? 0.48 : 0,
@@ -890,7 +890,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                            transition:"opacity 0.3s ease" }}>
                   {hasPrev && (
                     <>
-                      <PetAvatar pet={pets[petIdx - 1]} size={76} bg="transparent" blendMode="multiply" />
+                      <PetAvatar pet={pets[petIdx - 1]} size={90} bg="transparent" blendMode="multiply" />
                       <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
                                     textAlign:"center", maxWidth:70,
                                     overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
@@ -908,7 +908,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                     fetchPriority="high"
                     onLoad={() => setAvatarLoaded(true)}
                     onError={() => setAvatarBroken(true)}
-                    style={{ width:140, height:140, objectFit:"contain", display:"block",
+                    style={{ width:170, height:170, objectFit:"contain", display:"block",
                              opacity: avatarLoaded ? 1 : 0,
                              transition:"opacity 0.45s ease",
                              animation:"float 3s ease-in-out infinite",
@@ -942,7 +942,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
               {/* 右侧 ghost */}
               {showCarousel && (
                 <div onClick={() => hasNext && onSwitchPet?.(pets[petIdx + 1])}
-                  style={{ width:88, display:"flex", justifyContent:"center", alignItems:"center",
+                  style={{ width:108, display:"flex", justifyContent:"center", alignItems:"center",
                            flexShrink:0, flexDirection:"column", gap:4,
                            background: H_BG,
                            opacity: hasNext ? 0.48 : 0,
@@ -952,7 +952,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                            transition:"opacity 0.3s ease" }}>
                   {hasNext && (
                     <>
-                      <PetAvatar pet={pets[petIdx + 1]} size={76} bg="transparent" blendMode="multiply" />
+                      <PetAvatar pet={pets[petIdx + 1]} size={90} bg="transparent" blendMode="multiply" />
                       <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
                                     textAlign:"center", maxWidth:70,
                                     overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
@@ -966,7 +966,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           </div>
 
           {/* 宠物名字 + 资料 */}
-          <div style={{ marginTop:12, fontSize:20, fontWeight:800, color:C.text }}>{pet.name}</div>
+          <div style={{ marginTop:20, fontSize:20, fontWeight:800, color:C.text }}>{pet.name}</div>
           <div style={{ fontSize:12, color:H_SUB, marginTop:3 }}>
             {pet.breed} · {ageLabel} · {pet.weight}kg · {pet.gender === "male" ? "男孩" : "女孩"}
           </div>
