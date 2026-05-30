@@ -36,6 +36,7 @@ export default function AvatarGenerator({ user, pet, onSaved, onClose }) {
   const [aiUrl,         setAiUrl]         = useState(null);
   const [thumbUrl,      setThumbUrl]      = useState(null);
   const [errMsg,        setErrMsg]        = useState(null);
+  const [saveErr,       setSaveErr]       = useState(null);
   const [elapsed,       setElapsed]       = useState(0);
   const abortRef    = useRef(null);
   const timerRef    = useRef(null);
@@ -109,6 +110,7 @@ export default function AvatarGenerator({ user, pet, onSaved, onClose }) {
   /* ── 使用这个头像 ────────────────────────── */
   const handleUse = async () => {
     if (!aiUrl || !pet?.id || !user?.id) return;
+    setSaveErr(null);
     try {
       const updated = await saveAIAvatarToPet(pet.id, user.id, {
         aiAvatarUrl:       aiUrl,
@@ -118,7 +120,7 @@ export default function AvatarGenerator({ user, pet, onSaved, onClose }) {
       onSaved?.(updated);
       onClose?.();
     } catch (e) {
-      setErrMsg(e.message);
+      setSaveErr(e.message || "保存失败，请再试一次");
     }
   };
 
@@ -182,6 +184,7 @@ export default function AvatarGenerator({ user, pet, onSaved, onClose }) {
             onUse={handleUse}
             onRegen={handleGenerate}
             onCancel={handleResetAll}
+            saveErr={saveErr}
           />
         )}
 
@@ -292,8 +295,15 @@ function GeneratingStep({ previewSrc, elapsed, onCancel }) {
   );
 }
 
-function ResultStep({ aiUrl, onUse, onRegen, onCancel }) {
+function ResultStep({ aiUrl, onUse, onRegen, onCancel, saveErr }) {
   const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try { await onUse(); }
+    finally { setSaving(false); }
+  };
+
   return (
     <>
       <div style={{ width:"100%", aspectRatio:"1", borderRadius:18, overflow:"hidden",
@@ -302,13 +312,20 @@ function ResultStep({ aiUrl, onUse, onRegen, onCancel }) {
         <img src={aiUrl} alt=""
              style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
       </div>
-      <button onClick={async () => { setSaving(true); try { await onUse(); } finally { setSaving(false); } }}
-        disabled={saving}
+      <button onClick={handleSave} disabled={saving}
         style={{ width:"100%", padding:"12px 0", borderRadius:14, fontSize:14, fontWeight:700,
                  background:C.pri, color:"white", border:"none",
-                 cursor: saving ? "default" : "pointer", marginBottom:8 }}>
-        {saving ? "保存中..." : "使用这个头像"}
+                 cursor: saving ? "default" : "pointer", marginBottom:8,
+                 opacity: saving ? 0.75 : 1, transition:"opacity .15s" }}>
+        {saving ? "保存中…" : "使用这个头像"}
       </button>
+      {saveErr && (
+        <div style={{ background:"#FFF0F0", color:"#D94040", borderRadius:12,
+                      padding:"9px 14px", fontSize:12, lineHeight:1.5,
+                      marginBottom:8, textAlign:"center" }}>
+          ❌ {saveErr}
+        </div>
+      )}
       <div style={{ display:"flex", gap:8 }}>
         <button onClick={onRegen} disabled={saving}
           style={{ flex:1, padding:"10px 0", borderRadius:14, fontSize:13, fontWeight:600,
