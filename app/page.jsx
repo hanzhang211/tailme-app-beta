@@ -1545,7 +1545,9 @@ export default function AppRoot() {
                     : t.label === "社群"
                       ? <ChatIcon size={34} color={tab===i ? "#E68645" : "#C5C8CE"} />
                       : <span style={{ fontSize:20, lineHeight:1,
-                                       filter: tab===i ? "none" : "grayscale(1) opacity(0.5)" }}>
+                                       filter: tab===i
+                                         ? "sepia(1) saturate(4) hue-rotate(330deg)"
+                                         : "grayscale(1) opacity(0.5)" }}>
                           {t.icon}
                         </span>}
               </div>
