@@ -154,6 +154,17 @@ function PawIcon({ size = 16, color = "#E68645" }) {
   );
 }
 
+function ProfileIcon({ size = 20, color = "#E68645" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}
+         xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
+         style={{ display:"inline-block", verticalAlign:"middle" }}>
+      <circle cx="12" cy="7" r="4" />
+      <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8H4z" />
+    </svg>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════
    SHARED WIDGETS
 ══════════════════════════════════════════════════════════════ */
@@ -1544,12 +1555,12 @@ export default function AppRoot() {
                     ? <MapIcon size={34} color={tab===i ? "#E68645" : "#C5C8CE"} />
                     : t.label === "社群"
                       ? <ChatIcon size={34} color={tab===i ? "#E68645" : "#C5C8CE"} />
-                      : <span style={{ fontSize:20, lineHeight:1,
-                                       filter: tab===i
-                                         ? "sepia(1) saturate(4) hue-rotate(330deg)"
-                                         : "grayscale(1) opacity(0.5)" }}>
-                          {t.icon}
-                        </span>}
+                      : t.label === "我的"
+                        ? <ProfileIcon size={20} color={tab===i ? "#E68645" : "#C5C8CE"} />
+                        : <span style={{ fontSize:20, lineHeight:1,
+                                         filter: tab===i ? "none" : "grayscale(1) opacity(0.5)" }}>
+                            {t.icon}
+                          </span>}
               </div>
             )}
             <div style={{ fontSize:10, fontWeight:tab===i ? 700 : 500,
