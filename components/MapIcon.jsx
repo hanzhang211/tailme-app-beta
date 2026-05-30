@@ -1,17 +1,20 @@
 "use client";
 
 /**
- * MapIcon — 使用 CSS mask 渲染 /public/icons/map-icon.png
+ * MapIcon — 使用 CSS mask 渲染 /public/map-icon.svg
  *
- * PNG 形状作为 mask，backgroundColor 控制显示颜色。
- * 要求 PNG 必须是透明背景（只保留图标线条），mask 才能正确生效。
+ * 外层 div 应用 drop-shadow（作用于 mask 后的形状，使线条看起来更粗）
+ * 内层 div 应用 mask-image + backgroundColor
  */
 export default function MapIcon({ size = 22, color = "#E68645" }) {
   return (
-    <div
-      style={{
-        width:  size,
-        height: size,
+    <div style={{
+      width: size, height: size,
+      flexShrink: 0, display: "inline-block",
+      filter: `drop-shadow(0 0 2px ${color}) drop-shadow(0 0 1px ${color})`,
+    }}>
+      <div style={{
+        width: "100%", height: "100%",
         backgroundColor: color,
         WebkitMaskImage:    "url('/map-icon.svg')",
         maskImage:          "url('/map-icon.svg')",
@@ -21,10 +24,7 @@ export default function MapIcon({ size = 22, color = "#E68645" }) {
         maskPosition:       "center",
         WebkitMaskSize:     "contain",
         maskSize:           "contain",
-        flexShrink: 0,
-        display:   "inline-block",
-        filter:    `drop-shadow(0 0 1.5px ${color})`,
-      }}
-    />
+      }} />
+    </div>
   );
 }
