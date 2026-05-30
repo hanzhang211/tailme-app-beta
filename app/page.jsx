@@ -35,6 +35,7 @@ import AvatarGenerator from "@/components/home/AvatarGenerator";
 import PetAvatar from "@/components/PetAvatar";
 import MapIcon from "@/components/MapIcon";
 import ChatIcon from "@/components/ChatIcon";
+import { AccountingIcon, RecipeIcon, HealthIcon } from "@/components/icons/HomeModuleIcons";
 import { DOG_BREEDS, CAT_BREEDS } from "@/services/breedAvatar";
 import { getMonthlyTotal } from "@/services/petExpenseService";
 import { getTodayRecipe }  from "@/services/petRecipeService";
@@ -1027,20 +1028,20 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
         {/* 3 个入口卡：记账 / 食谱 / 健康 */}
         <div style={{ display:"flex", gap:10, marginBottom:12 }}>
           <HomeNavCard
-            icon="💰" label="宠物记账"
+            icon={<AccountingIcon size={36} />} label="宠物记账"
             value={monthExpense == null ? "—" : `¥${Number(monthExpense).toFixed(0)}`}
             sub="本月"
             onClick={() => setSubPage("expenses")}
             H_BORDER={H_BORDER} H_SHADOW={H_SHADOW} H_SUB={H_SUB} tint={C.tint} text={C.text} />
           <HomeNavCard
-            icon="🍱" label="宠物食谱"
+            icon={<RecipeIcon size={36} />} label="宠物食谱"
             value={todayRecipe?.title || "看看推荐"}
             sub="今日推荐"
             single
             onClick={() => setSubPage("recipes")}
             H_BORDER={H_BORDER} H_SHADOW={H_SHADOW} H_SUB={H_SUB} tint={C.tint} text={C.text} />
           <HomeNavCard
-            icon="🏥" label="宠物健康"
+            icon={<HealthIcon size={36} />} label="宠物健康"
             value={(pet?.neutered ? "已绝育" : "未绝育")}
             sub={pet?.vaccinated ? "疫苗齐全" : "疫苗待补"}
             onClick={() => setSubPage("health")}
@@ -1294,9 +1295,8 @@ function HomeNavCard({ icon, label, value, sub, single, onClick, H_BORDER, H_SHA
                boxShadow:H_SHADOW, cursor:"pointer",
                display:"flex", flexDirection:"column", alignItems:"center",
                gap:6, minWidth:0 }}>
-      <div style={{ width:34, height:34, borderRadius:"50%", background:tint,
-                    display:"inline-flex", alignItems:"center", justifyContent:"center",
-                    fontSize:18, lineHeight:1 }}>{icon}</div>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center",
+                    width:36, height:36 }}>{icon}</div>
       <div style={{ fontSize:10, color:H_SUB }}>{label}</div>
       <div style={{ fontSize: single ? 11 : 12, fontWeight:700, color:text, marginTop:1,
                     maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis",
