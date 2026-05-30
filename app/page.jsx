@@ -34,6 +34,7 @@ import NewsPage, { NewsCover } from "@/components/home/NewsPage";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
 import PetAvatar from "@/components/PetAvatar";
 import MapIcon from "@/components/MapIcon";
+import ChatIcon from "@/components/ChatIcon";
 import { DOG_BREEDS, CAT_BREEDS } from "@/services/breedAvatar";
 import { getMonthlyTotal } from "@/services/petExpenseService";
 import { getTodayRecipe }  from "@/services/petRecipeService";
@@ -1394,7 +1395,7 @@ const TABS = [
   { icon:"🐾", label:"狗友" },
   { label:"地图" },
   { home:true, label:"首页" },
-  { icon:"💬", label:"社群" },
+  { label:"社群" },
   { icon:"👤", label:"我的" },
 ];
 
@@ -1541,10 +1542,12 @@ export default function AppRoot() {
                   ? <PawIcon size={20} color={tab===i ? "#E68645" : "#C5C8CE"} />
                   : t.label === "地图"
                     ? <MapIcon size={34} color={tab===i ? "#E68645" : "#C5C8CE"} />
-                    : <span style={{ fontSize:20, lineHeight:1,
-                                     filter: tab===i ? "none" : "grayscale(1) opacity(0.5)" }}>
-                        {t.icon}
-                      </span>}
+                    : t.label === "社群"
+                      ? <ChatIcon size={34} color={tab===i ? "#E68645" : "#C5C8CE"} />
+                      : <span style={{ fontSize:20, lineHeight:1,
+                                       filter: tab===i ? "none" : "grayscale(1) opacity(0.5)" }}>
+                          {t.icon}
+                        </span>}
               </div>
             )}
             <div style={{ fontSize:10, fontWeight:tab===i ? 700 : 500,

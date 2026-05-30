@@ -9,6 +9,7 @@
 import { useState } from "react";
 import ChatRoom from "./ChatRoom";
 import PostFeed from "./PostFeed";
+import ChatIcon from "@/components/ChatIcon";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
@@ -22,12 +23,14 @@ export default function CommunityTab({ user, pet, pets = [] }) {
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:C.bg }}>
       {/* 顶部标题 + 切换 */}
       <div style={{ background:"white", padding:"52px 18px 0", flexShrink:0 }}>
-        <div style={{ fontSize:20, fontWeight:800, color:C.text }}>💬 宠物社群</div>
+        <div style={{ fontSize:20, fontWeight:800, color:C.text, display:"flex", alignItems:"center", gap:8 }}>
+          <ChatIcon size={26} color={C.pri} />宠物社群
+        </div>
         <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>分享日常 · 实时聊天</div>
         <div style={{ display:"flex", gap:8, marginTop:14 }}>
           {[
             { key:"feed", label:"📌 帖子" },
-            { key:"chat", label:"💭 聊天" },
+            { key:"chat", label:"聊天", isChat: true },
           ].map((t) => {
             const on = mode === t.key;
             return (
@@ -38,7 +41,11 @@ export default function CommunityTab({ user, pet, pets = [] }) {
                          color:      on ? "#fff" : C.text,
                          border:     `1.5px solid ${on ? C.pri : "transparent"}`,
                          transition:"all .15s" }}>
-                {t.label}
+                {t.isChat
+                  ? <span style={{ display:"flex", alignItems:"center", gap:5 }}>
+                      <ChatIcon size={15} color={on ? "#fff" : C.text} />聊天
+                    </span>
+                  : t.label}
               </button>
             );
           })}
