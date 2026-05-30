@@ -23,6 +23,7 @@ export default function MapIcon({ size = 22, color = "#E68645" }) {
         maskSize:           "contain",
         flexShrink: 0,
         display:   "inline-block",
+        filter:    `drop-shadow(0 0 1.5px ${color})`,
       }}
     />
   );

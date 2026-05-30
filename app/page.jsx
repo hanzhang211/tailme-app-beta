@@ -1540,7 +1540,7 @@ export default function AppRoot() {
                 {t.label === "狗友"
                   ? <PawIcon size={20} color={tab===i ? "#E68645" : "#C5C8CE"} />
                   : t.label === "地图"
-                    ? <MapIcon size={28} color={tab===i ? "#E68645" : "#C5C8CE"} />
+                    ? <MapIcon size={34} color={tab===i ? "#E68645" : "#C5C8CE"} />
                     : <span style={{ fontSize:20, lineHeight:1,
                                      filter: tab===i ? "none" : "grayscale(1) opacity(0.5)" }}>
                         {t.icon}
