@@ -11,7 +11,6 @@ export default function MapIcon({ size = 22, color = "#E68645" }) {
     <div style={{
       width: size, height: size,
       flexShrink: 0, display: "inline-block",
-      filter: `drop-shadow(0 0 2px ${color}) drop-shadow(0 0 1px ${color})`,
     }}>
       <div style={{
         width: "100%", height: "100%",
