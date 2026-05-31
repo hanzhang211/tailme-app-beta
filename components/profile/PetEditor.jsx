@@ -37,9 +37,8 @@ export default function PetEditor({ pet, userId, onClose, onSaved, toast }) {
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState(null);
 
-  const canSave = !saving &&
-    f.name?.trim() && f.breed && f.birthday && f.weight && f.gender &&
-    f.personality && f.neutered && f.vaccinated;
+  // 只要求名字和品种，其余字段可选（避免旧数据缺字段导致按钮永久 disabled）
+  const canSave = !saving && f.name?.trim() && f.breed;
 
   const handleSave = async () => {
     if (!canSave) return;

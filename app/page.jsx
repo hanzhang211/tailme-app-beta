@@ -1675,7 +1675,7 @@ export default function AppRoot() {
         {tab === 4 && <ProfileTab user={user} pet={pet} onSetActivePet={setActivePet} onPetUpdated={handlePetDataUpdated} onLogout={handleLogout} />}
       </div>
       <div style={{ position:"absolute", bottom:0, left:0, right:0, height:60,
-                    background:"white", borderTop:`1px solid ${C.border}`, display:"flex", zIndex:100 }}>
+                    background:"white", display:"flex", zIndex:100 }}>
         {TABS.map((t, i) => (
           <button key={i} onClick={() => setTab(i)}
             style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center",
