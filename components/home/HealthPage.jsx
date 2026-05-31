@@ -6,7 +6,7 @@
  * 全部数据存 Supabase，无 localStorage
  */
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   listHealthRecords, addHealthRecord, deleteHealthRecord,
   updatePetHealth, RECORD_TYPES,
@@ -17,7 +17,10 @@ import { HealthIcon } from "@/components/icons/HomeModuleIcons";
 import {
   ChevronLeft, Dog, Pill, Bell, Clock, CircleCheck,
   ClipboardList, HeartPulse, Syringe, ShieldCheck, Stethoscope,
+  Calendar, ChevronRight, Check, Plus,
 } from "lucide-react";
+import { avatarForBreed } from "@/services/breedAvatar";
+import { formatPetAge } from "@/services/petAge";
 
 const BG    = "#ECEEE8";
 const PRI   = "#E68645";
@@ -54,7 +57,7 @@ const typeIcon = (k) => {
 };
 
 /* ══════════════════════════════════════════════ */
-export default function HealthPage({ user, pet, onPetUpdate, onBack }) {
+export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }) {
   const [records,    setRecords]    = useState([]);
   const [diseases,   setDiseases]   = useState([]);
   const [meds,       setMeds]       = useState([]);
@@ -375,8 +378,8 @@ export default function HealthPage({ user, pet, onPetUpdate, onBack }) {
           onClose={() => setAddRecordOpen(false)}
           onAdded={() => { setAddRecordOpen(false); reload(); }}/>
       )}
-      {addDiseaseOpen && pet?.id && (
-        <AddDiseaseModal user={user} pet={pet}
+      {addDiseaseOpen && (
+        <AddDiseaseModal user={user} pet={pet} pets={pets}
           onClose={() => setAddDiseaseOpen(false)}
           onAdded={() => { setAddDiseaseOpen(false); reload(); }}/>
       )}
@@ -514,63 +517,310 @@ function AddRecordModal({ user, pet, onClose, onAdded }) {
   );
 }
 
-/* ── AddDiseaseModal ── */
-function AddDiseaseModal({ user, pet, onClose, onAdded }) {
-  const [name,    setName]    = useState("");
-  const [syms,    setSyms]    = useState("");
-  const [status,  setStatus]  = useState("treating");
-  const [diag,    setDiag]    = useState(new Date().toISOString().slice(0, 10));
-  const [recov,   setRecov]   = useState("");
-  const [note,    setNote]    = useState("");
-  const [saving,  setSaving]  = useState(false);
-  const [err,     setErr]     = useState(null);
+/* ── AddDiseaseModal — iOS Premium 淡绿风格 ── */
+function AddDiseaseModal({ user, pet, pets = [], onClose, onAdded }) {
+  // 默认选中当前 pet，找不到时选第一只
+  const defaultPet = pets.find((p) => p.id === pet?.id) || pets[0] || pet;
+  const [selPetId, setSelPetId] = useState(defaultPet?.id || "");
+  const [name,     setName]     = useState("");
+  const [syms,     setSyms]     = useState("");
+  const [status,   setStatus]   = useState("treating");
+  const [diag,     setDiag]     = useState(new Date().toISOString().slice(0, 10));
+  const [recov,    setRecov]    = useState("");
+  const [note,     setNote]     = useState("");
+  const [saving,   setSaving]   = useState(false);
+  const [err,      setErr]      = useState(null);
+  const diagRef  = useRef(null);
+  const recovRef = useRef(null);
+
+  const canSave  = !!selPetId && name.trim().length > 0 && !saving;
+  const allPets  = pets.length > 0 ? pets : (pet ? [pet] : []);
 
   const handleSave = async () => {
+    if (!selPetId) { setErr("请选择宠物"); return; }
     if (!name.trim()) { setErr("请填写疾病名称"); return; }
     setErr(null); setSaving(true);
     try {
-      await addDiseaseRecord({ userId:user.id, petId:pet.id, diseaseName:name,
-                               symptoms:syms, status, diagnosisDate:diag,
-                               recoveryDate:recov||null, notes:note });
+      await addDiseaseRecord({
+        userId:       user.id,
+        petId:        selPetId,
+        diseaseName:  name,
+        symptoms:     syms,
+        status,
+        diagnosisDate: diag,
+        recoveryDate:  recov || null,
+        notes:         note,
+      });
       onAdded();
     } catch (e) { setErr(e.message); }
     finally { setSaving(false); }
   };
 
+  const CARD_BG = {
+    background:"rgba(255,255,255,0.62)", borderRadius:28,
+    padding:20,
+    boxShadow:"0 8px 24px rgba(0,0,0,0.06)",
+    border:"1px solid rgba(255,255,255,0.65)",
+  };
+
+  const field = (focus, blur) => ({
+    width:"100%", background:"rgba(255,255,255,0.72)",
+    border:"1px solid rgba(138,123,106,0.18)",
+    borderRadius:18, padding:"14px 16px",
+    fontSize:16, color:"#1F1F1F",
+    outline:"none", boxSizing:"border-box",
+    fontFamily:"inherit", transition:"border .15s",
+    onFocus: focus, onBlur: blur,
+  });
+
+  const onFocus  = (e) => { e.target.style.border = `1px solid ${GREEN}`; e.target.style.boxShadow = `0 0 0 3px rgba(95,167,102,0.12)`; };
+  const onBlur_  = (e) => { e.target.style.border = "1px solid rgba(138,123,106,0.18)"; e.target.style.boxShadow = "none"; };
+
   return (
-    <Sheet onClose={onClose}>
-      <div style={{ padding:"12px 20px 24px" }}>
-        <div style={{ fontSize:20, fontWeight:800, color:TEXT, marginBottom:16 }}>新增疾病记录</div>
-        <SLabel>疾病名称 *</SLabel>
-        <input value={name} onChange={(e) => setName(e.target.value)}
-          placeholder="例：肠胃炎" maxLength={50} style={iStyle()}/>
-        <SLabel>症状描述</SLabel>
-        <textarea value={syms} onChange={(e) => setSyms(e.target.value)} rows={2}
-          placeholder="轻微呕吐，食欲下降..." style={{ ...iStyle(), resize:"none" }}/>
-        <SLabel>状态</SLabel>
-        <div style={{ display:"flex", gap:8, marginBottom:16 }}>
-          {[{k:"treating",label:"治疗中"},{k:"recovered",label:"已康复"}].map(({k,label}) => (
-            <button key={k} onClick={() => setStatus(k)}
-              style={{ flex:1, height:44, borderRadius:14, fontSize:14, fontWeight:600,
-                       background: status===k ? GREEN : "white",
-                       color: status===k ? "white" : TEXT,
-                       border:`1px solid ${status===k ? GREEN : "#D6D5D8"}`,
-                       cursor:"pointer" }}>
-              {label}
-            </button>
-          ))}
+    <div onClick={(e) => e.target === e.currentTarget && onClose()}
+      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:1000,
+               display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div style={{ width:"100%", maxWidth:430, background:"#ECEEE8",
+                    borderRadius:"32px 32px 0 0", maxHeight:"94vh", overflowY:"auto",
+                    paddingBottom:"env(safe-area-inset-bottom, 20px)" }}>
+
+        {/* 拖拽条 */}
+        <div style={{ display:"flex", justifyContent:"center", paddingTop:14, paddingBottom:6 }}>
+          <div style={{ width:64, height:6, borderRadius:999, background:"#D8D5D2" }}/>
         </div>
-        <SLabel>诊断日期</SLabel>
-        <input type="date" value={diag} onChange={(e) => setDiag(e.target.value)} style={iStyle()}/>
-        <SLabel>康复日期（可选）</SLabel>
-        <input type="date" value={recov} onChange={(e) => setRecov(e.target.value)} style={iStyle()}/>
-        <SLabel>备注</SLabel>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2}
-          placeholder="治疗方案、用药等" style={{ ...iStyle(), resize:"none" }}/>
-        {err && <div style={{ color:"#D94040", fontSize:12, marginBottom:8 }}>❌ {err}</div>}
-        <BtnRow onCancel={onClose} onSave={handleSave} saving={saving} green/>
+
+        {/* Header */}
+        <div style={{ display:"flex", alignItems:"center", padding:"8px 20px 16px" }}>
+          <button onClick={onClose}
+            style={{ width:48, height:48, borderRadius:999, background:"white",
+                     border:"none", cursor:"pointer", marginRight:14, flexShrink:0,
+                     display:"flex", alignItems:"center", justifyContent:"center",
+                     boxShadow:"0 6px 16px rgba(0,0,0,0.05)" }}>
+            <ChevronLeft size={22} color="#1A1006" strokeWidth={2.5}/>
+          </button>
+          <HeartPulse size={26} color={GREEN} strokeWidth={1.8} style={{ marginRight:8, flexShrink:0 }}/>
+          <span style={{ fontSize:28, fontWeight:800, color:"#1F1F1F" }}>新增疾病记录</span>
+        </div>
+
+        <div style={{ padding:"0 16px 28px", display:"flex", flexDirection:"column", gap:16 }}>
+          <div style={{ ...CARD_BG, display:"flex", flexDirection:"column", gap:22 }}>
+
+            {/* ── 选择宠物 ── */}
+            <div>
+              <FTitle>选择宠物</FTitle>
+              <div style={{ display:"flex", gap:12, overflowX:"auto",
+                            scrollbarWidth:"none", WebkitOverflowScrolling:"touch",
+                            paddingBottom:4 }}>
+                {allPets.map((p) => {
+                  const sel = p.id === selPetId;
+                  const avatarSrc = p.pet_avatar_thumb_url || p.ai_avatar_url || null;
+                  const age = formatPetAge(p.birthday) || (p.age ? `${p.age}岁` : "");
+                  return (
+                    <button key={p.id} onClick={() => setSelPetId(p.id)}
+                      style={{ flex:"0 0 auto", width:150, height:84, borderRadius:20,
+                               padding:12, background: sel ? "rgba(95,167,102,0.10)" : "rgba(255,255,255,0.55)",
+                               border: sel ? `2px solid ${GREEN}` : "1px solid rgba(138,123,106,0.14)",
+                               cursor:"pointer", textAlign:"left", position:"relative",
+                               display:"flex", alignItems:"center", gap:10,
+                               transition:"all .15s" }}>
+                      {/* 头像 */}
+                      <div style={{ width:48, height:48, borderRadius:999, flexShrink:0,
+                                    overflow:"hidden", background:"rgba(236,238,232,0.8)" }}>
+                        {avatarSrc ? (
+                          <img src={avatarSrc} alt={p.name}
+                            style={{ width:"100%", height:"100%", objectFit:"cover", display:"block",
+                                     mixBlendMode:"multiply" }}/>
+                        ) : (
+                          <div style={{ width:"100%", height:"100%", display:"flex",
+                                        alignItems:"center", justifyContent:"center", fontSize:22 }}>
+                            {avatarForBreed(p.breed, p.pet_type)}
+                          </div>
+                        )}
+                      </div>
+                      {/* 文字 */}
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:15, fontWeight:800, color:"#1F1F1F",
+                                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                          {p.name}
+                        </div>
+                        <div style={{ fontSize:12, color:"#8A9188", marginTop:2,
+                                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                          {[p.breed, age].filter(Boolean).join(" · ")}
+                        </div>
+                      </div>
+                      {/* 选中勾 */}
+                      {sel && (
+                        <div style={{ position:"absolute", top:8, right:8,
+                                      width:26, height:26, borderRadius:999,
+                                      background:GREEN, display:"flex",
+                                      alignItems:"center", justifyContent:"center" }}>
+                          <Check size={14} color="white" strokeWidth={3}/>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+                {/* 添加宠物占位 */}
+                <div style={{ flex:"0 0 auto", width:120, height:84, borderRadius:20,
+                              border:`1.5px dashed rgba(95,167,102,0.5)`,
+                              display:"flex", flexDirection:"column",
+                              alignItems:"center", justifyContent:"center", gap:6,
+                              opacity:0.65 }}>
+                  <div style={{ width:32, height:32, borderRadius:999,
+                                border:`1.5px dashed ${GREEN}`,
+                                display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <Plus size={16} color={GREEN}/>
+                  </div>
+                  <span style={{ fontSize:11, color:GREEN, fontWeight:600 }}>添加宠物</span>
+                </div>
+              </div>
+            </div>
+
+            {/* ── 疾病名称 ── */}
+            <div>
+              <FTitle>疾病名称 *</FTitle>
+              <input value={name} onChange={(e) => setName(e.target.value)}
+                placeholder="例如：肠胃炎、皮肤病等" maxLength={50}
+                onFocus={onFocus} onBlur={onBlur_}
+                style={{ width:"100%", background:"rgba(255,255,255,0.72)",
+                         border:"1px solid rgba(138,123,106,0.18)",
+                         borderRadius:18, padding:"14px 16px",
+                         fontSize:16, color:"#1F1F1F", outline:"none",
+                         boxSizing:"border-box", fontFamily:"inherit" }}/>
+            </div>
+
+            {/* ── 症状描述 ── */}
+            <div>
+              <FTitle>症状描述 *</FTitle>
+              <div style={{ position:"relative" }}>
+                <textarea value={syms} onChange={(e) => setSyms(e.target.value.slice(0,200))}
+                  placeholder="请详细描述宠物的症状表现..." rows={4}
+                  onFocus={onFocus} onBlur={onBlur_}
+                  style={{ width:"100%", background:"rgba(255,255,255,0.72)",
+                           border:"1px solid rgba(138,123,106,0.18)",
+                           borderRadius:18, padding:"14px 16px",
+                           fontSize:16, color:"#1F1F1F", outline:"none",
+                           resize:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+                <div style={{ position:"absolute", bottom:10, right:14,
+                              fontSize:12, color:"#9A9188" }}>{syms.length}/200</div>
+              </div>
+            </div>
+
+            {/* ── 状态 ── */}
+            <div>
+              <FTitle>状态 *</FTitle>
+              <div style={{ display:"flex", gap:10 }}>
+                {[{k:"treating",label:"治疗中"},{k:"recovered",label:"已康复"}].map(({k,label}) => (
+                  <button key={k} onClick={() => setStatus(k)}
+                    style={{ flex:1, height:56, borderRadius:18, fontSize:16, fontWeight:700,
+                             background: status===k ? GREEN : "rgba(255,255,255,0.72)",
+                             color: status===k ? "white" : "#1F1F1F",
+                             border: status===k ? "none" : "1px solid rgba(138,123,106,0.18)",
+                             cursor:"pointer", transition:"all .15s",
+                             boxShadow: status===k ? `0 6px 16px rgba(95,167,102,0.25)` : "none" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ── 日期 ── */}
+            <div style={{ display:"flex", gap:12 }}>
+              <div style={{ flex:1 }}>
+                <FTitle>诊断日期 *</FTitle>
+                <div style={{ position:"relative" }}>
+                  <button onClick={() => diagRef.current?.showPicker?.() || diagRef.current?.click()}
+                    style={{ width:"100%", height:56, borderRadius:18,
+                             background:"rgba(255,255,255,0.72)",
+                             border:"1px solid rgba(138,123,106,0.18)",
+                             padding:"0 14px", display:"flex", alignItems:"center", gap:8,
+                             cursor:"pointer", boxSizing:"border-box" }}>
+                    <Calendar size={16} color="#8A7B6A" strokeWidth={1.8} style={{ flexShrink:0 }}/>
+                    <span style={{ flex:1, textAlign:"left", fontSize:14, fontWeight:600, color:"#1F1F1F" }}>
+                      {diag.replace(/-/g,"/")}
+                    </span>
+                    <ChevronRight size={14} color="#2B2B2B"/>
+                  </button>
+                  <input ref={diagRef} type="date" value={diag}
+                    onChange={(e) => setDiag(e.target.value)}
+                    style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer", zIndex:1 }}/>
+                </div>
+              </div>
+              <div style={{ flex:1 }}>
+                <FTitle>康复日期（可选）</FTitle>
+                <div style={{ position:"relative" }}>
+                  <button onClick={() => recovRef.current?.showPicker?.() || recovRef.current?.click()}
+                    style={{ width:"100%", height:56, borderRadius:18,
+                             background:"rgba(255,255,255,0.72)",
+                             border:"1px solid rgba(138,123,106,0.18)",
+                             padding:"0 14px", display:"flex", alignItems:"center", gap:8,
+                             cursor:"pointer", boxSizing:"border-box" }}>
+                    <Calendar size={16} color="#8A7B6A" strokeWidth={1.8} style={{ flexShrink:0 }}/>
+                    <span style={{ flex:1, textAlign:"left", fontSize:14,
+                                   color: recov ? "#1F1F1F" : "#9A9188" }}>
+                      {recov ? recov.replace(/-/g,"/") : "选择康复日期"}
+                    </span>
+                    <ChevronRight size={14} color="#2B2B2B"/>
+                  </button>
+                  <input ref={recovRef} type="date" value={recov}
+                    onChange={(e) => setRecov(e.target.value)}
+                    style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer", zIndex:1 }}/>
+                </div>
+              </div>
+            </div>
+
+            {/* ── 备注 ── */}
+            <div>
+              <FTitle>备注（可选）</FTitle>
+              <div style={{ position:"relative" }}>
+                <textarea value={note} onChange={(e) => setNote(e.target.value.slice(0,200))}
+                  placeholder="治疗方案、用药情况、注意事项等..." rows={3}
+                  onFocus={onFocus} onBlur={onBlur_}
+                  style={{ width:"100%", background:"rgba(255,255,255,0.72)",
+                           border:"1px solid rgba(138,123,106,0.18)",
+                           borderRadius:18, padding:"14px 16px",
+                           fontSize:16, color:"#1F1F1F", outline:"none",
+                           resize:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+                <div style={{ position:"absolute", bottom:10, right:14,
+                              fontSize:12, color:"#9A9188" }}>{note.length}/200</div>
+              </div>
+            </div>
+          </div>
+
+          {err && <div style={{ color:"#D94040", fontSize:13, textAlign:"center" }}>❌ {err}</div>}
+
+          {/* 底部按钮 */}
+          <div style={{ display:"flex", gap:14 }}>
+            <button onClick={onClose}
+              style={{ flex:1, height:60, borderRadius:20, fontSize:18, fontWeight:800,
+                       background:"rgba(255,255,255,0.75)", color:"#1F1F1F",
+                       border:"1px solid rgba(138,123,106,0.16)", cursor:"pointer" }}>
+              取消
+            </button>
+            <button onClick={handleSave} disabled={!canSave}
+              style={{ flex:1, height:60, borderRadius:20, fontSize:18, fontWeight:800,
+                       background: canSave
+                         ? `linear-gradient(135deg, ${GREEN}, #74C37B)` : "#D6D5D8",
+                       color:"white", border:"none",
+                       cursor: canSave ? "pointer" : "default",
+                       boxShadow: canSave ? "0 10px 20px rgba(95,167,102,0.22)" : "none",
+                       transition:"all .15s" }}>
+              {saving ? "保存中…" : "保存"}
+            </button>
+          </div>
+        </div>
       </div>
-    </Sheet>
+    </div>
+  );
+}
+
+/* ── Section field title with green dot ── */
+function FTitle({ children }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+      <div style={{ width:7, height:7, borderRadius:999, background:GREEN, flexShrink:0 }}/>
+      <span style={{ fontSize:16, fontWeight:700, color:"#1F1F1F" }}>{children}</span>
+    </div>
   );
 }
 

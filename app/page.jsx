@@ -834,7 +834,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     return <RecipePage onBack={() => setSubPage(null)} />;
   }
   if (subPage === "health") {
-    return <HealthPage user={user} pet={pet} onPetUpdate={onPetUpdate} onBack={() => setSubPage(null)} />;
+    return <HealthPage user={user} pet={pet} pets={pets} onPetUpdate={onPetUpdate} onBack={() => setSubPage(null)} />;
   }
   if (subPage === "news") {
     return <NewsPage onBack={() => setSubPage(null)} />;
