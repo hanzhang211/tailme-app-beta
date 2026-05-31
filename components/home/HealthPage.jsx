@@ -90,7 +90,7 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
     try {
       const [rs, dis, ms] = await Promise.all([
         listHealthRecords(pet.id).catch(() => []),
-        listDiseaseRecords(pet.id).catch(() => []),
+        listDiseaseRecords(null, user?.id).catch(() => []),
         listMedicationReminders(pet.id).catch(() => []),
       ]);
       setRecords(rs); setDiseases(dis); setMeds(ms);
@@ -226,20 +226,39 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
               <EmptyCard text="还没有疾病记录" sub="点击右侧 + 添加记录"/>
             ) : (
               diseases.map((d) => {
-                const st = DISEASE_STATUS[d.status] || DISEASE_STATUS.treating;
+                const st    = DISEASE_STATUS[d.status] || DISEASE_STATUS.treating;
+                const dPet  = pets.find((p) => p.id === d.pet_id) || null;
+                const avatarSrc = dPet?.pet_avatar_thumb_url || dPet?.ai_avatar_url || null;
                 return (
                   <button key={d.id} onClick={() => setViewDisease(d)}
                     style={{ width:"100%", background:"rgba(236,238,232,0.55)",
-                             borderRadius:18, padding:"14px 14px 14px 16px", marginBottom:8,
+                             borderRadius:18, padding:"12px 14px 12px 14px", marginBottom:8,
                              border:"none", cursor:"pointer", textAlign:"left",
                              display:"flex", alignItems:"center", gap:12 }}>
-                    <div style={{ width:44, height:44, borderRadius:14,
+                    {/* 宠物头像 */}
+                    <div style={{ width:48, height:48, borderRadius:999, flexShrink:0,
+                                  overflow:"hidden",
                                   background:"rgba(95,167,102,0.1)",
-                                  display:"flex", alignItems:"center", justifyContent:"center",
-                                  flexShrink:0 }}>
-                      <Dog size={24} color={GREEN} strokeWidth={1.6}/>
+                                  display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      {avatarSrc ? (
+                        <img src={avatarSrc} alt={dPet?.name}
+                          style={{ width:"100%", height:"100%", objectFit:"cover",
+                                   display:"block", mixBlendMode:"multiply" }}/>
+                      ) : dPet ? (
+                        <span style={{ fontSize:22 }}>
+                          {avatarForBreed(dPet.breed, dPet.pet_type)}
+                        </span>
+                      ) : (
+                        <Dog size={24} color={GREEN} strokeWidth={1.6}/>
+                      )}
                     </div>
                     <div style={{ flex:1, minWidth:0 }}>
+                      {/* 宠物名 */}
+                      {dPet && (
+                        <div style={{ fontSize:11, color:GREEN, fontWeight:700, marginBottom:2 }}>
+                          {dPet.name}
+                        </div>
+                      )}
                       <div style={{ fontSize:15, fontWeight:700, color:TEXT }}>{d.disease_name}</div>
                       {d.symptoms && (
                         <div style={{ fontSize:12, color:SUB, marginTop:2,

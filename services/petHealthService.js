@@ -62,11 +62,13 @@ export async function deleteHealthRecord(id, userId) {
 
 /* ══ 生病记录（health_records 表）══════════════════════════════ */
 
-export async function listDiseaseRecords(petId) {
-  if (!petId) return [];
-  const { data, error } = await sb().from("health_records")
-    .select("*").eq("pet_id", petId)
-    .order("diagnosis_date", { ascending: false });
+export async function listDiseaseRecords(petId, userId) {
+  if (!petId && !userId) return [];
+  const sb_ = sb();
+  let q = sb_.from("health_records").select("*");
+  if (petId)       q = q.eq("pet_id",  petId);
+  else if (userId) q = q.eq("user_id", userId);
+  const { data, error } = await q.order("diagnosis_date", { ascending: false });
   if (error) throw new Error(`获取疾病记录失败: ${error.message}`);
   return data || [];
 }
