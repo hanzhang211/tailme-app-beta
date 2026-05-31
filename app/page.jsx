@@ -36,7 +36,7 @@ import PetAvatar from "@/components/PetAvatar";
 import MapIcon from "@/components/MapIcon";
 import ChatIcon from "@/components/ChatIcon";
 import { AccountingIcon, RecipeIcon, HealthIcon } from "@/components/icons/HomeModuleIcons";
-import { Sparkles, ChevronRight } from "lucide-react";
+import { Sparkles, ChevronRight, PawPrint, Heart, CalendarDays, Scale, Venus } from "lucide-react";
 import { DOG_BREEDS, CAT_BREEDS } from "@/services/breedAvatar";
 import { getMonthlyTotal } from "@/services/petExpenseService";
 import { getTodayRecipe }  from "@/services/petRecipeService";
@@ -879,6 +879,27 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           {/* 宠物图 + AI 入口卡片 包裹层（relative；AI 卡片是手势 div 的兄弟节点，不影响滑动） */}
           <div style={{ position:"relative", width:"100%" }}>
 
+          {/* ── 装饰元素（pointer-events:none，不影响任何交互） ── */}
+          <div style={{ position:"absolute", left:14, top:24, color:"#F2A55F", opacity:0.4,
+                        transform:"rotate(-15deg)", pointerEvents:"none", zIndex:1 }}>
+            <PawPrint size={30} strokeWidth={1.6}/>
+          </div>
+          <div style={{ position:"absolute", left:26, top:80, color:"#F2A55F", opacity:0.38,
+                        transform:"rotate(10deg)", pointerEvents:"none", zIndex:1 }}>
+            <Heart size={20} strokeWidth={1.6}/>
+          </div>
+          <div style={{ position:"absolute", left:8, top:130, color:"#F2A55F", opacity:0.3,
+                        pointerEvents:"none", zIndex:1 }}>
+            <Sparkles size={22} strokeWidth={1.6}/>
+          </div>
+          {/* 虚线弧线 */}
+          <svg style={{ position:"absolute", left:18, top:58, width:80, height:60,
+                        pointerEvents:"none", zIndex:1, opacity:0.45 }}
+               viewBox="0 0 80 60" fill="none">
+            <path d="M6 10 C22 52, 56 56, 74 28"
+              stroke="#E68645" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="6 8"/>
+          </svg>
+
           {/* ── Swipe carousel：左 ghost / 主头像 / 右 ghost ── */}
           <div
             onTouchStart={onTouchStart}
@@ -1062,30 +1083,30 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
       </div>
 
       <div style={{ padding:"14px 14px 90px" }}>
-        {/* 宠物基础信息卡：品种 / 年龄 / 体重 / 性别 */}
+        {/* 宠物基础信息卡：品种 / 年龄 / 体重 / 性别（lucide icons） */}
         <div style={{ display:"flex", alignItems:"center", background:"white",
                       borderRadius:20, padding:"14px 6px", marginBottom:12,
                       boxShadow:H_SHADOW, border:`1px solid ${H_BORDER}` }}>
           {[
-            { emoji:"🐾", tint:"#F2E5DA", val: pet.breed || "—", label:"品种" },
-            { emoji:"📅", tint:"#F4ECD9", val: ageLabel,         label:"年龄" },
-            { emoji:"⚖️", tint:"#ECEEE8", val: pet.weight ? `${pet.weight} kg` : "—", label:"体重" },
-            { emoji: pet.gender === "male" ? "♂️" : "♀️", tint:"#F7E4E4",
+            { Icon:PawPrint,    bg:"#F7E8D8", ic:"#A86E3D", val: pet.breed || "—",  label:"品种" },
+            { Icon:CalendarDays,bg:"#F8E1C7", ic:"#E68645", val: ageLabel,          label:"年龄" },
+            { Icon:Scale,       bg:"#E4F1DF", ic:"#5FA766", val: pet.weight ? `${pet.weight} kg` : "—", label:"体重" },
+            { Icon:Venus,       bg:"#F8DDE4", ic:"#D9567A",
               val: pet.gender === "male" ? "男孩" : pet.gender === "female" ? "女孩" : "—", label:"性别" },
-          ].map((it, i) => (
-            <div key={it.label} style={{ flex:1, display:"flex", alignItems:"center", gap:8,
-                                         padding:"0 8px",
-                                         borderLeft: i === 0 ? "none" : `1px solid ${H_BORDER}` }}>
-              <div style={{ width:34, height:34, borderRadius:"50%", background:it.tint, flexShrink:0,
-                            display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>
-                {it.emoji}
+          ].map(({ Icon, bg, ic, val, label }, i) => (
+            <div key={label} style={{ flex:1, display:"flex", alignItems:"center", gap:8,
+                                      padding:"0 8px",
+                                      borderLeft: i === 0 ? "none" : `1px solid ${H_BORDER}` }}>
+              <div style={{ width:38, height:38, borderRadius:"50%", background:bg, flexShrink:0,
+                            display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Icon size={18} color={ic} strokeWidth={1.8}/>
               </div>
               <div style={{ minWidth:0 }}>
                 <div style={{ fontSize:14, fontWeight:800, color:C.text, lineHeight:1.2,
                               overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {it.val}
+                  {val}
                 </div>
-                <div style={{ fontSize:10, color:H_SUB, marginTop:1 }}>{it.label}</div>
+                <div style={{ fontSize:10, color:H_SUB, marginTop:1 }}>{label}</div>
               </div>
             </div>
           ))}
