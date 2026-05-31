@@ -96,15 +96,20 @@ export default function ExpensePage({ user, pets, onBack }) {
       {/* ── Header ── */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                     padding:"52px 16px 14px" }}>
-        <button onClick={onBack}
-          style={{ width:40, height:40, borderRadius:999,
-                   background:"rgba(255,255,255,0.6)", border:"none", cursor:"pointer",
-                   fontSize:22, color:TEXT, display:"flex", alignItems:"center",
-                   justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>‹</button>
-        <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-          <AccountingIcon size={70} color={TEXT} />
-          <span style={{ fontSize:17, fontWeight:800, color:TEXT }}>宠物记账</span>
+        {/* 左：返回 + icon */}
+        <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+          <button onClick={onBack}
+            style={{ width:40, height:40, borderRadius:999,
+                     background:"rgba(255,255,255,0.6)", border:"none", cursor:"pointer",
+                     fontSize:22, color:TEXT, display:"flex", alignItems:"center",
+                     justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>‹</button>
+          <AccountingIcon size={60} color={TEXT} />
         </div>
+        {/* 中：标题绝对居中 */}
+        <span style={{ position:"absolute", left:0, right:0, textAlign:"center",
+                       fontSize:17, fontWeight:800, color:TEXT, pointerEvents:"none" }}>
+          宠物记账
+        </span>
         <button onClick={() => setAddOpen(true)}
           style={{ width:40, height:40, borderRadius:999, background:PRI, color:"white",
                    border:"none", cursor:"pointer", fontSize:22, fontWeight:700,
