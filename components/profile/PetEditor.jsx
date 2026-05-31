@@ -45,17 +45,28 @@ export default function PetEditor({ pet, userId, onClose, onSaved, toast }) {
     setSaving(true); setError(null);
     try {
       if (isEdit) {
-        const updated = await updatePet(pet.id, {
-          pet_type:    f.pet_type,
+        const baseFields = {
           name:        f.name.trim(),
           breed:       f.breed,
-          birthday:    f.birthday,
-          weight:      parseFloat(f.weight),
-          gender:      f.gender,
-          personality: f.personality,
-          neutered:    f.neutered   === "yes",
-          vaccinated:  f.vaccinated === "yes",
-        });
+          birthday:    f.birthday    || null,
+          weight:      f.weight      ? parseFloat(f.weight) : null,
+          gender:      f.gender      || null,
+          personality: f.personality || null,
+          neutered:    f.neutered    === "yes",
+          vaccinated:  f.vaccinated  === "yes",
+        };
+        let updated;
+        try {
+          // 先尝试带 pet_type（若列存在则成功）
+          updated = await updatePet(pet.id, { ...baseFields, pet_type: f.pet_type });
+        } catch (schemaErr) {
+          if (schemaErr.message?.includes("pet_type") || schemaErr.message?.includes("schema")) {
+            // 列不存在时降级：不带 pet_type 重试
+            updated = await updatePet(pet.id, baseFields);
+          } else {
+            throw schemaErr;
+          }
+        }
         toast?.("已保存 ✨", "success");
         onSaved?.(updated);
       } else {
@@ -65,6 +76,7 @@ export default function PetEditor({ pet, userId, onClose, onSaved, toast }) {
       }
     } catch (e) {
       setError(e.message);
+      toast?.(e.message || "保存失败，请重试", "error");
     } finally {
       setSaving(false);
     }

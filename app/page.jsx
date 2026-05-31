@@ -859,7 +859,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           onSaved={(updated) => { setAvatarOpen(false); onPetUpdate?.(updated); }}
         />
       )}
-      <div style={{ background:H_BG, borderBottom:`1px solid ${H_BORDER}`, padding:"52px 20px 36px",
+      <div style={{ background:H_BG, padding:"52px 20px 36px",
                     position:"relative", overflow:"hidden" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:22 }}>
           <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
