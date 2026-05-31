@@ -73,19 +73,44 @@ export async function listDiseaseRecords(petId, userId) {
   return data || [];
 }
 
-export async function addDiseaseRecord({ userId, petId, diseaseName, symptoms, status, diagnosisDate, recoveryDate, notes }) {
+export async function addDiseaseRecord({
+  userId, petId, diseaseName, symptoms, status,
+  diagnosisDate, recoveryDate, treatmentPlan, notes,
+  medicineName, medicineDosage, medicineFrequency,
+  medicineStartDate, medicineEndDate,
+  medicineReminderTime, medicineReminderEnabled, medicineNotes,
+}) {
   if (!userId || !petId) throw new Error("缺少 userId/petId");
   const { data, error } = await sb().from("health_records").insert({
-    user_id:        userId,
-    pet_id:         petId,
-    disease_name:   diseaseName?.trim(),
-    symptoms:       symptoms?.trim() || null,
-    status:         status || "treating",
-    diagnosis_date: diagnosisDate || new Date().toISOString().slice(0, 10),
-    recovery_date:  recoveryDate || null,
-    notes:          notes?.trim() || null,
+    user_id:                   userId,
+    pet_id:                    petId,
+    disease_name:              diseaseName?.trim(),
+    symptoms:                  symptoms?.trim()      || null,
+    status:                    status                || "treating",
+    diagnosis_date:            diagnosisDate         || new Date().toISOString().slice(0, 10),
+    recovery_date:             recoveryDate          || null,
+    treatment_plan:            treatmentPlan?.trim() || null,
+    notes:                     notes?.trim()         || null,
+    medicine_name:             medicineName?.trim()  || null,
+    medicine_dosage:           medicineDosage?.trim()|| null,
+    medicine_frequency:        medicineFrequency?.trim() || null,
+    medicine_start_date:       medicineStartDate     || null,
+    medicine_end_date:         medicineEndDate       || null,
+    medicine_reminder_time:    medicineReminderTime  || null,
+    medicine_reminder_enabled: !!medicineReminderEnabled,
+    medicine_notes:            medicineNotes?.trim() || null,
   }).select().single();
   if (error) throw new Error(`添加疾病记录失败: ${error.message}`);
+  return data;
+}
+
+export async function updateDiseaseRecord(id, userId, fields) {
+  if (!id || !userId) throw new Error("缺少参数");
+  const patch = { ...fields, updated_at: new Date().toISOString() };
+  const { data, error } = await sb().from("health_records")
+    .update(patch).eq("id", id).eq("user_id", userId)
+    .select().single();
+  if (error) throw new Error(`更新疾病记录失败: ${error.message}`);
   return data;
 }
 

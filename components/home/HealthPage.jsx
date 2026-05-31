@@ -1,23 +1,21 @@
 "use client";
 
 /**
- * components/home/HealthPage.jsx — 宠物健康（Apple Health 风格重设计）
- * 新增：生病记录、用药提醒、健康记录时间线
- * 全部数据存 Supabase，无 localStorage
+ * HealthPage.jsx — 宠物健康（用药集成进疾病记录）
+ * 删除单独的「用药提醒」section，用药作为疾病记录的子数据
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   listHealthRecords, addHealthRecord, deleteHealthRecord,
   updatePetHealth, RECORD_TYPES,
-  listDiseaseRecords, addDiseaseRecord, deleteDiseaseRecord,
-  listMedicationReminders, addMedicationReminder, deleteMedicationReminder,
+  listDiseaseRecords, addDiseaseRecord, deleteDiseaseRecord, updateDiseaseRecord,
 } from "@/services/petHealthService";
 import { HealthIcon } from "@/components/icons/HomeModuleIcons";
 import {
-  ChevronLeft, Dog, Pill, Bell, Clock, CircleCheck,
-  ClipboardList, HeartPulse, Syringe, ShieldCheck, Stethoscope,
-  Calendar, ChevronRight, Check, Plus,
+  ChevronLeft, ChevronRight, Dog, Pill, Bell, Clock,
+  CircleCheck, ClipboardList, HeartPulse, Syringe, ShieldCheck,
+  Stethoscope, Calendar, Check, Plus, Ellipsis, Pencil,
 } from "lucide-react";
 import { avatarForBreed } from "@/services/breedAvatar";
 import { formatPetAge } from "@/services/petAge";
@@ -35,12 +33,10 @@ const CARD = {
   border: "1px solid rgba(255,255,255,0.65)",
 };
 
-/* ── helpers ── */
 const fmtDate  = (d) => d ? String(d).slice(0, 10) : "";
-const fmtShort = (d) => { if (!d) return ""; const [,m,day] = String(d).split("-"); return `${+m}月${+day}日`; };
 const fmtFull  = (d) => d ? String(d).replace(/-/g, "/") : "";
+const fmtShort = (d) => { if (!d) return ""; const [,m,day] = String(d).split("-"); return `${+m}月${+day}日`; };
 const fmtTime  = (t) => t ? String(t).slice(0, 5) : "";
-
 const isToday  = (d) => d === new Date().toISOString().slice(0, 10);
 
 const DISEASE_STATUS = {
@@ -50,17 +46,16 @@ const DISEASE_STATUS = {
 
 const typeMeta = (k) => RECORD_TYPES.find((t) => t.key === k) || RECORD_TYPES[3];
 const typeIcon = (k) => {
-  if (k === "vaccine") return <Syringe size={16} color={GREEN} strokeWidth={1.8}/>;
-  if (k === "deworm")  return <ShieldCheck size={16} color={GREEN} strokeWidth={1.8}/>;
-  if (k === "checkup") return <Stethoscope size={16} color={GREEN} strokeWidth={1.8}/>;
-  return <ClipboardList size={16} color={GREEN} strokeWidth={1.8}/>;
+  if (k === "vaccine") return <Syringe  size={15} color={GREEN} strokeWidth={1.8}/>;
+  if (k === "deworm")  return <ShieldCheck size={15} color={GREEN} strokeWidth={1.8}/>;
+  if (k === "checkup") return <Stethoscope size={15} color={GREEN} strokeWidth={1.8}/>;
+  return <ClipboardList size={15} color={GREEN} strokeWidth={1.8}/>;
 };
 
 /* ══════════════════════════════════════════════ */
 export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }) {
   const [records,    setRecords]    = useState([]);
   const [diseases,   setDiseases]   = useState([]);
-  const [meds,       setMeds]       = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [err,        setErr]        = useState(null);
 
@@ -68,16 +63,13 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
   const [vaccinated, setVaccinated] = useState(!!pet?.vaccinated);
   const [savingFlag, setSavingFlag] = useState(false);
 
-  // modals
   const [addRecordOpen,  setAddRecordOpen]  = useState(false);
   const [addDiseaseOpen, setAddDiseaseOpen] = useState(false);
-  const [addMedOpen,     setAddMedOpen]     = useState(false);
   const [viewDisease,    setViewDisease]    = useState(null);
-  const [viewMed,        setViewMed]        = useState(null);
 
   // toast
-  const [toast, setToast]     = useState(null); // { msg, type: "success"|"error" }
-  const toastTimer = useRef(null);
+  const [toast,     setToast]     = useState(null);
+  const toastTimer  = useRef(null);
   const showToast = (msg, type = "success") => {
     clearTimeout(toastTimer.current);
     setToast({ msg, type });
@@ -88,12 +80,11 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
     if (!pet?.id) { setLoading(false); return; }
     setLoading(true); setErr(null);
     try {
-      const [rs, dis, ms] = await Promise.all([
+      const [rs, dis] = await Promise.all([
         listHealthRecords(pet.id).catch(() => []),
         listDiseaseRecords(null, user?.id).catch(() => []),
-        listMedicationReminders(pet.id).catch(() => []),
       ]);
-      setRecords(rs); setDiseases(dis); setMeds(ms);
+      setRecords(rs); setDiseases(dis);
     } catch (e) { setErr(e.message); }
     finally { setLoading(false); }
   };
@@ -119,25 +110,43 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
     } finally { setSavingFlag(false); }
   };
 
-  const handleDeleteRecord  = async (r) => { if (!confirm("删除？")) return; try { await deleteHealthRecord(r.id, user.id); reload(); } catch (e) { alert(e.message); } };
-  const handleDeleteDisease = async (d) => { if (!confirm("删除？")) return; try { await deleteDiseaseRecord(d.id, user.id); reload(); } catch (e) { alert(e.message); } };
-  const handleDeleteMed     = async (m) => { if (!confirm("删除？")) return; try { await deleteMedicationReminder(m.id, user.id); reload(); } catch (e) { alert(e.message); } };
+  const handleDeleteRecord  = async (r) => {
+    if (!confirm("删除？")) return;
+    try { await deleteHealthRecord(r.id, user.id); reload(); }
+    catch (e) { alert(e.message); }
+  };
+  const handleDeleteDisease = async (d) => {
+    if (!confirm("删除这条疾病记录？")) return;
+    try { await deleteDiseaseRecord(d.id, user.id); reload(); }
+    catch (e) { alert(e.message); }
+  };
 
   // 合并时间线
   const timeline = useMemo(() => {
     const items = [
-      ...records.map(r => ({ id:r.id, date:r.record_date, kind:"record",
+      ...records.map(r => ({
+        id:r.id, date:r.record_date, kind:"record",
         label: typeMeta(r.record_type).label + (r.title ? `・${r.title}` : ""),
-        iconEl: typeIcon(r.record_type) })),
-      ...diseases.map(d => ({ id:d.id, date:d.diagnosis_date, kind:"disease",
-        label: `${d.disease_name} 开始治疗`,
-        iconEl: <Dog size={16} color={GREEN} strokeWidth={1.8}/> })),
-      ...meds.map(m => ({ id:m.id, date:m.start_date, kind:"medication",
-        label: `开始服用 ${m.medicine_name}`,
-        iconEl: <Pill size={16} color={GREEN} strokeWidth={1.8}/> })),
+        iconEl: typeIcon(r.record_type),
+      })),
+      ...diseases.map(d => ({
+        id:d.id, date:d.diagnosis_date, kind:"disease",
+        label: `诊断：${d.disease_name}`,
+        iconEl: <Dog size={15} color={GREEN} strokeWidth={1.8}/>,
+      })),
+      ...diseases.filter(d => d.medicine_name).map(d => ({
+        id:d.id+"_med", date:d.medicine_start_date || d.diagnosis_date, kind:"medication",
+        label: `开始用药：${d.medicine_name}`,
+        iconEl: <Pill size={15} color={GREEN} strokeWidth={1.8}/>,
+      })),
+      ...diseases.filter(d => d.status === "recovered" && d.recovery_date).map(d => ({
+        id:d.id+"_rec", date:d.recovery_date, kind:"recovery",
+        label: `康复：${d.disease_name}`,
+        iconEl: <CircleCheck size={15} color={GREEN} strokeWidth={1.8}/>,
+      })),
     ];
     return items.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-  }, [records, diseases, meds]);
+  }, [records, diseases]);
 
   return (
     <div style={{ height:"100%", overflowY:"auto", background:BG }}>
@@ -146,8 +155,8 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                     padding:"52px 16px 14px" }}>
         <button onClick={onBack}
-          style={{ width:40, height:40, borderRadius:999,
-                   background:"rgba(255,255,255,0.6)", border:"none", cursor:"pointer",
+          style={{ width:40, height:40, borderRadius:999, background:"rgba(255,255,255,0.6)",
+                   border:"none", cursor:"pointer",
                    display:"flex", alignItems:"center", justifyContent:"center",
                    boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
           <ChevronLeft size={22} color={TEXT} strokeWidth={2.5}/>
@@ -159,8 +168,8 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
         <button onClick={() => setAddRecordOpen(true)} disabled={!pet?.id}
           style={{ width:40, height:40, borderRadius:999,
                    background: pet?.id ? PRI : "#D6D5D8", color:"white",
-                   border:"none", cursor: pet?.id ? "pointer" : "default", fontSize:22,
-                   display:"flex", alignItems:"center", justifyContent:"center",
+                   border:"none", cursor: pet?.id ? "pointer" : "default",
+                   fontSize:22, display:"flex", alignItems:"center", justifyContent:"center",
                    boxShadow: pet?.id ? "0 4px 12px rgba(230,134,69,0.35)" : "none" }}>+</button>
       </div>
 
@@ -186,18 +195,15 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
             <div style={{ fontSize:40, fontWeight:800, color:TEXT, lineHeight:1.1, marginBottom:12 }}>
               {neutered ? "已绝育" : "未绝育"}
             </div>
-            {vaccinated ? (
-              <div style={{ display:"inline-flex", alignItems:"center", gap:6,
-                            background:"rgba(95,167,102,0.12)", borderRadius:999, padding:"5px 12px" }}>
-                <span style={{ fontSize:11, color:GREEN, fontWeight:600 }}>疫苗齐全</span>
-                <CircleCheck size={14} color={GREEN} strokeWidth={2}/>
-              </div>
-            ) : (
-              <div style={{ display:"inline-flex", alignItems:"center", gap:6,
-                            background:"rgba(230,134,69,0.12)", borderRadius:999, padding:"5px 12px" }}>
-                <span style={{ fontSize:11, color:PRI, fontWeight:600 }}>疫苗待补</span>
-              </div>
-            )}
+            <div style={{ display:"inline-flex", alignItems:"center", gap:6, borderRadius:999,
+                          padding:"5px 12px",
+                          background: vaccinated ? "rgba(95,167,102,0.12)" : "rgba(230,134,69,0.12)" }}>
+              <span style={{ fontSize:11, fontWeight:600,
+                             color: vaccinated ? GREEN : PRI }}>
+                {vaccinated ? "疫苗齐全" : "疫苗待补"}
+              </span>
+              {vaccinated && <CircleCheck size={14} color={GREEN} strokeWidth={2}/>}
+            </div>
           </div>
 
           {/* ── 2. 基础健康状态 ── */}
@@ -212,13 +218,13 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
               icon={<Syringe size={18} color={vaccinated ? GREEN : "#C5B9B0"} strokeWidth={1.8}/>}/>
           </div>
 
-          {/* ── 3. 生病记录 ── */}
+          {/* ── 3. 生病记录（含用药摘要）── */}
           <div style={{ ...CARD, padding:"18px 20px" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
               <HTitle noMargin>生病记录</HTitle>
               <button onClick={() => setAddDiseaseOpen(true)}
                 style={{ fontSize:12, fontWeight:700, color:GREEN, background:"transparent",
-                         border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                         border:"none", cursor:"pointer" }}>
                 ＋ 添加记录
               </button>
             </div>
@@ -226,18 +232,19 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
               <EmptyCard text="还没有疾病记录" sub="点击右侧 + 添加记录"/>
             ) : (
               diseases.map((d) => {
-                const st    = DISEASE_STATUS[d.status] || DISEASE_STATUS.treating;
-                const dPet  = pets.find((p) => p.id === d.pet_id) || null;
+                const st       = DISEASE_STATUS[d.status] || DISEASE_STATUS.treating;
+                const dPet     = pets.find((p) => p.id === d.pet_id) || null;
                 const avatarSrc = dPet?.pet_avatar_thumb_url || dPet?.ai_avatar_url || null;
+                const hasMed   = !!d.medicine_name;
+                const hasRemind = hasMed && d.medicine_reminder_enabled && d.medicine_reminder_time;
                 return (
                   <button key={d.id} onClick={() => setViewDisease(d)}
                     style={{ width:"100%", background:"rgba(236,238,232,0.55)",
-                             borderRadius:18, padding:"12px 14px 12px 14px", marginBottom:8,
+                             borderRadius:18, padding:"12px 14px", marginBottom:8,
                              border:"none", cursor:"pointer", textAlign:"left",
-                             display:"flex", alignItems:"center", gap:12 }}>
+                             display:"flex", alignItems:"flex-start", gap:12 }}>
                     {/* 宠物头像 */}
-                    <div style={{ width:48, height:48, borderRadius:999, flexShrink:0,
-                                  overflow:"hidden",
+                    <div style={{ width:48, height:48, borderRadius:999, flexShrink:0, overflow:"hidden",
                                   background:"rgba(95,167,102,0.1)",
                                   display:"flex", alignItems:"center", justifyContent:"center" }}>
                       {avatarSrc ? (
@@ -245,15 +252,13 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
                           style={{ width:"100%", height:"100%", objectFit:"cover",
                                    display:"block", mixBlendMode:"multiply" }}/>
                       ) : dPet ? (
-                        <span style={{ fontSize:22 }}>
-                          {avatarForBreed(dPet.breed, dPet.pet_type)}
-                        </span>
+                        <span style={{ fontSize:22 }}>{avatarForBreed(dPet.breed, dPet.pet_type)}</span>
                       ) : (
                         <Dog size={24} color={GREEN} strokeWidth={1.6}/>
                       )}
                     </div>
+                    {/* 内容 */}
                     <div style={{ flex:1, minWidth:0 }}>
-                      {/* 宠物名 */}
                       {dPet && (
                         <div style={{ fontSize:11, color:GREEN, fontWeight:700, marginBottom:2 }}>
                           {dPet.name}
@@ -266,12 +271,39 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
                           {d.symptoms}
                         </div>
                       )}
+                      {/* 用药摘要 */}
+                      {hasMed && (
+                        <div style={{ fontSize:11, color:SUB, marginTop:4,
+                                      display:"flex", alignItems:"center", gap:4 }}>
+                          <Pill size={11} color={GREEN} strokeWidth={1.8}/>
+                          <span style={{ color:GREEN, fontWeight:600 }}>
+                            {[d.medicine_name, d.medicine_dosage, d.medicine_frequency].filter(Boolean).join(" · ")}
+                          </span>
+                        </div>
+                      )}
+                      {/* 提醒摘要 */}
+                      {hasRemind && (
+                        <div style={{ fontSize:11, color:SUB, marginTop:2,
+                                      display:"flex", alignItems:"center", gap:4 }}>
+                          <Bell size={10} color={GREEN}/>
+                          <span style={{ color:GREEN }}>
+                            提醒：{isToday(d.medicine_end_date) ? `今天 ${fmtTime(d.medicine_reminder_time)}` : fmtTime(d.medicine_reminder_time)}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    {/* 状态标签 */}
+                    <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0 }}>
                       <span style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:999,
                                      background:st.bg, color:st.color }}>
                         {st.label}
                       </span>
+                      {hasRemind && (
+                        <span style={{ fontSize:10, fontWeight:600, padding:"3px 8px", borderRadius:999,
+                                       background:"rgba(95,167,102,0.12)", color:GREEN }}>
+                          提醒已开启
+                        </span>
+                      )}
                       <span style={{ color:SUB, fontSize:14 }}>›</span>
                     </div>
                   </button>
@@ -280,67 +312,7 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
             )}
           </div>
 
-          {/* ── 4. 用药提醒 ── */}
-          <div style={{ ...CARD, padding:"18px 20px" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-              <HTitle noMargin>用药提醒</HTitle>
-              <button onClick={() => setAddMedOpen(true)}
-                style={{ fontSize:12, fontWeight:700, color:GREEN, background:"transparent",
-                         border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
-                ＋ 添加用药
-              </button>
-            </div>
-            {meds.length === 0 ? (
-              <EmptyCard text="还没有用药记录" sub="点击右侧 + 添加用药"/>
-            ) : (
-              meds.map((m) => {
-                const nextTime = m.next_reminder_time ? fmtTime(m.next_reminder_time) : "";
-                const todayReminder = isToday(m.end_date) || (!m.end_date && isToday(m.start_date));
-                return (
-                  <button key={m.id} onClick={() => setViewMed(m)}
-                    style={{ width:"100%", background:"rgba(236,238,232,0.55)",
-                             borderRadius:18, padding:"14px 16px", marginBottom:8,
-                             border:"none", cursor:"pointer", textAlign:"left",
-                             display:"flex", alignItems:"center", gap:12 }}>
-                    <div style={{ width:44, height:44, borderRadius:14,
-                                  background:"rgba(95,167,102,0.1)",
-                                  display:"flex", alignItems:"center", justifyContent:"center",
-                                  flexShrink:0 }}>
-                      <Pill size={22} color={GREEN} strokeWidth={1.6}/>
-                    </div>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:15, fontWeight:700, color:TEXT }}>{m.medicine_name}</div>
-                      <div style={{ fontSize:12, color:SUB, marginTop:2 }}>
-                        {[m.dosage, m.frequency].filter(Boolean).join("，")}
-                      </div>
-                      {(m.start_date || m.end_date) && (
-                        <div style={{ fontSize:11, color:SUB, marginTop:2 }}>
-                          {fmtShort(m.start_date)}{m.end_date ? ` – ${fmtShort(m.end_date)}` : ""}
-                        </div>
-                      )}
-                    </div>
-                    {nextTime && (
-                      <div style={{ flexShrink:0, textAlign:"right" }}>
-                        <div style={{ fontSize:10, color:SUB, marginBottom:3 }}>下次时间</div>
-                        <div style={{ fontSize:13, fontWeight:800, color:GREEN }}>
-                          {todayReminder ? `今天 ${nextTime}` : nextTime}
-                        </div>
-                        <div style={{ display:"inline-flex", alignItems:"center", gap:4, marginTop:4,
-                                      background:"rgba(95,167,102,0.12)", borderRadius:999,
-                                      padding:"2px 8px" }}>
-                          <Bell size={10} color={GREEN}/>
-                          <span style={{ fontSize:10, color:GREEN, fontWeight:600 }}>已设置提醒</span>
-                        </div>
-                      </div>
-                    )}
-                    <span style={{ color:SUB, fontSize:14, flexShrink:0 }}>›</span>
-                  </button>
-                );
-              })
-            )}
-          </div>
-
-          {/* ── 5. 健康记录时间线 ── */}
+          {/* ── 4. 健康记录时间线 ── */}
           <div style={{ ...CARD, padding:"18px 20px" }}>
             <HTitle>健康记录</HTitle>
             {loading && <div style={{ textAlign:"center", color:SUB, padding:16, fontSize:13 }}>加载中…</div>}
@@ -349,21 +321,16 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
               <EmptyCard
                 icon={<ClipboardList size={32} color="rgba(95,167,102,0.4)" strokeWidth={1.5}/>}
                 text="还没有记录"
-                sub="点击右上角 + 添加疫苗/驱虫/体检/疾病/用药"/>
+                sub="点击右上角 + 添加疫苗/驱虫/体检/疾病"/>
             )}
             {timeline.map((item, i) => (
-              <div key={item.id + item.kind} style={{ display:"flex", gap:14, paddingBottom:14,
-                                                      position:"relative" }}>
-                {/* 竖线 */}
+              <div key={item.id + item.kind} style={{ display:"flex", gap:14, paddingBottom:14, position:"relative" }}>
                 {i < timeline.length - 1 && (
                   <div style={{ position:"absolute", left:13, top:28, bottom:0, width:2,
                                 background:"rgba(95,167,102,0.2)", zIndex:0 }}/>
                 )}
-                {/* 节点 */}
-                <div style={{ width:28, height:28, borderRadius:999,
-                              background:"rgba(95,167,102,0.12)", flexShrink:0,
-                              display:"flex", alignItems:"center", justifyContent:"center",
-                              zIndex:1 }}>
+                <div style={{ width:28, height:28, borderRadius:999, background:"rgba(95,167,102,0.12)",
+                              flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>
                   {item.iconEl}
                 </div>
                 <div style={{ flex:1, paddingTop:4 }}>
@@ -372,16 +339,15 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
                 </div>
               </div>
             ))}
-            {/* 原有健康记录的删除入口 */}
+            {/* 原有健康记录管理 */}
             {records.length > 0 && (
               <div style={{ borderTop:"1px solid rgba(0,0,0,0.06)", paddingTop:12, marginTop:4 }}>
                 <div style={{ fontSize:11, color:SUB, marginBottom:8, fontWeight:600 }}>管理健康记录</div>
                 {records.map((r) => {
                   const meta = typeMeta(r.record_type);
                   return (
-                    <div key={r.id}
-                      style={{ display:"flex", alignItems:"center", gap:8,
-                               padding:"8px 0", borderBottom:"1px solid rgba(0,0,0,0.04)" }}>
+                    <div key={r.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0",
+                                            borderBottom:"1px solid rgba(0,0,0,0.04)" }}>
                       <span style={{ fontSize:16, flexShrink:0 }}>{meta.emoji}</span>
                       <div style={{ flex:1, minWidth:0 }}>
                         <span style={{ fontSize:12, fontWeight:600, color:TEXT }}>{meta.label}</span>
@@ -404,7 +370,7 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
       {addRecordOpen && pet?.id && (
         <AddRecordModal user={user} pet={pet}
           onClose={() => setAddRecordOpen(false)}
-          onAdded={() => { setAddRecordOpen(false); reload(); }}/>
+          onAdded={() => { setAddRecordOpen(false); reload(); showToast("健康记录已添加 ✨"); }}/>
       )}
       {addDiseaseOpen && (
         <AddDiseaseModal user={user} pet={pet} pets={pets}
@@ -412,33 +378,27 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
           onAdded={() => { setAddDiseaseOpen(false); reload(); showToast("疾病记录已保存 ✨"); }}
           onError={(msg) => showToast(msg, "error")}/>
       )}
-      {addMedOpen && pet?.id && (
-        <AddMedicationModal user={user} pet={pet}
-          onClose={() => setAddMedOpen(false)}
-          onAdded={() => { setAddMedOpen(false); reload(); showToast("用药提醒已保存 ✨"); }}
-          onError={(msg) => showToast(msg, "error")}/>
-      )}
       {viewDisease && (
-        <DiseaseDetailSheet disease={viewDisease}
+        <DiseaseDetailSheet
+          disease={viewDisease}
+          pets={pets}
+          user={user}
           onClose={() => setViewDisease(null)}
-          onDelete={() => { handleDeleteDisease(viewDisease); setViewDisease(null); }}/>
-      )}
-      {viewMed && (
-        <MedicationDetailSheet med={viewMed}
-          onClose={() => setViewMed(null)}
-          onDelete={() => { handleDeleteMed(viewMed); setViewMed(null); }}/>
+          onDelete={() => { handleDeleteDisease(viewDisease); setViewDisease(null); }}
+          onUpdated={(updated) => {
+            setDiseases((prev) => prev.map((d) => d.id === updated.id ? updated : d));
+            setViewDisease(updated);
+            showToast("已更新 ✨");
+          }}/>
       )}
 
-      {/* ── Toast ── */}
+      {/* Toast */}
       {toast && (
-        <div style={{ position:"fixed", left:"50%", bottom:90,
-                      transform:"translateX(-50%)", zIndex:2000,
-                      background: toast.type === "error" ? "#B91C1C" : GREEN,
+        <div style={{ position:"fixed", left:"50%", bottom:90, transform:"translateX(-50%)",
+                      zIndex:2000, background: toast.type === "error" ? "#B91C1C" : GREEN,
                       color:"white", padding:"11px 22px", borderRadius:999,
-                      fontSize:14, fontWeight:700,
-                      boxShadow:"0 6px 20px rgba(0,0,0,0.22)",
-                      maxWidth:"80%", textAlign:"center",
-                      animation:"fadeInUp .22s ease" }}>
+                      fontSize:14, fontWeight:700, boxShadow:"0 6px 20px rgba(0,0,0,0.22)",
+                      maxWidth:"80%", textAlign:"center" }}>
           {toast.msg}
         </div>
       )}
@@ -446,7 +406,7 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
   );
 }
 
-/* ── Shared UI helpers ── */
+/* ══ Shared UI ═══════════════════════════════════ */
 function HTitle({ children, noMargin }) {
   return (
     <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom: noMargin ? 0 : 14 }}>
@@ -455,7 +415,14 @@ function HTitle({ children, noMargin }) {
     </div>
   );
 }
-
+function FTitle({ children }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+      <div style={{ width:6, height:6, borderRadius:999, background:GREEN, flexShrink:0 }}/>
+      <span style={{ fontSize:15, fontWeight:700, color:"#1F1F1F" }}>{children}</span>
+    </div>
+  );
+}
 function EmptyCard({ icon, text, sub }) {
   return (
     <div style={{ textAlign:"center", padding:"24px 0 8px",
@@ -466,7 +433,6 @@ function EmptyCard({ icon, text, sub }) {
     </div>
   );
 }
-
 function HealthRow({ label, done, onToggle, disabled, icon }) {
   return (
     <div style={{ display:"flex", alignItems:"center", padding:"10px 0" }}>
@@ -480,22 +446,19 @@ function HealthRow({ label, done, onToggle, disabled, icon }) {
       <button onClick={() => !disabled && onToggle(!done)} disabled={disabled}
         style={{ fontSize:12, fontWeight:700, padding:"5px 14px", borderRadius:999,
                  background: done ? "rgba(95,167,102,0.12)" : "rgba(0,0,0,0.06)",
-                 color: done ? GREEN : SUB, border:"none",
-                 cursor: disabled ? "default" : "pointer" }}>
+                 color: done ? GREEN : SUB, border:"none", cursor: disabled ? "default" : "pointer" }}>
         {done ? "已完成" : "未完成"}
       </button>
     </div>
   );
 }
-
-/* ── Bottom sheet helper ── */
 function Sheet({ onClose, children }) {
   return (
     <div onClick={(e) => e.target === e.currentTarget && onClose()}
       style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:1000,
                display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
       <div style={{ width:"100%", maxWidth:430, background:"#ECEEE8",
-                    borderRadius:"28px 28px 0 0", maxHeight:"88vh", overflowY:"auto",
+                    borderRadius:"28px 28px 0 0", maxHeight:"92vh", overflowY:"auto",
                     paddingBottom:"env(safe-area-inset-bottom, 20px)" }}>
         <div style={{ display:"flex", justifyContent:"center", paddingTop:14, paddingBottom:4 }}>
           <div style={{ width:48, height:5, borderRadius:999, background:"#D0CFC9" }}/>
@@ -506,7 +469,675 @@ function Sheet({ onClose, children }) {
   );
 }
 
-/* ── AddRecordModal (existing logic preserved) ── */
+/* ══ PetSelector — shared by Add modals ══════════ */
+function PetSelector({ allPets, selPetId, setSelPetId }) {
+  return (
+    <div>
+      <FTitle>选择宠物</FTitle>
+      <div style={{ display:"flex", gap:12, overflowX:"auto", scrollbarWidth:"none",
+                    WebkitOverflowScrolling:"touch", paddingBottom:4 }}>
+        {allPets.map((p) => {
+          const sel = p.id === selPetId;
+          const avatarSrc = p.pet_avatar_thumb_url || p.ai_avatar_url || null;
+          const age = formatPetAge(p.birthday) || (p.age ? `${p.age}岁` : "");
+          return (
+            <button key={p.id} onClick={() => setSelPetId(p.id)}
+              style={{ flex:"0 0 auto", width:150, height:84, borderRadius:20, padding:12,
+                       background: sel ? "rgba(95,167,102,0.10)" : "rgba(255,255,255,0.55)",
+                       border: sel ? `2px solid ${GREEN}` : "1px solid rgba(138,123,106,0.14)",
+                       cursor:"pointer", textAlign:"left", position:"relative",
+                       display:"flex", alignItems:"center", gap:10, transition:"all .15s" }}>
+              <div style={{ width:48, height:48, borderRadius:999, flexShrink:0,
+                            overflow:"hidden", background:"rgba(236,238,232,0.8)" }}>
+                {avatarSrc ? (
+                  <img src={avatarSrc} alt={p.name}
+                    style={{ width:"100%", height:"100%", objectFit:"cover",
+                             display:"block", mixBlendMode:"multiply" }}/>
+                ) : (
+                  <div style={{ width:"100%", height:"100%", display:"flex",
+                                alignItems:"center", justifyContent:"center", fontSize:22 }}>
+                    {avatarForBreed(p.breed, p.pet_type)}
+                  </div>
+                )}
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:15, fontWeight:800, color:"#1F1F1F",
+                              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {p.name}
+                </div>
+                <div style={{ fontSize:12, color:"#8A9188", marginTop:2,
+                              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {[p.breed, age].filter(Boolean).join(" · ")}
+                </div>
+              </div>
+              {sel && (
+                <div style={{ position:"absolute", top:8, right:8, width:26, height:26,
+                              borderRadius:999, background:GREEN,
+                              display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <Check size={14} color="white" strokeWidth={3}/>
+                </div>
+              )}
+            </button>
+          );
+        })}
+        <div style={{ flex:"0 0 auto", width:100, height:84, borderRadius:20,
+                      border:"1.5px dashed rgba(95,167,102,0.5)",
+                      display:"flex", flexDirection:"column", alignItems:"center",
+                      justifyContent:"center", gap:6, opacity:0.65 }}>
+          <div style={{ width:32, height:32, borderRadius:999, border:`1.5px dashed ${GREEN}`,
+                        display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <Plus size={16} color={GREEN}/>
+          </div>
+          <span style={{ fontSize:11, color:GREEN, fontWeight:600 }}>添加宠物</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══ DatePicker row ══════════════════════════════ */
+function DateRow({ label, val, setVal, refEl, placeholder }) {
+  return (
+    <div>
+      <FTitle>{label}</FTitle>
+      <div style={{ position:"relative" }}>
+        <button onClick={() => refEl.current?.showPicker?.() || refEl.current?.click()}
+          style={{ width:"100%", height:52, borderRadius:16,
+                   background:"rgba(255,255,255,0.72)", border:"1px solid rgba(138,123,106,0.18)",
+                   padding:"0 14px", display:"flex", alignItems:"center", gap:8,
+                   cursor:"pointer", boxSizing:"border-box" }}>
+          <Calendar size={15} color="#8A7B6A" strokeWidth={1.8} style={{ flexShrink:0 }}/>
+          <span style={{ flex:1, textAlign:"left", fontSize:14, fontWeight:600,
+                         color: val ? "#1F1F1F" : "#9A9188" }}>
+            {val ? val.replace(/-/g,"/") : placeholder}
+          </span>
+          <ChevronRight size={13} color="#2B2B2B"/>
+        </button>
+        <input ref={refEl} type="date" value={val} onChange={(e) => setVal(e.target.value)}
+          style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer", zIndex:1 }}/>
+      </div>
+    </div>
+  );
+}
+
+/* ══ Field input style ══════════════════════════ */
+const INP = {
+  width:"100%", background:"rgba(255,255,255,0.72)",
+  border:"1px solid rgba(138,123,106,0.18)", borderRadius:16,
+  padding:"13px 16px", fontSize:15, color:"#1F1F1F",
+  outline:"none", boxSizing:"border-box", fontFamily:"inherit",
+};
+const onFocusGreen = (e) => { e.target.style.border=`1px solid ${GREEN}`; e.target.style.boxShadow=`0 0 0 3px rgba(95,167,102,0.12)`; };
+const onBlurReset  = (e) => { e.target.style.border="1px solid rgba(138,123,106,0.18)"; e.target.style.boxShadow="none"; };
+
+/* ══ MedicineFields — reused in Add + Edit ═══════ */
+function MedicineFields({ med, setMed }) {
+  const startRef = useRef(null);
+  const endRef   = useRef(null);
+  const timeRef  = useRef(null);
+  const upd = (k, v) => setMed((m) => ({ ...m, [k]: v }));
+
+  return (
+    <div style={{ background:"rgba(95,167,102,0.08)", border:"1px solid rgba(95,167,102,0.16)",
+                  borderRadius:20, padding:16, display:"flex", flexDirection:"column", gap:14 }}>
+      <div style={{ fontSize:14, fontWeight:700, color:GREEN, marginBottom:2 }}>用药设置（可选）</div>
+      <div style={{ fontSize:12, color:SUB, marginTop:-10 }}>
+        如果这次生病需要用药，可以在这里记录用药和提醒。
+      </div>
+
+      <div>
+        <FTitle>药物名称</FTitle>
+        <input value={med.name} onChange={(e) => upd("name", e.target.value)}
+          placeholder="例如：蒙脱石散" onFocus={onFocusGreen} onBlur={onBlurReset} style={INP}/>
+      </div>
+
+      <div style={{ display:"flex", gap:10 }}>
+        <div style={{ flex:1 }}>
+          <FTitle>剂量</FTitle>
+          <input value={med.dosage} onChange={(e) => upd("dosage", e.target.value)}
+            placeholder="每次1包" onFocus={onFocusGreen} onBlur={onBlurReset} style={INP}/>
+        </div>
+        <div style={{ flex:1 }}>
+          <FTitle>频率</FTitle>
+          <input value={med.frequency} onChange={(e) => upd("frequency", e.target.value)}
+            placeholder="每日2次" onFocus={onFocusGreen} onBlur={onBlurReset} style={INP}/>
+        </div>
+      </div>
+
+      <div style={{ display:"flex", gap:10 }}>
+        <div style={{ flex:1 }}>
+          <DateRow label="开始日期" val={med.startDate} setVal={(v) => upd("startDate", v)}
+            refEl={startRef} placeholder="选择开始日期"/>
+        </div>
+        <div style={{ flex:1 }}>
+          <DateRow label="结束日期" val={med.endDate} setVal={(v) => upd("endDate", v)}
+            refEl={endRef} placeholder="选择结束日期"/>
+        </div>
+      </div>
+
+      <div style={{ display:"flex", gap:10, alignItems:"flex-end" }}>
+        <div style={{ flex:1 }}>
+          <FTitle>提醒时间</FTitle>
+          <div style={{ position:"relative" }}>
+            <button onClick={() => timeRef.current?.showPicker?.() || timeRef.current?.click()}
+              style={{ width:"100%", height:52, borderRadius:16,
+                       background:"rgba(255,255,255,0.72)", border:"1px solid rgba(138,123,106,0.18)",
+                       padding:"0 14px", display:"flex", alignItems:"center", gap:8,
+                       cursor:"pointer", boxSizing:"border-box" }}>
+              <Clock size={15} color="#8A7B6A" strokeWidth={1.8} style={{ flexShrink:0 }}/>
+              <span style={{ flex:1, textAlign:"left", fontSize:14, color: med.time ? "#1F1F1F" : "#9A9188" }}>
+                {med.time ? med.time.slice(0,5) : "例如：20:00"}
+              </span>
+              <ChevronRight size={13} color="#2B2B2B"/>
+            </button>
+            <input ref={timeRef} type="time" value={med.time}
+              onChange={(e) => { const v = e.target.value; upd("time", v); if (v) upd("reminderEnabled", true); }}
+              style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer", zIndex:1 }}/>
+          </div>
+        </div>
+        <div style={{ flexShrink:0, paddingBottom:4 }}>
+          <FTitle>开启提醒</FTitle>
+          <button onClick={() => upd("reminderEnabled", !med.reminderEnabled)}
+            style={{ width:52, height:30, borderRadius:15, position:"relative",
+                     background: med.reminderEnabled ? GREEN : "#D0CFC9",
+                     border:"none", cursor:"pointer", transition:"background .15s" }}>
+            <div style={{ position:"absolute", top:4, left: med.reminderEnabled ? 24 : 4,
+                          width:22, height:22, borderRadius:"50%", background:"white",
+                          boxShadow:"0 1px 3px rgba(0,0,0,0.2)", transition:"left .15s" }}/>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <FTitle>用药备注</FTitle>
+        <textarea value={med.notes} onChange={(e) => upd("notes", e.target.value)}
+          placeholder="饭前饭后、是否冷藏、注意事项等..." rows={2}
+          onFocus={onFocusGreen} onBlur={onBlurReset}
+          style={{ ...INP, resize:"none" }}/>
+      </div>
+    </div>
+  );
+}
+
+/* ══ AddDiseaseModal ═════════════════════════════ */
+function AddDiseaseModal({ user, pet, pets = [], onClose, onAdded, onError }) {
+  const defaultPet = pets.find((p) => p.id === pet?.id) || pets[0] || pet;
+  const [selPetId, setSelPetId] = useState(defaultPet?.id || "");
+  const [name,     setName]     = useState("");
+  const [syms,     setSyms]     = useState("");
+  const [status,   setStatus]   = useState("treating");
+  const [diag,     setDiag]     = useState(new Date().toISOString().slice(0, 10));
+  const [recov,    setRecov]    = useState("");
+  const [plan,     setPlan]     = useState("");
+  const [med,      setMed]      = useState({ name:"", dosage:"", frequency:"",
+                                              startDate:"", endDate:"", time:"",
+                                              reminderEnabled:false, notes:"" });
+  const [saving,   setSaving]   = useState(false);
+  const [err,      setErr]      = useState(null);
+  const diagRef    = useRef(null);
+  const recovRef   = useRef(null);
+
+  const canSave = !!selPetId && name.trim().length > 0 && !saving;
+  const allPets = pets.length > 0 ? pets : (pet ? [pet] : []);
+
+  const handleSave = async () => {
+    if (!selPetId) { setErr("请选择宠物"); return; }
+    if (!name.trim()) { setErr("请填写疾病名称"); return; }
+    setErr(null); setSaving(true);
+    try {
+      await addDiseaseRecord({
+        userId:      user.id, petId: selPetId,
+        diseaseName: name, symptoms: syms, status,
+        diagnosisDate: diag, recoveryDate: recov || null,
+        treatmentPlan: plan,
+        notes: "",
+        medicineName:            med.name     || null,
+        medicineDosage:          med.dosage   || null,
+        medicineFrequency:       med.frequency || null,
+        medicineStartDate:       med.startDate || null,
+        medicineEndDate:         med.endDate   || null,
+        medicineReminderTime:    med.time      || null,
+        medicineReminderEnabled: med.reminderEnabled,
+        medicineNotes:           med.notes     || null,
+      });
+      onAdded();
+    } catch (e) {
+      const msg = e.message || "保存失败";
+      setErr(msg); onError?.(msg);
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div onClick={(e) => e.target === e.currentTarget && onClose()}
+      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:1000,
+               display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div style={{ width:"100%", maxWidth:430, background:"#ECEEE8",
+                    borderRadius:"32px 32px 0 0", maxHeight:"94vh", overflowY:"auto",
+                    paddingBottom:"env(safe-area-inset-bottom, 20px)" }}>
+        <div style={{ display:"flex", justifyContent:"center", paddingTop:14, paddingBottom:6 }}>
+          <div style={{ width:64, height:6, borderRadius:999, background:"#D8D5D2" }}/>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", padding:"8px 20px 16px" }}>
+          <button onClick={onClose}
+            style={{ width:48, height:48, borderRadius:999, background:"white", border:"none",
+                     cursor:"pointer", marginRight:14, flexShrink:0,
+                     display:"flex", alignItems:"center", justifyContent:"center",
+                     boxShadow:"0 6px 16px rgba(0,0,0,0.05)" }}>
+            <ChevronLeft size={22} color="#1A1006" strokeWidth={2.5}/>
+          </button>
+          <HeartPulse size={24} color={GREEN} strokeWidth={1.8} style={{ marginRight:8, flexShrink:0 }}/>
+          <span style={{ fontSize:26, fontWeight:800, color:"#1F1F1F" }}>新增疾病记录</span>
+        </div>
+
+        <div style={{ padding:"0 16px 28px", display:"flex", flexDirection:"column", gap:14 }}>
+          <div style={{ background:"rgba(255,255,255,0.62)", borderRadius:28, padding:20,
+                        boxShadow:"0 8px 24px rgba(0,0,0,0.06)", border:"1px solid rgba(255,255,255,0.65)",
+                        display:"flex", flexDirection:"column", gap:20 }}>
+
+            <PetSelector allPets={allPets} selPetId={selPetId} setSelPetId={setSelPetId}/>
+
+            <div>
+              <FTitle>疾病名称 *</FTitle>
+              <input value={name} onChange={(e) => setName(e.target.value)}
+                placeholder="例如：肠胃炎、皮肤病等" maxLength={50}
+                onFocus={onFocusGreen} onBlur={onBlurReset} style={INP}/>
+            </div>
+
+            <div>
+              <FTitle>症状描述 *</FTitle>
+              <div style={{ position:"relative" }}>
+                <textarea value={syms} onChange={(e) => setSyms(e.target.value.slice(0,200))}
+                  placeholder="请详细描述宠物的症状表现..." rows={3}
+                  onFocus={onFocusGreen} onBlur={onBlurReset}
+                  style={{ ...INP, resize:"none", paddingBottom:26 }}/>
+                <div style={{ position:"absolute", bottom:8, right:12,
+                              fontSize:11, color:"#9A9188" }}>{syms.length}/200</div>
+              </div>
+            </div>
+
+            <div>
+              <FTitle>状态 *</FTitle>
+              <div style={{ display:"flex", gap:10 }}>
+                {[{k:"treating",l:"治疗中"},{k:"recovered",l:"已康复"}].map(({k,l}) => (
+                  <button key={k} onClick={() => setStatus(k)}
+                    style={{ flex:1, height:50, borderRadius:16, fontSize:15, fontWeight:700,
+                             background: status===k ? GREEN : "rgba(255,255,255,0.72)",
+                             color: status===k ? "white" : "#1F1F1F",
+                             border: status===k ? "none" : "1px solid rgba(138,123,106,0.18)",
+                             cursor:"pointer", transition:"all .15s",
+                             boxShadow: status===k ? "0 6px 16px rgba(95,167,102,0.25)" : "none" }}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display:"flex", gap:10 }}>
+              <div style={{ flex:1 }}>
+                <DateRow label="诊断日期 *" val={diag} setVal={setDiag}
+                  refEl={diagRef} placeholder="选择诊断日期"/>
+              </div>
+              <div style={{ flex:1 }}>
+                <DateRow label="康复日期（可选）" val={recov} setVal={setRecov}
+                  refEl={recovRef} placeholder="选择康复日期"/>
+              </div>
+            </div>
+
+            <div>
+              <FTitle>治疗方案 / 备注</FTitle>
+              <textarea value={plan} onChange={(e) => setPlan(e.target.value)}
+                placeholder="治疗方案、医生建议、注意事项等..." rows={2}
+                onFocus={onFocusGreen} onBlur={onBlurReset}
+                style={{ ...INP, resize:"none" }}/>
+            </div>
+          </div>
+
+          {/* 用药设置 */}
+          <MedicineFields med={med} setMed={setMed}/>
+
+          {err && <div style={{ color:"#D94040", fontSize:13, textAlign:"center" }}>❌ {err}</div>}
+
+          <div style={{ display:"flex", gap:14 }}>
+            <button onClick={onClose}
+              style={{ flex:1, height:58, borderRadius:20, fontSize:17, fontWeight:800,
+                       background:"rgba(255,255,255,0.75)", color:"#1F1F1F",
+                       border:"1px solid rgba(138,123,106,0.16)", cursor:"pointer" }}>
+              取消
+            </button>
+            <button onClick={handleSave} disabled={!canSave}
+              style={{ flex:1, height:58, borderRadius:20, fontSize:17, fontWeight:800,
+                       background: canSave ? `linear-gradient(135deg,${GREEN},#74C37B)` : "#D6D5D8",
+                       color:"white", border:"none", cursor: canSave ? "pointer" : "default",
+                       boxShadow: canSave ? "0 10px 20px rgba(95,167,102,0.22)" : "none" }}>
+              {saving ? "保存中…" : "保存"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══ DiseaseDetailSheet ══════════════════════════ */
+function DiseaseDetailSheet({ disease: initD, pets, user, onClose, onDelete, onUpdated }) {
+  const [d,          setD]          = useState(initD);
+  const [showMenu,   setShowMenu]   = useState(false);
+  const [editMedOpen, setEditMedOpen] = useState(false);
+
+  const st     = DISEASE_STATUS[d.status] || DISEASE_STATUS.treating;
+  const dPet   = pets.find((p) => p.id === d.pet_id) || null;
+  const avatarSrc = dPet?.pet_avatar_thumb_url || dPet?.ai_avatar_url || null;
+  const hasMed = !!d.medicine_name;
+
+  const medRemindLabel = (() => {
+    if (!d.medicine_reminder_time) return null;
+    const t = fmtTime(d.medicine_reminder_time);
+    if (isToday(d.medicine_end_date)) return `今天 ${t}`;
+    return t;
+  })();
+
+  // mini timeline for this record
+  const localTimeline = [
+    { date: d.diagnosis_date, label:`诊断：${d.disease_name}`, icon:<Dog size={13} color={GREEN} strokeWidth={1.8}/> },
+    ...(d.medicine_name && d.medicine_start_date ? [{ date: d.medicine_start_date, label:`开始用药：${d.medicine_name}`, icon:<Pill size={13} color={GREEN} strokeWidth={1.8}/> }] : []),
+    ...(d.status === "recovered" && d.recovery_date ? [{ date: d.recovery_date, label:`康复：${d.disease_name}`, icon:<CircleCheck size={13} color={GREEN} strokeWidth={1.8}/> }] : []),
+  ].sort((a,b) => (b.date||"").localeCompare(a.date||""));
+
+  return (
+    <div onClick={(e) => e.target === e.currentTarget && onClose()}
+      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:1000,
+               display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div style={{ width:"100%", maxWidth:430, background:"#ECEEE8",
+                    borderRadius:"28px 28px 0 0", maxHeight:"92vh", overflowY:"auto",
+                    paddingBottom:"env(safe-area-inset-bottom, 20px)" }}>
+        <div style={{ display:"flex", justifyContent:"center", paddingTop:14, paddingBottom:4 }}>
+          <div style={{ width:48, height:5, borderRadius:999, background:"#D0CFC9" }}/>
+        </div>
+
+        {/* Header */}
+        <div style={{ display:"flex", alignItems:"center", padding:"8px 16px 12px" }}>
+          <button onClick={onClose}
+            style={{ width:40, height:40, borderRadius:999, background:"rgba(255,255,255,0.6)",
+                     border:"none", cursor:"pointer", display:"flex", alignItems:"center",
+                     justifyContent:"center", flexShrink:0 }}>
+            <ChevronLeft size={20} color={TEXT} strokeWidth={2.5}/>
+          </button>
+          <div style={{ flex:1, textAlign:"center", fontSize:15, fontWeight:800, color:TEXT }}>
+            疾病记录详情
+          </div>
+          <div style={{ position:"relative" }}>
+            <button onClick={() => setShowMenu(!showMenu)}
+              style={{ width:40, height:40, borderRadius:999, background:"rgba(255,255,255,0.6)",
+                       border:"none", cursor:"pointer", display:"flex", alignItems:"center",
+                       justifyContent:"center", flexShrink:0 }}>
+              <Ellipsis size={18} color={TEXT}/>
+            </button>
+            {showMenu && (
+              <div style={{ position:"absolute", right:0, top:46, zIndex:100,
+                            background:"white", borderRadius:14, padding:"6px 0",
+                            boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:120 }}>
+                <button onClick={() => { setShowMenu(false); /* TODO: edit disease */ }}
+                  style={{ width:"100%", padding:"12px 18px", textAlign:"left",
+                           background:"transparent", border:"none", cursor:"pointer",
+                           fontSize:14, fontWeight:600, color:TEXT,
+                           display:"flex", alignItems:"center", gap:8 }}>
+                  <Pencil size={15} color={SUB}/> 编辑
+                </button>
+                <div style={{ height:1, background:"rgba(0,0,0,0.06)", margin:"0 10px" }}/>
+                <button onClick={() => { setShowMenu(false); onDelete(); }}
+                  style={{ width:"100%", padding:"12px 18px", textAlign:"left",
+                           background:"transparent", border:"none", cursor:"pointer",
+                           fontSize:14, fontWeight:600, color:"#D94040",
+                           display:"flex", alignItems:"center", gap:8 }}>
+                  🗑 删除
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ padding:"0 16px 28px", display:"flex", flexDirection:"column", gap:12 }}>
+
+          {/* 主卡片 */}
+          <div style={{ background:"rgba(255,255,255,0.62)", borderRadius:24, padding:"18px 20px",
+                        boxShadow:"0 8px 24px rgba(0,0,0,0.06)", border:"1px solid rgba(255,255,255,0.65)" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+              <div style={{ width:56, height:56, borderRadius:999, flexShrink:0, overflow:"hidden",
+                            background:"rgba(95,167,102,0.1)",
+                            display:"flex", alignItems:"center", justifyContent:"center" }}>
+                {avatarSrc ? (
+                  <img src={avatarSrc} alt={dPet?.name}
+                    style={{ width:"100%", height:"100%", objectFit:"cover",
+                             display:"block", mixBlendMode:"multiply" }}/>
+                ) : dPet ? (
+                  <span style={{ fontSize:26 }}>{avatarForBreed(dPet.breed, dPet.pet_type)}</span>
+                ) : (
+                  <Dog size={28} color={GREEN} strokeWidth={1.4}/>
+                )}
+              </div>
+              <div style={{ flex:1 }}>
+                {dPet && <div style={{ fontSize:12, color:GREEN, fontWeight:700, marginBottom:3 }}>{dPet.name}</div>}
+                <div style={{ fontSize:20, fontWeight:800, color:TEXT }}>{d.disease_name}</div>
+                <span style={{ fontSize:12, fontWeight:700, padding:"3px 10px", borderRadius:999,
+                               background:st.bg, color:st.color }}>
+                  {st.label}
+                </span>
+              </div>
+            </div>
+
+            {/* 日期行 */}
+            <div style={{ display:"flex", gap:10, marginTop:14 }}>
+              {[
+                { label:"诊断日期", val: fmtFull(d.diagnosis_date) || "未设置" },
+                { label:"康复日期", val: d.recovery_date ? fmtFull(d.recovery_date) : "未设置" },
+              ].map(({label,val}) => (
+                <div key={label} style={{ flex:1, background:"rgba(236,238,232,0.6)",
+                                          borderRadius:14, padding:"10px 12px" }}>
+                  <div style={{ fontSize:10, color:SUB, marginBottom:3 }}>{label}</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:TEXT }}>{val}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 症状 */}
+          {d.symptoms && (
+            <DetailCard title="症状描述">
+              <div style={{ fontSize:14, color:TEXT, lineHeight:1.7 }}>{d.symptoms}</div>
+            </DetailCard>
+          )}
+
+          {/* 状态说明 */}
+          <DetailCard title="状态">
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <span style={{ fontSize:16, fontWeight:700, color:st.color }}>{st.label}</span>
+              <span style={{ fontSize:12, color:SUB }}>
+                {d.status === "treating"
+                  ? "正在治疗中，请按时用药并观察宠物状态。"
+                  : "宠物已恢复，建议继续观察饮食和精神状态。"}
+              </span>
+            </div>
+          </DetailCard>
+
+          {/* 治疗方案 */}
+          {d.treatment_plan && (
+            <DetailCard title="治疗方案 / 备注">
+              <div style={{ fontSize:14, color:TEXT, lineHeight:1.7 }}>{d.treatment_plan}</div>
+            </DetailCard>
+          )}
+
+          {/* 用药信息 */}
+          <div style={{ background:"rgba(255,255,255,0.62)", borderRadius:24, padding:"16px 18px",
+                        boxShadow:"0 6px 20px rgba(0,0,0,0.05)", border:"1px solid rgba(255,255,255,0.65)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+              <HTitle noMargin>用药信息</HTitle>
+              <button onClick={() => setEditMedOpen(true)}
+                style={{ fontSize:12, fontWeight:700, color:GREEN, background:"transparent",
+                         border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                <Pencil size={12} color={GREEN}/> {hasMed ? "编辑用药" : "添加用药"}
+              </button>
+            </div>
+            {hasMed ? (
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {[
+                  { l:"药物名称", v:d.medicine_name },
+                  { l:"剂量",     v:d.medicine_dosage },
+                  { l:"频率",     v:d.medicine_frequency },
+                  { l:"用药周期", v: [fmtShort(d.medicine_start_date), fmtShort(d.medicine_end_date)].filter(Boolean).join(" - ") || null },
+                  { l:"提醒时间", v: medRemindLabel },
+                  { l:"提醒状态", v: d.medicine_reminder_enabled ? "已开启提醒" : "未开启提醒" },
+                  { l:"用药备注", v: d.medicine_notes },
+                ].filter(({v}) => v).map(({l,v}) => (
+                  <div key={l} style={{ display:"flex", gap:10 }}>
+                    <div style={{ fontSize:12, color:SUB, minWidth:64, paddingTop:2 }}>{l}</div>
+                    <div style={{ fontSize:14, fontWeight:600, color:TEXT, flex:1 }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign:"center", padding:"16px 0",
+                            display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
+                <Pill size={28} color="rgba(95,167,102,0.35)" strokeWidth={1.5}/>
+                <div style={{ fontSize:13, color:"#9A9188" }}>还没有用药记录</div>
+                <button onClick={() => setEditMedOpen(true)}
+                  style={{ fontSize:13, fontWeight:700, color:GREEN, background:"transparent",
+                           border:"none", cursor:"pointer" }}>
+                  + 添加用药
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* 相关记录时间线 */}
+          {localTimeline.length > 0 && (
+            <div style={{ background:"rgba(255,255,255,0.62)", borderRadius:24, padding:"16px 18px",
+                          boxShadow:"0 6px 20px rgba(0,0,0,0.05)", border:"1px solid rgba(255,255,255,0.65)" }}>
+              <HTitle>相关记录</HTitle>
+              {localTimeline.map((item, i) => (
+                <div key={i} style={{ display:"flex", gap:12, paddingBottom:12, position:"relative" }}>
+                  {i < localTimeline.length - 1 && (
+                    <div style={{ position:"absolute", left:11, top:24, bottom:0, width:2,
+                                  background:"rgba(95,167,102,0.2)" }}/>
+                  )}
+                  <div style={{ width:24, height:24, borderRadius:999,
+                                background:"rgba(95,167,102,0.12)",
+                                flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>
+                    {item.icon}
+                  </div>
+                  <div style={{ flex:1, paddingTop:3 }}>
+                    <div style={{ fontSize:10, color:SUB, marginBottom:2 }}>{fmtFull(item.date)}</div>
+                    <div style={{ fontSize:13, fontWeight:600, color:TEXT }}>{item.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 关闭按钮 */}
+          <button onClick={onClose}
+            style={{ width:"100%", height:52, borderRadius:18,
+                     background:`linear-gradient(135deg,${GREEN},#74C37B)`,
+                     color:"white", border:"none", cursor:"pointer",
+                     fontSize:16, fontWeight:700,
+                     boxShadow:"0 8px 18px rgba(95,167,102,0.25)" }}>
+            关闭
+          </button>
+        </div>
+      </div>
+
+      {/* 编辑用药弹窗 */}
+      {editMedOpen && (
+        <EditMedicationModal
+          disease={d}
+          user={user}
+          onClose={() => setEditMedOpen(false)}
+          onSaved={(updated) => { setD(updated); setEditMedOpen(false); onUpdated?.(updated); }}/>
+      )}
+    </div>
+  );
+}
+
+function DetailCard({ title, children }) {
+  return (
+    <div style={{ background:"rgba(255,255,255,0.62)", borderRadius:20, padding:"14px 18px",
+                  boxShadow:"0 6px 20px rgba(0,0,0,0.05)", border:"1px solid rgba(255,255,255,0.65)" }}>
+      <div style={{ fontSize:13, fontWeight:700, color:SUB, marginBottom:8 }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+/* ══ EditMedicationModal ════════════════════════ */
+function EditMedicationModal({ disease: d, user, onClose, onSaved }) {
+  const [med, setMed] = useState({
+    name:            d.medicine_name             || "",
+    dosage:          d.medicine_dosage           || "",
+    frequency:       d.medicine_frequency        || "",
+    startDate:       d.medicine_start_date       || "",
+    endDate:         d.medicine_end_date         || "",
+    time:            d.medicine_reminder_time ? String(d.medicine_reminder_time).slice(0,5) : "",
+    reminderEnabled: !!d.medicine_reminder_enabled,
+    notes:           d.medicine_notes           || "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [err,    setErr]    = useState(null);
+
+  const handleSave = async () => {
+    setErr(null); setSaving(true);
+    try {
+      const updated = await updateDiseaseRecord(d.id, user.id, {
+        medicine_name:             med.name     || null,
+        medicine_dosage:           med.dosage   || null,
+        medicine_frequency:        med.frequency || null,
+        medicine_start_date:       med.startDate || null,
+        medicine_end_date:         med.endDate   || null,
+        medicine_reminder_time:    med.time      || null,
+        medicine_reminder_enabled: med.reminderEnabled,
+        medicine_notes:            med.notes    || null,
+      });
+      onSaved(updated);
+    } catch (e) { setErr(e.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div onClick={(e) => e.target === e.currentTarget && onClose()}
+      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:1100,
+               display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div style={{ width:"100%", maxWidth:430, background:"#ECEEE8",
+                    borderRadius:"28px 28px 0 0", maxHeight:"88vh", overflowY:"auto",
+                    paddingBottom:"env(safe-area-inset-bottom, 20px)" }}>
+        <div style={{ display:"flex", justifyContent:"center", paddingTop:14, paddingBottom:8 }}>
+          <div style={{ width:48, height:5, borderRadius:999, background:"#D0CFC9" }}/>
+        </div>
+        <div style={{ fontSize:18, fontWeight:800, color:TEXT, padding:"0 20px 16px" }}>
+          {d.medicine_name ? "编辑用药信息" : "添加用药信息"}
+        </div>
+        <div style={{ padding:"0 16px 24px", display:"flex", flexDirection:"column", gap:14 }}>
+          <MedicineFields med={med} setMed={setMed}/>
+          {err && <div style={{ color:"#D94040", fontSize:13, textAlign:"center" }}>❌ {err}</div>}
+          <div style={{ display:"flex", gap:12 }}>
+            <button onClick={onClose}
+              style={{ flex:1, height:54, borderRadius:18, fontSize:16, fontWeight:700,
+                       background:"rgba(255,255,255,0.75)", color:TEXT,
+                       border:"1px solid rgba(138,123,106,0.16)", cursor:"pointer" }}>
+              取消
+            </button>
+            <button onClick={handleSave} disabled={saving}
+              style={{ flex:1, height:54, borderRadius:18, fontSize:16, fontWeight:700,
+                       background: saving ? "#D6D5D8" : `linear-gradient(135deg,${GREEN},#74C37B)`,
+                       color:"white", border:"none", cursor: saving ? "default" : "pointer",
+                       boxShadow: saving ? "none" : "0 8px 18px rgba(95,167,102,0.22)" }}>
+              {saving ? "保存中…" : "保存"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══ AddRecordModal (vaccine/deworm/checkup) ════ */
 function AddRecordModal({ user, pet, onClose, onAdded }) {
   const [recordType,  setRecordType]  = useState("vaccine");
   const [title,       setTitle]       = useState("");
@@ -529,8 +1160,7 @@ function AddRecordModal({ user, pet, onClose, onAdded }) {
   return (
     <Sheet onClose={onClose}>
       <div style={{ padding:"12px 20px 24px" }}>
-        <div style={{ fontSize:20, fontWeight:800, color:TEXT, marginBottom:16 }}>新增健康记录</div>
-        <SLabel>类型</SLabel>
+        <div style={{ fontSize:18, fontWeight:800, color:TEXT, marginBottom:16 }}>新增健康记录</div>
         <div style={{ display:"flex", gap:8, marginBottom:16 }}>
           {RECORD_TYPES.map((t) => (
             <button key={t.key} onClick={() => setRecordType(t.key)}
@@ -552,491 +1182,30 @@ function AddRecordModal({ user, pet, onClose, onAdded }) {
         <SLabel>下次提醒（可选）</SLabel>
         <input type="date" value={nextDueDate} onChange={(e) => setNextDueDate(e.target.value)} style={iStyle()}/>
         <SLabel>备注（可选）</SLabel>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3}
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2}
           placeholder="医院、剂量等" style={{ ...iStyle(), resize:"none" }}/>
         {err && <div style={{ color:"#D94040", fontSize:12, marginBottom:8 }}>❌ {err}</div>}
-        <BtnRow onCancel={onClose} onSave={handleSave} saving={saving}/>
-      </div>
-    </Sheet>
-  );
-}
-
-/* ── AddDiseaseModal — iOS Premium 淡绿风格 ── */
-function AddDiseaseModal({ user, pet, pets = [], onClose, onAdded, onError }) {
-  // 默认选中当前 pet，找不到时选第一只
-  const defaultPet = pets.find((p) => p.id === pet?.id) || pets[0] || pet;
-  const [selPetId, setSelPetId] = useState(defaultPet?.id || "");
-  const [name,     setName]     = useState("");
-  const [syms,     setSyms]     = useState("");
-  const [status,   setStatus]   = useState("treating");
-  const [diag,     setDiag]     = useState(new Date().toISOString().slice(0, 10));
-  const [recov,    setRecov]    = useState("");
-  const [note,     setNote]     = useState("");
-  const [saving,   setSaving]   = useState(false);
-  const [err,      setErr]      = useState(null);
-  const diagRef  = useRef(null);
-  const recovRef = useRef(null);
-
-  const canSave  = !!selPetId && name.trim().length > 0 && !saving;
-  const allPets  = pets.length > 0 ? pets : (pet ? [pet] : []);
-
-  const handleSave = async () => {
-    if (!selPetId) { setErr("请选择宠物"); return; }
-    if (!name.trim()) { setErr("请填写疾病名称"); return; }
-    setErr(null); setSaving(true);
-    try {
-      await addDiseaseRecord({
-        userId:       user.id,
-        petId:        selPetId,
-        diseaseName:  name,
-        symptoms:     syms,
-        status,
-        diagnosisDate: diag,
-        recoveryDate:  recov || null,
-        notes:         note,
-      });
-      onAdded();
-    } catch (e) {
-      const msg = e.message || "保存失败，请重试";
-      setErr(msg);
-      onError?.(msg);
-    }
-    finally { setSaving(false); }
-  };
-
-  const CARD_BG = {
-    background:"rgba(255,255,255,0.62)", borderRadius:28,
-    padding:20,
-    boxShadow:"0 8px 24px rgba(0,0,0,0.06)",
-    border:"1px solid rgba(255,255,255,0.65)",
-  };
-
-  const field = (focus, blur) => ({
-    width:"100%", background:"rgba(255,255,255,0.72)",
-    border:"1px solid rgba(138,123,106,0.18)",
-    borderRadius:18, padding:"14px 16px",
-    fontSize:16, color:"#1F1F1F",
-    outline:"none", boxSizing:"border-box",
-    fontFamily:"inherit", transition:"border .15s",
-    onFocus: focus, onBlur: blur,
-  });
-
-  const onFocus  = (e) => { e.target.style.border = `1px solid ${GREEN}`; e.target.style.boxShadow = `0 0 0 3px rgba(95,167,102,0.12)`; };
-  const onBlur_  = (e) => { e.target.style.border = "1px solid rgba(138,123,106,0.18)"; e.target.style.boxShadow = "none"; };
-
-  return (
-    <div onClick={(e) => e.target === e.currentTarget && onClose()}
-      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:1000,
-               display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ width:"100%", maxWidth:430, background:"#ECEEE8",
-                    borderRadius:"32px 32px 0 0", maxHeight:"94vh", overflowY:"auto",
-                    paddingBottom:"env(safe-area-inset-bottom, 20px)" }}>
-
-        {/* 拖拽条 */}
-        <div style={{ display:"flex", justifyContent:"center", paddingTop:14, paddingBottom:6 }}>
-          <div style={{ width:64, height:6, borderRadius:999, background:"#D8D5D2" }}/>
-        </div>
-
-        {/* Header */}
-        <div style={{ display:"flex", alignItems:"center", padding:"8px 20px 16px" }}>
+        <div style={{ display:"flex", gap:10 }}>
           <button onClick={onClose}
-            style={{ width:48, height:48, borderRadius:999, background:"white",
-                     border:"none", cursor:"pointer", marginRight:14, flexShrink:0,
-                     display:"flex", alignItems:"center", justifyContent:"center",
-                     boxShadow:"0 6px 16px rgba(0,0,0,0.05)" }}>
-            <ChevronLeft size={22} color="#1A1006" strokeWidth={2.5}/>
+            style={{ flex:1, height:50, borderRadius:14, fontSize:14, fontWeight:600,
+                     background:"white", color:TEXT, border:"1px solid #D6D5D8", cursor:"pointer" }}>
+            取消
           </button>
-          <HeartPulse size={26} color={GREEN} strokeWidth={1.8} style={{ marginRight:8, flexShrink:0 }}/>
-          <span style={{ fontSize:28, fontWeight:800, color:"#1F1F1F" }}>新增疾病记录</span>
+          <button onClick={handleSave} disabled={saving}
+            style={{ flex:1, height:50, borderRadius:14, fontSize:14, fontWeight:700,
+                     background: saving ? "#D6D5D8" : GREEN, color:"white",
+                     border:"none", cursor: saving ? "default" : "pointer" }}>
+            {saving ? "保存中…" : "保存"}
+          </button>
         </div>
-
-        <div style={{ padding:"0 16px 28px", display:"flex", flexDirection:"column", gap:16 }}>
-          <div style={{ ...CARD_BG, display:"flex", flexDirection:"column", gap:22 }}>
-
-            {/* ── 选择宠物 ── */}
-            <div>
-              <FTitle>选择宠物</FTitle>
-              <div style={{ display:"flex", gap:12, overflowX:"auto",
-                            scrollbarWidth:"none", WebkitOverflowScrolling:"touch",
-                            paddingBottom:4 }}>
-                {allPets.map((p) => {
-                  const sel = p.id === selPetId;
-                  const avatarSrc = p.pet_avatar_thumb_url || p.ai_avatar_url || null;
-                  const age = formatPetAge(p.birthday) || (p.age ? `${p.age}岁` : "");
-                  return (
-                    <button key={p.id} onClick={() => setSelPetId(p.id)}
-                      style={{ flex:"0 0 auto", width:150, height:84, borderRadius:20,
-                               padding:12, background: sel ? "rgba(95,167,102,0.10)" : "rgba(255,255,255,0.55)",
-                               border: sel ? `2px solid ${GREEN}` : "1px solid rgba(138,123,106,0.14)",
-                               cursor:"pointer", textAlign:"left", position:"relative",
-                               display:"flex", alignItems:"center", gap:10,
-                               transition:"all .15s" }}>
-                      {/* 头像 */}
-                      <div style={{ width:48, height:48, borderRadius:999, flexShrink:0,
-                                    overflow:"hidden", background:"rgba(236,238,232,0.8)" }}>
-                        {avatarSrc ? (
-                          <img src={avatarSrc} alt={p.name}
-                            style={{ width:"100%", height:"100%", objectFit:"cover", display:"block",
-                                     mixBlendMode:"multiply" }}/>
-                        ) : (
-                          <div style={{ width:"100%", height:"100%", display:"flex",
-                                        alignItems:"center", justifyContent:"center", fontSize:22 }}>
-                            {avatarForBreed(p.breed, p.pet_type)}
-                          </div>
-                        )}
-                      </div>
-                      {/* 文字 */}
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:15, fontWeight:800, color:"#1F1F1F",
-                                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                          {p.name}
-                        </div>
-                        <div style={{ fontSize:12, color:"#8A9188", marginTop:2,
-                                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                          {[p.breed, age].filter(Boolean).join(" · ")}
-                        </div>
-                      </div>
-                      {/* 选中勾 */}
-                      {sel && (
-                        <div style={{ position:"absolute", top:8, right:8,
-                                      width:26, height:26, borderRadius:999,
-                                      background:GREEN, display:"flex",
-                                      alignItems:"center", justifyContent:"center" }}>
-                          <Check size={14} color="white" strokeWidth={3}/>
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-                {/* 添加宠物占位 */}
-                <div style={{ flex:"0 0 auto", width:120, height:84, borderRadius:20,
-                              border:`1.5px dashed rgba(95,167,102,0.5)`,
-                              display:"flex", flexDirection:"column",
-                              alignItems:"center", justifyContent:"center", gap:6,
-                              opacity:0.65 }}>
-                  <div style={{ width:32, height:32, borderRadius:999,
-                                border:`1.5px dashed ${GREEN}`,
-                                display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <Plus size={16} color={GREEN}/>
-                  </div>
-                  <span style={{ fontSize:11, color:GREEN, fontWeight:600 }}>添加宠物</span>
-                </div>
-              </div>
-            </div>
-
-            {/* ── 疾病名称 ── */}
-            <div>
-              <FTitle>疾病名称 *</FTitle>
-              <input value={name} onChange={(e) => setName(e.target.value)}
-                placeholder="例如：肠胃炎、皮肤病等" maxLength={50}
-                onFocus={onFocus} onBlur={onBlur_}
-                style={{ width:"100%", background:"rgba(255,255,255,0.72)",
-                         border:"1px solid rgba(138,123,106,0.18)",
-                         borderRadius:18, padding:"14px 16px",
-                         fontSize:16, color:"#1F1F1F", outline:"none",
-                         boxSizing:"border-box", fontFamily:"inherit" }}/>
-            </div>
-
-            {/* ── 症状描述 ── */}
-            <div>
-              <FTitle>症状描述 *</FTitle>
-              <div style={{ position:"relative" }}>
-                <textarea value={syms} onChange={(e) => setSyms(e.target.value.slice(0,200))}
-                  placeholder="请详细描述宠物的症状表现..." rows={4}
-                  onFocus={onFocus} onBlur={onBlur_}
-                  style={{ width:"100%", background:"rgba(255,255,255,0.72)",
-                           border:"1px solid rgba(138,123,106,0.18)",
-                           borderRadius:18, padding:"14px 16px",
-                           fontSize:16, color:"#1F1F1F", outline:"none",
-                           resize:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
-                <div style={{ position:"absolute", bottom:10, right:14,
-                              fontSize:12, color:"#9A9188" }}>{syms.length}/200</div>
-              </div>
-            </div>
-
-            {/* ── 状态 ── */}
-            <div>
-              <FTitle>状态 *</FTitle>
-              <div style={{ display:"flex", gap:10 }}>
-                {[{k:"treating",label:"治疗中"},{k:"recovered",label:"已康复"}].map(({k,label}) => (
-                  <button key={k} onClick={() => setStatus(k)}
-                    style={{ flex:1, height:56, borderRadius:18, fontSize:16, fontWeight:700,
-                             background: status===k ? GREEN : "rgba(255,255,255,0.72)",
-                             color: status===k ? "white" : "#1F1F1F",
-                             border: status===k ? "none" : "1px solid rgba(138,123,106,0.18)",
-                             cursor:"pointer", transition:"all .15s",
-                             boxShadow: status===k ? `0 6px 16px rgba(95,167,102,0.25)` : "none" }}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* ── 日期 ── */}
-            <div style={{ display:"flex", gap:12 }}>
-              <div style={{ flex:1 }}>
-                <FTitle>诊断日期 *</FTitle>
-                <div style={{ position:"relative" }}>
-                  <button onClick={() => diagRef.current?.showPicker?.() || diagRef.current?.click()}
-                    style={{ width:"100%", height:56, borderRadius:18,
-                             background:"rgba(255,255,255,0.72)",
-                             border:"1px solid rgba(138,123,106,0.18)",
-                             padding:"0 14px", display:"flex", alignItems:"center", gap:8,
-                             cursor:"pointer", boxSizing:"border-box" }}>
-                    <Calendar size={16} color="#8A7B6A" strokeWidth={1.8} style={{ flexShrink:0 }}/>
-                    <span style={{ flex:1, textAlign:"left", fontSize:14, fontWeight:600, color:"#1F1F1F" }}>
-                      {diag.replace(/-/g,"/")}
-                    </span>
-                    <ChevronRight size={14} color="#2B2B2B"/>
-                  </button>
-                  <input ref={diagRef} type="date" value={diag}
-                    onChange={(e) => setDiag(e.target.value)}
-                    style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer", zIndex:1 }}/>
-                </div>
-              </div>
-              <div style={{ flex:1 }}>
-                <FTitle>康复日期（可选）</FTitle>
-                <div style={{ position:"relative" }}>
-                  <button onClick={() => recovRef.current?.showPicker?.() || recovRef.current?.click()}
-                    style={{ width:"100%", height:56, borderRadius:18,
-                             background:"rgba(255,255,255,0.72)",
-                             border:"1px solid rgba(138,123,106,0.18)",
-                             padding:"0 14px", display:"flex", alignItems:"center", gap:8,
-                             cursor:"pointer", boxSizing:"border-box" }}>
-                    <Calendar size={16} color="#8A7B6A" strokeWidth={1.8} style={{ flexShrink:0 }}/>
-                    <span style={{ flex:1, textAlign:"left", fontSize:14,
-                                   color: recov ? "#1F1F1F" : "#9A9188" }}>
-                      {recov ? recov.replace(/-/g,"/") : "选择康复日期"}
-                    </span>
-                    <ChevronRight size={14} color="#2B2B2B"/>
-                  </button>
-                  <input ref={recovRef} type="date" value={recov}
-                    onChange={(e) => setRecov(e.target.value)}
-                    style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer", zIndex:1 }}/>
-                </div>
-              </div>
-            </div>
-
-            {/* ── 备注 ── */}
-            <div>
-              <FTitle>备注（可选）</FTitle>
-              <div style={{ position:"relative" }}>
-                <textarea value={note} onChange={(e) => setNote(e.target.value.slice(0,200))}
-                  placeholder="治疗方案、用药情况、注意事项等..." rows={3}
-                  onFocus={onFocus} onBlur={onBlur_}
-                  style={{ width:"100%", background:"rgba(255,255,255,0.72)",
-                           border:"1px solid rgba(138,123,106,0.18)",
-                           borderRadius:18, padding:"14px 16px",
-                           fontSize:16, color:"#1F1F1F", outline:"none",
-                           resize:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
-                <div style={{ position:"absolute", bottom:10, right:14,
-                              fontSize:12, color:"#9A9188" }}>{note.length}/200</div>
-              </div>
-            </div>
-          </div>
-
-          {err && <div style={{ color:"#D94040", fontSize:13, textAlign:"center" }}>❌ {err}</div>}
-
-          {/* 底部按钮 */}
-          <div style={{ display:"flex", gap:14 }}>
-            <button onClick={onClose}
-              style={{ flex:1, height:60, borderRadius:20, fontSize:18, fontWeight:800,
-                       background:"rgba(255,255,255,0.75)", color:"#1F1F1F",
-                       border:"1px solid rgba(138,123,106,0.16)", cursor:"pointer" }}>
-              取消
-            </button>
-            <button onClick={handleSave} disabled={!canSave}
-              style={{ flex:1, height:60, borderRadius:20, fontSize:18, fontWeight:800,
-                       background: canSave
-                         ? `linear-gradient(135deg, ${GREEN}, #74C37B)` : "#D6D5D8",
-                       color:"white", border:"none",
-                       cursor: canSave ? "pointer" : "default",
-                       boxShadow: canSave ? "0 10px 20px rgba(95,167,102,0.22)" : "none",
-                       transition:"all .15s" }}>
-              {saving ? "保存中…" : "保存"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Section field title with green dot ── */
-function FTitle({ children }) {
-  return (
-    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
-      <div style={{ width:7, height:7, borderRadius:999, background:GREEN, flexShrink:0 }}/>
-      <span style={{ fontSize:16, fontWeight:700, color:"#1F1F1F" }}>{children}</span>
-    </div>
-  );
-}
-
-/* ── AddMedicationModal ── */
-function AddMedicationModal({ user, pet, onClose, onAdded }) {
-  const [name,  setName]  = useState("");
-  const [dose,  setDose]  = useState("");
-  const [freq,  setFreq]  = useState("");
-  const [start, setStart] = useState(new Date().toISOString().slice(0, 10));
-  const [end,   setEnd]   = useState("");
-  const [time,  setTime]  = useState("");
-  const [note,  setNote]  = useState("");
-  const [saving,setSaving] = useState(false);
-  const [err,   setErr]   = useState(null);
-
-  const handleSave = async () => {
-    if (!name.trim()) { setErr("请填写药物名称"); return; }
-    setErr(null); setSaving(true);
-    try {
-      await addMedicationReminder({ userId:user.id, petId:pet.id, medicineName:name,
-                                    dosage:dose, frequency:freq, startDate:start,
-                                    endDate:end||null, nextReminderTime:time||null, notes:note });
-      onAdded();
-    } catch (e) { setErr(e.message); }
-    finally { setSaving(false); }
-  };
-
-  return (
-    <Sheet onClose={onClose}>
-      <div style={{ padding:"12px 20px 24px" }}>
-        <div style={{ fontSize:20, fontWeight:800, color:TEXT, marginBottom:16 }}>新增用药提醒</div>
-        <SLabel>药物名称 *</SLabel>
-        <input value={name} onChange={(e) => setName(e.target.value)}
-          placeholder="例：蒙脱石散" maxLength={50} style={iStyle()}/>
-        <div style={{ display:"flex", gap:10 }}>
-          <div style={{ flex:1 }}>
-            <SLabel>剂量</SLabel>
-            <input value={dose} onChange={(e) => setDose(e.target.value)}
-              placeholder="每次1包" style={iStyle()}/>
-          </div>
-          <div style={{ flex:1 }}>
-            <SLabel>频率</SLabel>
-            <input value={freq} onChange={(e) => setFreq(e.target.value)}
-              placeholder="每日2次" style={iStyle()}/>
-          </div>
-        </div>
-        <div style={{ display:"flex", gap:10 }}>
-          <div style={{ flex:1 }}>
-            <SLabel>开始日期</SLabel>
-            <input type="date" value={start} onChange={(e) => setStart(e.target.value)} style={iStyle()}/>
-          </div>
-          <div style={{ flex:1 }}>
-            <SLabel>结束日期</SLabel>
-            <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} style={iStyle()}/>
-          </div>
-        </div>
-        <SLabel>提醒时间（可选）</SLabel>
-        <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={iStyle()}/>
-        <SLabel>备注</SLabel>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2}
-          placeholder="注意事项等" style={{ ...iStyle(), resize:"none" }}/>
-        {err && <div style={{ color:"#D94040", fontSize:12, marginBottom:8 }}>❌ {err}</div>}
-        <BtnRow onCancel={onClose} onSave={handleSave} saving={saving} green/>
       </div>
     </Sheet>
-  );
-}
-
-/* ── DiseaseDetailSheet ── */
-function DiseaseDetailSheet({ disease: d, onClose, onDelete }) {
-  const st = DISEASE_STATUS[d.status] || DISEASE_STATUS.treating;
-  return (
-    <Sheet onClose={onClose}>
-      <div style={{ padding:"12px 20px 28px" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18 }}>
-          <div>
-            <div style={{ fontSize:22, fontWeight:800, color:TEXT }}>{d.disease_name}</div>
-            <span style={{ fontSize:12, fontWeight:700, padding:"3px 10px", borderRadius:999,
-                           background:st.bg, color:st.color }}>
-              {st.label}
-            </span>
-          </div>
-          <button onClick={onDelete}
-            style={{ background:"transparent", border:"none", cursor:"pointer",
-                     color:"#C5B9B0", fontSize:18, padding:4 }}>🗑</button>
-        </div>
-        {d.symptoms && <DetailRow label="症状" value={d.symptoms}/>}
-        <DetailRow label="诊断日期" value={fmtFull(d.diagnosis_date)}/>
-        {d.recovery_date && <DetailRow label="康复日期" value={fmtFull(d.recovery_date)}/>}
-        {d.notes && <DetailRow label="备注" value={d.notes}/>}
-        <button onClick={onClose}
-          style={{ width:"100%", marginTop:16, height:52, borderRadius:16,
-                   background:`linear-gradient(135deg, ${GREEN}, #7BC985)`,
-                   color:"white", border:"none", cursor:"pointer",
-                   fontSize:16, fontWeight:700,
-                   boxShadow:"0 8px 18px rgba(95,167,102,0.25)" }}>
-          关闭
-        </button>
-      </div>
-    </Sheet>
-  );
-}
-
-/* ── MedicationDetailSheet ── */
-function MedicationDetailSheet({ med: m, onClose, onDelete }) {
-  return (
-    <Sheet onClose={onClose}>
-      <div style={{ padding:"12px 20px 28px" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18 }}>
-          <div style={{ fontSize:22, fontWeight:800, color:TEXT }}>{m.medicine_name}</div>
-          <button onClick={onDelete}
-            style={{ background:"transparent", border:"none", cursor:"pointer",
-                     color:"#C5B9B0", fontSize:18, padding:4 }}>🗑</button>
-        </div>
-        {m.dosage    && <DetailRow label="剂量"   value={m.dosage}/>}
-        {m.frequency && <DetailRow label="频率"   value={m.frequency}/>}
-        <DetailRow label="开始日期" value={fmtFull(m.start_date)}/>
-        {m.end_date  && <DetailRow label="结束日期" value={fmtFull(m.end_date)}/>}
-        {m.next_reminder_time && <DetailRow label="提醒时间" value={fmtTime(m.next_reminder_time)}/>}
-        {m.notes     && <DetailRow label="备注"   value={m.notes}/>}
-        <button onClick={onClose}
-          style={{ width:"100%", marginTop:16, height:52, borderRadius:16,
-                   background:`linear-gradient(135deg, ${GREEN}, #7BC985)`,
-                   color:"white", border:"none", cursor:"pointer",
-                   fontSize:16, fontWeight:700,
-                   boxShadow:"0 8px 18px rgba(95,167,102,0.25)" }}>
-          关闭
-        </button>
-      </div>
-    </Sheet>
-  );
-}
-
-/* ── tiny helpers ── */
-function DetailRow({ label, value }) {
-  return (
-    <div style={{ marginBottom:14 }}>
-      <div style={{ fontSize:11, color:SUB, marginBottom:3, fontWeight:600 }}>{label}</div>
-      <div style={{ fontSize:14, color:TEXT, lineHeight:1.6 }}>{value}</div>
-    </div>
-  );
-}
-
-function BtnRow({ onCancel, onSave, saving, green }) {
-  const activeColor = green
-    ? `linear-gradient(135deg, ${GREEN}, #7BC985)`
-    : `linear-gradient(135deg, ${PRI}, #F09A5B)`;
-  return (
-    <div style={{ display:"flex", gap:10, marginTop:6 }}>
-      <button onClick={onCancel}
-        style={{ flex:1, height:52, borderRadius:16, fontSize:15, fontWeight:700,
-                 background:"white", color:TEXT, border:"1px solid #D6D5D8", cursor:"pointer" }}>
-        取消
-      </button>
-      <button onClick={onSave} disabled={saving}
-        style={{ flex:1, height:52, borderRadius:16, fontSize:15, fontWeight:700,
-                 background: saving ? "#D6D5D8" : activeColor,
-                 color:"white", border:"none", cursor: saving ? "default" : "pointer" }}>
-        {saving ? "保存中…" : "保存"}
-      </button>
-    </div>
   );
 }
 
 function SLabel({ children }) {
   return <div style={{ fontSize:12, fontWeight:600, color:TEXT, marginBottom:6 }}>{children}</div>;
 }
-
 const iStyle = () => ({
   width:"100%", borderRadius:12, padding:"10px 12px", fontSize:14,
   border:"1.5px solid #D6D5D8", background:"white", color:TEXT,
