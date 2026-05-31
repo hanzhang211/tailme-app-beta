@@ -859,7 +859,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           onSaved={(updated) => { setAvatarOpen(false); onPetUpdate?.(updated); }}
         />
       )}
-      <div style={{ background:H_BG, padding:"52px 20px 36px",
+      <div style={{ background:H_BG, padding:"52px 20px 6px",
                     position:"relative", overflow:"hidden" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:22 }}>
           <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
@@ -1082,7 +1082,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
         </div>
       </div>
 
-      <div style={{ padding:"14px 14px 90px" }}>
+      <div style={{ padding:"6px 14px 90px" }}>
         {/* 宠物基础信息卡：品种 / 年龄 / 体重 / 性别（lucide icons） */}
         <div style={{ display:"flex", alignItems:"center", background:"white",
                       borderRadius:20, padding:"14px 6px", marginBottom:12,
