@@ -5,13 +5,37 @@
  * 保留全部逻辑，仅升级 UI
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   listExpenses, addExpense, deleteExpense,
   getMonthlyTotal, getYearlyTotal, getMonthlyByCategory,
   EXPENSE_CATEGORIES,
 } from "@/services/petExpenseService";
 import { AccountingIcon } from "@/components/icons/HomeModuleIcons";
+import {
+  PawPrint, Calendar, ChevronLeft, ChevronRight,
+  Syringe, ShieldCheck, Stethoscope, BriefcaseMedical,
+  HeartPulse, ShowerHead, Milk, Cookie, CircleDot,
+  PillBottle, Cable, ShieldPlus, House, GraduationCap, Ellipsis,
+} from "lucide-react";
+
+const CATEGORY_ICONS = {
+  "疫苗":       Syringe,
+  "驱虫药":     ShieldCheck,
+  "体检":       Stethoscope,
+  "看病/医疗":  BriefcaseMedical,
+  "绝育":       HeartPulse,
+  "洗澡美容":   ShowerHead,
+  "狗粮/猫粮":  Milk,
+  "零食":       Cookie,
+  "玩具":       CircleDot,
+  "用品":       PillBottle,
+  "牵引绳/衣服": Cable,
+  "保险":       ShieldPlus,
+  "寄养/托管":  House,
+  "训练课程":   GraduationCap,
+  "其他":       Ellipsis,
+};
 
 const BG   = "#F2E5DA";
 const PRI  = "#E68645";
@@ -196,7 +220,7 @@ export default function ExpensePage({ user, pets, onBack }) {
   );
 }
 
-/* ── AddExpenseModal (logic unchanged, minor style polish) ── */
+/* ── AddExpenseModal — iOS Premium 风格 ── */
 function AddExpenseModal({ user, pets, onClose, onAdded }) {
   const [amount,   setAmount]   = useState("");
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[6]);
@@ -205,6 +229,7 @@ function AddExpenseModal({ user, pets, onClose, onAdded }) {
   const [note,     setNote]     = useState("");
   const [saving,   setSaving]   = useState(false);
   const [err,      setErr]      = useState(null);
+  const dateRef = useRef(null);
 
   const handleSave = async () => {
     setErr(null); setSaving(true);
@@ -216,78 +241,202 @@ function AddExpenseModal({ user, pets, onClose, onAdded }) {
     finally { setSaving(false); }
   };
 
+  const fmtDisplayDate = (d) => {
+    if (!d) return "";
+    return d.replace(/-/g, "/");
+  };
+
+  const canSave = !!amount && !saving;
+
   return (
     <div onClick={(e) => e.target === e.currentTarget && onClose()}
-      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:1000,
+      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:1000,
                display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ width:"100%", maxWidth:430, background:"#EEE9E1",
-                    borderRadius:"22px 22px 0 0", padding:"18px 18px 28px",
-                    maxHeight:"80vh", overflowY:"auto" }}>
-        <div style={{ width:40, height:4, borderRadius:4, background:"#D6D5D8",
-                      margin:"0 auto 16px" }}/>
-        <div style={{ fontSize:17, fontWeight:800, color:TEXT, marginBottom:16 }}>新增记账</div>
+      <div style={{ width:"100%", maxWidth:430, background:"#F6F1EA",
+                    borderRadius:"32px 32px 0 0", maxHeight:"92vh", overflowY:"auto",
+                    paddingBottom:"env(safe-area-inset-bottom, 20px)" }}>
 
-        <Label>金额</Label>
-        <input type="number" inputMode="decimal" min="0" step="0.01"
-          value={amount} onChange={(e) => setAmount(e.target.value)}
-          placeholder="0.00" style={inputStyle()} />
-
-        <Label>分类</Label>
-        <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:14 }}>
-          {EXPENSE_CATEGORIES.map((c) => (
-            <button key={c} onClick={() => setCategory(c)}
-              style={{ padding:"6px 12px", borderRadius:14, fontSize:12,
-                       background: category === c ? PRI : "white",
-                       color: category === c ? "white" : TEXT,
-                       border:`1px solid ${category === c ? PRI : "#D6D5D8"}`,
-                       cursor:"pointer" }}>
-              {c}
-            </button>
-          ))}
+        {/* 拖拽条 */}
+        <div style={{ display:"flex", justifyContent:"center", paddingTop:14, paddingBottom:4 }}>
+          <div style={{ width:64, height:6, borderRadius:999, background:"#D8D5D2" }}/>
         </div>
 
-        <Label>日期</Label>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle()} />
-
-        {pets && pets.length > 1 && (
-          <>
-            <Label>关联宠物</Label>
-            <select value={petId} onChange={(e) => setPetId(e.target.value)} style={inputStyle()}>
-              <option value="">不指定</option>
-              {pets.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </>
-        )}
-
-        <Label>备注（可选）</Label>
-        <input value={note} onChange={(e) => setNote(e.target.value)}
-          placeholder="比如：某宠物医院体检" maxLength={200} style={inputStyle()} />
-
-        {err && <div style={{ color:"#D94040", fontSize:12, marginBottom:8 }}>❌ {err}</div>}
-        <div style={{ display:"flex", gap:10, marginTop:10 }}>
+        {/* Header */}
+        <div style={{ display:"flex", alignItems:"center", padding:"10px 20px 16px" }}>
           <button onClick={onClose}
-            style={{ flex:1, padding:"12px 0", borderRadius:14, fontSize:14, fontWeight:600,
-                     background:"white", color:TEXT, border:"1px solid #D6D5D8", cursor:"pointer" }}>
-            取消
+            style={{ width:48, height:48, borderRadius:999, background:"white",
+                     border:"none", cursor:"pointer", marginRight:14, flexShrink:0,
+                     display:"flex", alignItems:"center", justifyContent:"center",
+                     boxShadow:"0 6px 16px rgba(0,0,0,0.05)" }}>
+            <ChevronLeft size={22} color="#1A1006" strokeWidth={2.5}/>
           </button>
-          <button onClick={handleSave} disabled={saving || !amount}
-            style={{ flex:1, padding:"12px 0", borderRadius:14, fontSize:14, fontWeight:700,
-                     background: amount && !saving ? PRI : "#D6D5D8",
-                     color:"white", border:"none",
-                     cursor: amount && !saving ? "pointer" : "default" }}>
-            {saving ? "保存中..." : "保存"}
-          </button>
+          <PawPrint size={26} color="#8A7B6A" strokeWidth={1.8} style={{ marginRight:8, flexShrink:0 }}/>
+          <span style={{ fontSize:28, fontWeight:800, color:"#1F1F1F" }}>新增记账</span>
+        </div>
+
+        <div style={{ padding:"0 20px 24px", display:"flex", flexDirection:"column", gap:24 }}>
+
+          {/* 主卡片 */}
+          <div style={{ background:"rgba(255,255,255,0.62)", borderRadius:28,
+                        padding:20, boxShadow:"0 8px 24px rgba(0,0,0,0.06)",
+                        border:"1px solid rgba(255,255,255,0.65)",
+                        display:"flex", flexDirection:"column", gap:24 }}>
+
+            {/* ── 金额 ── */}
+            <div>
+              <SectionTitle>金额</SectionTitle>
+              <div style={{ position:"relative" }}>
+                <span style={{ position:"absolute", left:20, top:"50%", transform:"translateY(-50%)",
+                               fontSize:26, fontWeight:700, color:"#1F1F1F", pointerEvents:"none" }}>
+                  ¥
+                </span>
+                <input type="number" inputMode="decimal" min="0" step="0.01"
+                  value={amount} onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  style={{ width:"100%", height:72, borderRadius:20, paddingLeft:46, paddingRight:20,
+                           fontSize:30, fontWeight:700, color:"#1F1F1F",
+                           background:"rgba(255,255,255,0.72)",
+                           border:"1px solid rgba(138,123,106,0.22)",
+                           outline:"none", boxSizing:"border-box", fontFamily:"inherit",
+                           caretColor:"#E68645" }}
+                  onFocus={(e) => e.target.style.border = "1px solid #E68645"}
+                  onBlur={(e) => e.target.style.border = "1px solid rgba(138,123,106,0.22)"}
+                />
+              </div>
+            </div>
+
+            {/* ── 分类 ── */}
+            <div>
+              <SectionTitle>分类</SectionTitle>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
+                {EXPENSE_CATEGORIES.map((c) => {
+                  const Icon = CATEGORY_ICONS[c] || Ellipsis;
+                  const on = category === c;
+                  return (
+                    <button key={c} onClick={() => setCategory(c)}
+                      style={{ height:52, borderRadius:18, paddingLeft:14, paddingRight:16,
+                               display:"flex", alignItems:"center", gap:7,
+                               fontSize:15, fontWeight:600,
+                               background: on
+                                 ? "linear-gradient(135deg, #E68645, #F09A5B)"
+                                 : "rgba(255,255,255,0.62)",
+                               color: on ? "white" : "#2B2B2B",
+                               border: on ? "none" : "1px solid rgba(138,123,106,0.22)",
+                               cursor:"pointer",
+                               boxShadow: on ? "0 8px 18px rgba(230,134,69,0.24)" : "none",
+                               transition:"all .15s" }}>
+                      <Icon size={20} color={on ? "white" : "#8A7B6A"} strokeWidth={1.8}/>
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ── 日期 ── */}
+            <div>
+              <SectionTitle>日期</SectionTitle>
+              <div style={{ position:"relative" }}>
+                <button onClick={() => dateRef.current?.showPicker?.() || dateRef.current?.click()}
+                  style={{ width:"100%", height:64, borderRadius:20,
+                           background:"rgba(255,255,255,0.72)",
+                           border:"1px solid rgba(138,123,106,0.22)",
+                           padding:"0 20px", display:"flex", alignItems:"center", gap:12,
+                           cursor:"pointer", boxSizing:"border-box" }}>
+                  <Calendar size={20} color="#8A7B6A" strokeWidth={1.8} style={{ flexShrink:0 }}/>
+                  <span style={{ flex:1, textAlign:"left", fontSize:17, fontWeight:600,
+                                 color:"#1F1F1F" }}>
+                    {fmtDisplayDate(date)}
+                  </span>
+                  <ChevronRight size={18} color="#2B2B2B" strokeWidth={2}/>
+                </button>
+                <input ref={dateRef} type="date" value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer",
+                           zIndex:1, width:"100%", height:"100%" }}/>
+              </div>
+            </div>
+
+            {/* ── 关联宠物 ── */}
+            {pets && pets.length > 1 && (
+              <div>
+                <SectionTitle>关联宠物</SectionTitle>
+                <select value={petId} onChange={(e) => setPetId(e.target.value)}
+                  style={{ width:"100%", height:52, borderRadius:18,
+                           background:"rgba(255,255,255,0.72)",
+                           border:"1px solid rgba(138,123,106,0.22)",
+                           padding:"0 16px", fontSize:15, fontWeight:600, color:"#2B2B2B",
+                           outline:"none", boxSizing:"border-box", fontFamily:"inherit",
+                           appearance:"none" }}>
+                  <option value="">不指定</option>
+                  {pets.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+            )}
+
+            {/* ── 备注 ── */}
+            <div>
+              <SectionTitle>备注（可选）</SectionTitle>
+              <div style={{ position:"relative" }}>
+                <textarea value={note}
+                  onChange={(e) => setNote(e.target.value.slice(0, 100))}
+                  placeholder="比如：某宠物医院体检"
+                  rows={3}
+                  style={{ width:"100%", minHeight:92, borderRadius:20,
+                           background:"rgba(255,255,255,0.72)",
+                           border:"1px solid rgba(138,123,106,0.22)",
+                           padding:"18px 20px", fontSize:15, color:"#1F1F1F",
+                           outline:"none", boxSizing:"border-box", resize:"none",
+                           fontFamily:"inherit", lineHeight:1.6 }}
+                  onFocus={(e) => e.target.style.border = "1px solid #E68645"}
+                  onBlur={(e) => e.target.style.border = "1px solid rgba(138,123,106,0.22)"}
+                />
+                <div style={{ position:"absolute", bottom:10, right:14,
+                              fontSize:13, color:"#9A9188" }}>
+                  {note.length}/100
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 错误 */}
+          {err && <div style={{ color:"#D94040", fontSize:13, textAlign:"center" }}>❌ {err}</div>}
+
+          {/* 底部按钮 */}
+          <div style={{ display:"flex", gap:14 }}>
+            <button onClick={onClose}
+              style={{ flex:1, height:64, borderRadius:22, fontSize:20, fontWeight:700,
+                       background:"rgba(255,255,255,0.75)", color:"#1F1F1F",
+                       border:"1px solid rgba(138,123,106,0.16)", cursor:"pointer" }}>
+              取消
+            </button>
+            <button onClick={handleSave} disabled={!canSave}
+              style={{ flex:1, height:64, borderRadius:22, fontSize:20, fontWeight:700,
+                       background: canSave
+                         ? "linear-gradient(135deg, #E68645, #F09A5B)"
+                         : "#D6D5D8",
+                       color:"white", border:"none",
+                       cursor: canSave ? "pointer" : "default",
+                       boxShadow: canSave ? "0 10px 20px rgba(230,134,69,0.25)" : "none",
+                       transition:"all .15s" }}>
+              {saving ? "保存中…" : "保存"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-const inputStyle = () => ({
-  width:"100%", borderRadius:14, padding:"10px 12px", fontSize:14,
-  border:"1.5px solid #D6D5D8", background:"white", color:TEXT,
-  outline:"none", boxSizing:"border-box", marginBottom:14, fontFamily:"inherit",
-});
+/* ── Section title with orange dot ── */
+function SectionTitle({ children }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+      <div style={{ width:6, height:6, borderRadius:999, background:"#E68645", flexShrink:0 }}/>
+      <span style={{ fontSize:17, fontWeight:700, color:"#1F1F1F" }}>{children}</span>
+    </div>
+  );
+}
 
 function Label({ children }) {
   return <div style={{ fontSize:12, fontWeight:600, color:TEXT, marginBottom:6 }}>{children}</div>;
