@@ -60,6 +60,76 @@ export async function deleteHealthRecord(id, userId) {
   if (error) throw new Error(`删除失败: ${error.message}`);
 }
 
+/* ══ 生病记录（health_records 表）══════════════════════════════ */
+
+export async function listDiseaseRecords(petId) {
+  if (!petId) return [];
+  const { data, error } = await sb().from("health_records")
+    .select("*").eq("pet_id", petId)
+    .order("diagnosis_date", { ascending: false });
+  if (error) throw new Error(`获取疾病记录失败: ${error.message}`);
+  return data || [];
+}
+
+export async function addDiseaseRecord({ userId, petId, diseaseName, symptoms, status, diagnosisDate, recoveryDate, notes }) {
+  if (!userId || !petId) throw new Error("缺少 userId/petId");
+  const { data, error } = await sb().from("health_records").insert({
+    user_id:        userId,
+    pet_id:         petId,
+    disease_name:   diseaseName?.trim(),
+    symptoms:       symptoms?.trim() || null,
+    status:         status || "treating",
+    diagnosis_date: diagnosisDate || new Date().toISOString().slice(0, 10),
+    recovery_date:  recoveryDate || null,
+    notes:          notes?.trim() || null,
+  }).select().single();
+  if (error) throw new Error(`添加疾病记录失败: ${error.message}`);
+  return data;
+}
+
+export async function deleteDiseaseRecord(id, userId) {
+  if (!id || !userId) throw new Error("缺少参数");
+  const { error } = await sb().from("health_records")
+    .delete().eq("id", id).eq("user_id", userId);
+  if (error) throw new Error(`删除失败: ${error.message}`);
+}
+
+/* ══ 用药提醒（medication_reminders 表）══════════════════════════ */
+
+export async function listMedicationReminders(petId) {
+  if (!petId) return [];
+  const { data, error } = await sb().from("medication_reminders")
+    .select("*").eq("pet_id", petId)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(`获取用药记录失败: ${error.message}`);
+  return data || [];
+}
+
+export async function addMedicationReminder({ userId, petId, medicineName, dosage, frequency, startDate, endDate, nextReminderTime, notes }) {
+  if (!userId || !petId) throw new Error("缺少 userId/petId");
+  const { data, error } = await sb().from("medication_reminders").insert({
+    user_id:            userId,
+    pet_id:             petId,
+    medicine_name:      medicineName?.trim(),
+    dosage:             dosage?.trim() || null,
+    frequency:          frequency?.trim() || null,
+    start_date:         startDate || new Date().toISOString().slice(0, 10),
+    end_date:           endDate || null,
+    next_reminder_time: nextReminderTime || null,
+    is_active:          true,
+    notes:              notes?.trim() || null,
+  }).select().single();
+  if (error) throw new Error(`添加用药提醒失败: ${error.message}`);
+  return data;
+}
+
+export async function deleteMedicationReminder(id, userId) {
+  if (!id || !userId) throw new Error("缺少参数");
+  const { error } = await sb().from("medication_reminders")
+    .delete().eq("id", id).eq("user_id", userId);
+  if (error) throw new Error(`删除失败: ${error.message}`);
+}
+
 /** 更新宠物的 neutered / vaccinated 状态（pets 表） */
 export async function updatePetHealth(petId, userId, { neutered, vaccinated }) {
   if (!petId || !userId) throw new Error("updatePetHealth: 缺少参数");
