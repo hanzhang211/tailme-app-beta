@@ -90,7 +90,7 @@ export default function HealthPage({ user, pet, onPetUpdate, onBack }) {
                    fontSize:22, color:TEXT, display:"flex", alignItems:"center",
                    justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>‹</button>
         <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-          <HealthIcon size={20} color={TEXT} />
+          <HealthIcon size={32} color={TEXT} />
           <span style={{ fontSize:17, fontWeight:800, color:TEXT }}>宠物健康</span>
         </div>
         <button onClick={() => setAddOpen(true)} disabled={!pet?.id}
