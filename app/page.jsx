@@ -1028,21 +1028,21 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
         {/* 3 个入口卡：记账 / 食谱 / 健康 */}
         <div style={{ display:"flex", gap:12, marginBottom:12 }}>
           <HomeNavCard
-            icon={<AccountingIcon size={46} />} label="宠物记账"
+            icon={<AccountingIcon size={54} />} label="宠物记账"
             value={monthExpense == null ? "—" : `¥${Number(monthExpense).toFixed(0)}`}
             sub="本月" valueSize={30}
             bg="#F2E5DA" deco="paw"
             onClick={() => setSubPage("expenses")}
             H_SUB={H_SUB} text={C.text} />
           <HomeNavCard
-            icon={<RecipeIcon size={46} />} label="宠物食谱"
+            icon={<RecipeIcon size={54} />} label="宠物食谱"
             value={todayRecipe?.title || "看看推荐"}
             sub="今日推荐" valueSize={20}
             bg="#F4ECD9" deco="bowl"
             onClick={() => setSubPage("recipes")}
             H_SUB={H_SUB} text={C.text} />
           <HomeNavCard
-            icon={<HealthIcon size={46} />} label="宠物健康"
+            icon={<HealthIcon size={54} />} label="宠物健康"
             value={(pet?.neutered ? "已绝育" : "未绝育")}
             sub={pet?.vaccinated ? "疫苗齐全" : "疫苗待补"} valueSize={22}
             bg="#ECEEE8" deco="shield"
