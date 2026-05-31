@@ -975,26 +975,26 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           {/* AI 入口卡片：浮在宠物图右下角（手势 div 的兄弟节点，点击触发原 setAvatarOpen 逻辑） */}
           <button onClick={() => setAvatarOpen(true)}
             style={{ position:"absolute", right:0, bottom:4, zIndex:5,
-                     display:"flex", alignItems:"center", gap:10,
-                     minWidth:190, height:60, padding:"8px 14px 8px 8px",
+                     display:"flex", alignItems:"center", gap:7,
+                     minWidth:140, height:44, padding:"5px 10px 5px 5px",
                      background:"linear-gradient(135deg, #E68645, #F09A5B)",
                      border:"2px solid rgba(255,255,255,0.72)", borderRadius:999,
-                     boxShadow:"0 10px 24px rgba(230,134,69,0.26)",
+                     boxShadow:"0 6px 16px rgba(230,134,69,0.26)",
                      cursor:"pointer", textAlign:"left" }}>
-            <div style={{ width:44, height:44, borderRadius:"50%", flexShrink:0,
+            <div style={{ width:34, height:34, borderRadius:"50%", flexShrink:0,
                           background:"rgba(255,255,255,0.95)",
                           display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <Sparkles size={22} color="#E68645" strokeWidth={2} />
+              <Sparkles size={16} color="#E68645" strokeWidth={2} />
             </div>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:14, fontWeight:800, color:"white", lineHeight:1.2 }}>
-                {avatarSrc ? "我的 AI 形象" : "AI 生成 1:1 宠物形象"}
+              <div style={{ fontSize:12, fontWeight:800, color:"white", lineHeight:1.2 }}>
+                {avatarSrc ? "我的 AI 形象" : "AI 生成宠物形象"}
               </div>
-              <div style={{ fontSize:11, fontWeight:500, color:"rgba(255,255,255,0.88)", marginTop:2 }}>
-                {avatarSrc ? "查看专属 1:1 宠物" : "还原最可爱的它"}
+              <div style={{ fontSize:10, fontWeight:500, color:"rgba(255,255,255,0.88)", marginTop:1 }}>
+                {avatarSrc ? "查看专属宠物" : "还原最可爱的它"}
               </div>
             </div>
-            <ChevronRight size={18} color="rgba(255,255,255,0.9)" strokeWidth={2.5}
+            <ChevronRight size={14} color="rgba(255,255,255,0.9)" strokeWidth={2.5}
               style={{ flexShrink:0 }} />
           </button>
 
@@ -1010,18 +1010,18 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
               {birthdayLabel && (
                 <span style={{ background:"rgba(255,255,255,0.62)",
                                border:"1px solid rgba(255,255,255,0.72)",
-                               borderRadius:999, padding:"8px 16px",
-                               boxShadow:"0 6px 16px rgba(0,0,0,0.04)",
-                               fontSize:15, fontWeight:600, color:"#8A7B6A" }}>
+                               borderRadius:999, padding:"5px 12px",
+                               boxShadow:"0 4px 10px rgba(0,0,0,0.04)",
+                               fontSize:12, fontWeight:600, color:"#8A7B6A" }}>
                   🎂 {birthdayLabel}
                 </span>
               )}
               {pet.personality && (
                 <span style={{ background:"rgba(255,255,255,0.62)",
                                border:"1px solid rgba(255,255,255,0.72)",
-                               borderRadius:999, padding:"8px 16px",
-                               boxShadow:"0 6px 16px rgba(0,0,0,0.04)",
-                               fontSize:15, fontWeight:600, color:"#8A7B6A" }}>
+                               borderRadius:999, padding:"5px 12px",
+                               boxShadow:"0 4px 10px rgba(0,0,0,0.04)",
+                               fontSize:12, fontWeight:600, color:"#8A7B6A" }}>
                   ✨ {pet.personality}
                 </span>
               )}
