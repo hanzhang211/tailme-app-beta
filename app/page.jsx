@@ -36,6 +36,7 @@ import PetAvatar from "@/components/PetAvatar";
 import MapIcon from "@/components/MapIcon";
 import ChatIcon from "@/components/ChatIcon";
 import { AccountingIcon, RecipeIcon, HealthIcon } from "@/components/icons/HomeModuleIcons";
+import { Sparkles, ChevronRight } from "lucide-react";
 import { DOG_BREEDS, CAT_BREEDS } from "@/services/breedAvatar";
 import { getMonthlyTotal } from "@/services/petExpenseService";
 import { getTodayRecipe }  from "@/services/petRecipeService";
@@ -875,6 +876,9 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
         </div>
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
 
+          {/* 宠物图 + AI 入口卡片 包裹层（relative；AI 卡片是手势 div 的兄弟节点，不影响滑动） */}
+          <div style={{ position:"relative", width:"100%" }}>
+
           {/* ── Swipe carousel：左 ghost / 主头像 / 右 ghost ── */}
           <div
             onTouchStart={onTouchStart}
@@ -933,17 +937,6 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                     🐶
                   </div>
                 )}
-                <button onClick={() => setAvatarOpen(true)}
-                  title="生成 AI 专属头像"
-                  style={{ position:"absolute", bottom:6, right:6,
-                           width:34, height:34, borderRadius:"50%",
-                           background:C.pri, border:"2.5px solid white",
-                           color:"white", fontSize:16, cursor:"pointer",
-                           boxShadow:"0 3px 10px rgba(230,134,69,0.4)",
-                           display:"flex", alignItems:"center", justifyContent:"center",
-                           padding:0, lineHeight:1 }}>
-                  ✨
-                </button>
                 {hungry && (
                   <div style={{ position:"absolute", top:0, right:-4, background:C.accent, borderRadius:20,
                                 padding:"3px 9px", fontSize:10, fontWeight:700, color:"white",
@@ -979,16 +972,59 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
             </div>
           </div>
 
-          {/* 宠物名字 + 资料 */}
+          {/* AI 入口卡片：浮在宠物图右下角（手势 div 的兄弟节点，点击触发原 setAvatarOpen 逻辑） */}
+          <button onClick={() => setAvatarOpen(true)}
+            style={{ position:"absolute", right:0, bottom:4, zIndex:5,
+                     display:"flex", alignItems:"center", gap:10,
+                     minWidth:190, height:60, padding:"8px 14px 8px 8px",
+                     background:"linear-gradient(135deg, #E68645, #F09A5B)",
+                     border:"2px solid rgba(255,255,255,0.72)", borderRadius:999,
+                     boxShadow:"0 10px 24px rgba(230,134,69,0.26)",
+                     cursor:"pointer", textAlign:"left" }}>
+            <div style={{ width:44, height:44, borderRadius:"50%", flexShrink:0,
+                          background:"rgba(255,255,255,0.95)",
+                          display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <Sparkles size={22} color="#E68645" strokeWidth={2} />
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:14, fontWeight:800, color:"white", lineHeight:1.2 }}>
+                {avatarSrc ? "我的 AI 形象" : "AI 生成 1:1 宠物形象"}
+              </div>
+              <div style={{ fontSize:11, fontWeight:500, color:"rgba(255,255,255,0.88)", marginTop:2 }}>
+                {avatarSrc ? "查看专属 1:1 宠物" : "还原最可爱的它"}
+              </div>
+            </div>
+            <ChevronRight size={18} color="rgba(255,255,255,0.9)" strokeWidth={2.5}
+              style={{ flexShrink:0 }} />
+          </button>
+
+          </div>{/* /relative 包裹层 */}
+
+          {/* 宠物名字 */}
           <div style={{ marginTop:20, fontSize:20, fontWeight:800, color:C.text }}>{pet.name}</div>
-          <div style={{ fontSize:12, color:H_SUB, marginTop:3 }}>
-            {pet.breed} · {ageLabel} · {pet.weight}kg · {pet.gender === "male" ? "男孩" : "女孩"}
-          </div>
+
+          {/* 生日 + 性格 胶囊标签（数据来自真实宠物字段） */}
           {(birthdayLabel || pet.personality) && (
-            <div style={{ fontSize:11, color:H_SUB, marginTop:4 }}>
-              {birthdayLabel && <span>🎂 {birthdayLabel}</span>}
-              {birthdayLabel && pet.personality && <span style={{ margin:"0 6px" }}>·</span>}
-              {pet.personality && <span>✨ {pet.personality}</span>}
+            <div style={{ display:"flex", justifyContent:"center", alignItems:"center",
+                          gap:10, flexWrap:"wrap", marginTop:10 }}>
+              {birthdayLabel && (
+                <span style={{ background:"rgba(255,255,255,0.62)",
+                               border:"1px solid rgba(255,255,255,0.72)",
+                               borderRadius:999, padding:"8px 16px",
+                               boxShadow:"0 6px 16px rgba(0,0,0,0.04)",
+                               fontSize:15, fontWeight:600, color:"#8A7B6A" }}>
+                  🎂 {birthdayLabel}
+                </span>
+              )}
+              {pet.personality && (
+                <span style={{ background:"rgba(255,255,255,0.62)",
+                               border:"1px solid rgba(255,255,255,0.72)",
+                               borderRadius:999, padding:"8px 16px",
+                               boxShadow:"0 6px 16px rgba(0,0,0,0.04)",
+                               fontSize:15, fontWeight:600, color:"#8A7B6A" }}>
+                  ✨ {pet.personality}
+                </span>
+              )}
             </div>
           )}
 
@@ -1026,6 +1062,35 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
       </div>
 
       <div style={{ padding:"14px 14px 90px" }}>
+        {/* 宠物基础信息卡：品种 / 年龄 / 体重 / 性别 */}
+        <div style={{ display:"flex", alignItems:"center", background:"white",
+                      borderRadius:20, padding:"14px 6px", marginBottom:12,
+                      boxShadow:H_SHADOW, border:`1px solid ${H_BORDER}` }}>
+          {[
+            { emoji:"🐾", tint:"#F2E5DA", val: pet.breed || "—", label:"品种" },
+            { emoji:"📅", tint:"#F4ECD9", val: ageLabel,         label:"年龄" },
+            { emoji:"⚖️", tint:"#ECEEE8", val: pet.weight ? `${pet.weight} kg` : "—", label:"体重" },
+            { emoji: pet.gender === "male" ? "♂️" : "♀️", tint:"#F7E4E4",
+              val: pet.gender === "male" ? "男孩" : pet.gender === "female" ? "女孩" : "—", label:"性别" },
+          ].map((it, i) => (
+            <div key={it.label} style={{ flex:1, display:"flex", alignItems:"center", gap:8,
+                                         padding:"0 8px",
+                                         borderLeft: i === 0 ? "none" : `1px solid ${H_BORDER}` }}>
+              <div style={{ width:34, height:34, borderRadius:"50%", background:it.tint, flexShrink:0,
+                            display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>
+                {it.emoji}
+              </div>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:14, fontWeight:800, color:C.text, lineHeight:1.2,
+                              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {it.val}
+                </div>
+                <div style={{ fontSize:10, color:H_SUB, marginTop:1 }}>{it.label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* 3 个入口卡：记账 / 食谱 / 健康 */}
         <div style={{ display:"flex", gap:12, marginBottom:12 }}>
           <HomeNavCard
