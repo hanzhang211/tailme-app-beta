@@ -75,6 +75,15 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
   const [viewDisease,    setViewDisease]    = useState(null);
   const [viewMed,        setViewMed]        = useState(null);
 
+  // toast
+  const [toast, setToast]     = useState(null); // { msg, type: "success"|"error" }
+  const toastTimer = useRef(null);
+  const showToast = (msg, type = "success") => {
+    clearTimeout(toastTimer.current);
+    setToast({ msg, type });
+    toastTimer.current = setTimeout(() => setToast(null), type === "error" ? 4000 : 2500);
+  };
+
   const reload = async () => {
     if (!pet?.id) { setLoading(false); return; }
     setLoading(true); setErr(null);
@@ -381,12 +390,14 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
       {addDiseaseOpen && (
         <AddDiseaseModal user={user} pet={pet} pets={pets}
           onClose={() => setAddDiseaseOpen(false)}
-          onAdded={() => { setAddDiseaseOpen(false); reload(); }}/>
+          onAdded={() => { setAddDiseaseOpen(false); reload(); showToast("疾病记录已保存 ✨"); }}
+          onError={(msg) => showToast(msg, "error")}/>
       )}
       {addMedOpen && pet?.id && (
         <AddMedicationModal user={user} pet={pet}
           onClose={() => setAddMedOpen(false)}
-          onAdded={() => { setAddMedOpen(false); reload(); }}/>
+          onAdded={() => { setAddMedOpen(false); reload(); showToast("用药提醒已保存 ✨"); }}
+          onError={(msg) => showToast(msg, "error")}/>
       )}
       {viewDisease && (
         <DiseaseDetailSheet disease={viewDisease}
@@ -397,6 +408,20 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
         <MedicationDetailSheet med={viewMed}
           onClose={() => setViewMed(null)}
           onDelete={() => { handleDeleteMed(viewMed); setViewMed(null); }}/>
+      )}
+
+      {/* ── Toast ── */}
+      {toast && (
+        <div style={{ position:"fixed", left:"50%", bottom:90,
+                      transform:"translateX(-50%)", zIndex:2000,
+                      background: toast.type === "error" ? "#B91C1C" : GREEN,
+                      color:"white", padding:"11px 22px", borderRadius:999,
+                      fontSize:14, fontWeight:700,
+                      boxShadow:"0 6px 20px rgba(0,0,0,0.22)",
+                      maxWidth:"80%", textAlign:"center",
+                      animation:"fadeInUp .22s ease" }}>
+          {toast.msg}
+        </div>
       )}
     </div>
   );
@@ -518,7 +543,7 @@ function AddRecordModal({ user, pet, onClose, onAdded }) {
 }
 
 /* ── AddDiseaseModal — iOS Premium 淡绿风格 ── */
-function AddDiseaseModal({ user, pet, pets = [], onClose, onAdded }) {
+function AddDiseaseModal({ user, pet, pets = [], onClose, onAdded, onError }) {
   // 默认选中当前 pet，找不到时选第一只
   const defaultPet = pets.find((p) => p.id === pet?.id) || pets[0] || pet;
   const [selPetId, setSelPetId] = useState(defaultPet?.id || "");
@@ -552,7 +577,11 @@ function AddDiseaseModal({ user, pet, pets = [], onClose, onAdded }) {
         notes:         note,
       });
       onAdded();
-    } catch (e) { setErr(e.message); }
+    } catch (e) {
+      const msg = e.message || "保存失败，请重试";
+      setErr(msg);
+      onError?.(msg);
+    }
     finally { setSaving(false); }
   };
 
