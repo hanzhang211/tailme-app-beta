@@ -36,7 +36,7 @@ import PetAvatar from "@/components/PetAvatar";
 import MapIcon from "@/components/MapIcon";
 import ChatIcon from "@/components/ChatIcon";
 import { AccountingIcon, RecipeIcon, HealthIcon } from "@/components/icons/HomeModuleIcons";
-import { Sparkles, ChevronRight, PawPrint, Heart, CalendarDays, Scale, Venus } from "lucide-react";
+import { Sparkles, ChevronRight, PawPrint, Heart, CalendarDays, Scale, Venus, WandSparkles } from "lucide-react";
 import { DOG_BREEDS, CAT_BREEDS } from "@/services/breedAvatar";
 import { getMonthlyTotal } from "@/services/petExpenseService";
 import { getTodayRecipe }  from "@/services/petRecipeService";
@@ -993,33 +993,32 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
             </div>
           </div>
 
-          {/* AI 入口卡片：浮在宠物图右下角（手势 div 的兄弟节点，点击触发原 setAvatarOpen 逻辑） */}
-          <button onClick={() => setAvatarOpen(true)}
-            style={{ position:"absolute", right:0, bottom:4, zIndex:5,
-                     display:"flex", alignItems:"center", gap:7,
-                     minWidth:140, height:44, padding:"5px 10px 5px 5px",
-                     background:"linear-gradient(135deg, #E68645, #F09A5B)",
-                     border:"2px solid rgba(255,255,255,0.72)", borderRadius:999,
-                     boxShadow:"0 6px 16px rgba(230,134,69,0.26)",
-                     cursor:"pointer", textAlign:"left" }}>
-            <div style={{ width:34, height:34, borderRadius:"50%", flexShrink:0,
-                          background:"rgba(255,255,255,0.95)",
-                          display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <Sparkles size={16} color="#E68645" strokeWidth={2} />
-            </div>
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:12, fontWeight:800, color:"white", lineHeight:1.2 }}>
-                {avatarSrc ? "我的 AI 形象" : "AI 生成宠物形象"}
-              </div>
-              <div style={{ fontSize:10, fontWeight:500, color:"rgba(255,255,255,0.88)", marginTop:1 }}>
-                {avatarSrc ? "查看专属宠物" : "还原最可爱的它"}
-              </div>
-            </div>
-            <ChevronRight size={14} color="rgba(255,255,255,0.9)" strokeWidth={2.5}
-              style={{ flexShrink:0 }} />
-          </button>
-
           </div>{/* /relative 包裹层 */}
+
+          {/* ── AI 生成大胶囊按钮（carousel 下方居中）── */}
+          <button onClick={() => setAvatarOpen(true)}
+            style={{ display:"flex", alignItems:"center", gap:14,
+                     height:72, minWidth:280, maxWidth:340, width:"calc(100% - 32px)",
+                     padding:"5px 18px 5px 5px",
+                     background:"linear-gradient(135deg, #E68645 0%, #F09A5B 100%)",
+                     border:"4px solid rgba(255,255,255,0.85)", borderRadius:999,
+                     boxShadow:"0 14px 30px rgba(230,134,69,0.28), 0 4px 10px rgba(230,134,69,0.18)",
+                     cursor:"pointer", marginTop:14 }}>
+            <div style={{ width:62, height:62, borderRadius:999, flexShrink:0,
+                          background:"#FFFFFF",
+                          display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <WandSparkles size={32} color="#E68645" strokeWidth={2.4} />
+            </div>
+            <div style={{ flex:1, minWidth:0, textAlign:"left" }}>
+              <div style={{ fontSize:20, fontWeight:800, color:"white", lineHeight:1.15 }}>
+                {avatarSrc ? "我的 AI 形象" : "AI 生成 1:1 宠物形象"}
+              </div>
+              <div style={{ fontSize:16, fontWeight:600, color:"rgba(255,255,255,0.92)", marginTop:4 }}>
+                {avatarSrc ? "查看专属 1:1 宠物" : "还原最可爱的它"}
+              </div>
+            </div>
+            <ChevronRight size={28} color="white" strokeWidth={2.5} style={{ flexShrink:0 }} />
+          </button>
 
           {/* 宠物名字 */}
           <div style={{ marginTop:20, fontSize:20, fontWeight:800, color:C.text }}>{pet.name}</div>
