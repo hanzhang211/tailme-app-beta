@@ -167,20 +167,17 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
       {/* ── Header ── */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                     padding:"52px 16px 14px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
-          <button onClick={onBack}
-            style={{ width:40, height:40, borderRadius:999, background:"rgba(255,255,255,0.6)",
-                     border:"none", cursor:"pointer",
-                     display:"flex", alignItems:"center", justifyContent:"center",
-                     boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
-            <ChevronLeft size={22} color={TEXT} strokeWidth={2.5}/>
-          </button>
+        <button onClick={onBack}
+          style={{ width:40, height:40, borderRadius:999, background:"rgba(255,255,255,0.6)",
+                   border:"none", cursor:"pointer",
+                   display:"flex", alignItems:"center", justifyContent:"center",
+                   boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
+          <ChevronLeft size={22} color={TEXT} strokeWidth={2.5}/>
+        </button>
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
           <HealthIcon size={60} color={TEXT}/>
+          <span style={{ fontSize:17, fontWeight:800, color:TEXT }}>宠物健康</span>
         </div>
-        <span style={{ position:"absolute", left:0, right:0, textAlign:"center",
-                       fontSize:17, fontWeight:800, color:TEXT, pointerEvents:"none" }}>
-          宠物健康
-        </span>
         <button onClick={() => setAddRecordOpen(true)} disabled={!pet?.id}
           style={{ width:40, height:40, borderRadius:999,
                    background: pet?.id ? PRI : "#D6D5D8", color:"white",

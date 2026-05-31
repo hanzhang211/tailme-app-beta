@@ -828,7 +828,8 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   const H_SUB      = "#8A8074";  // 次级暖灰文字
 
   if (subPage === "expenses") {
-    return <ExpensePage user={user} pets={pet ? [pet] : []} onBack={() => setSubPage(null)} />;
+    return <ExpensePage user={user} pets={pet ? [pet] : []} onBack={() => setSubPage(null)}
+      onAmountChanged={() => getMonthlyTotal(user.id).then(setMonthExpense).catch(() => {})} />;
   }
   if (subPage === "recipes") {
     return <RecipePage onBack={() => setSubPage(null)} />;
@@ -1030,21 +1031,21 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           <HomeNavCard
             icon={<AccountingIcon size={54} />} label="宠物记账"
             value={monthExpense == null ? "—" : `¥${Number(monthExpense).toFixed(0)}`}
-            sub="本月" valueSize={30}
+            sub="本月" valueSize={18}
             bg="#F2E5DA" deco="paw"
             onClick={() => setSubPage("expenses")}
             H_SUB={H_SUB} text={C.text} />
           <HomeNavCard
             icon={<RecipeIcon size={54} />} label="宠物食谱"
             value={todayRecipe?.title || "看看推荐"}
-            sub="今日推荐" valueSize={20}
+            sub="今日推荐" valueSize={14}
             bg="#F4ECD9" deco="bowl"
             onClick={() => setSubPage("recipes")}
             H_SUB={H_SUB} text={C.text} />
           <HomeNavCard
             icon={<HealthIcon size={54} />} label="宠物健康"
             value={(pet?.neutered ? "已绝育" : "未绝育")}
-            sub={pet?.vaccinated ? "疫苗齐全" : "疫苗待补"} valueSize={22}
+            sub={pet?.vaccinated ? "疫苗齐全" : "疫苗待补"} valueSize={16}
             bg="#ECEEE8" deco="shield"
             onClick={() => setSubPage("health")}
             H_SUB={H_SUB} text={C.text} />

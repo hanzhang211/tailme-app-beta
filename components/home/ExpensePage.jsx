@@ -56,7 +56,7 @@ const fmtDate  = (d) => {
   return `${m}/${day}`;
 };
 
-export default function ExpensePage({ user, pets, onBack }) {
+export default function ExpensePage({ user, pets, onBack, onAmountChanged }) {
   const [list,       setList]       = useState([]);
   const [monthTotal, setMonthTotal] = useState(0);
   const [yearTotal,  setYearTotal]  = useState(0);
@@ -96,20 +96,15 @@ export default function ExpensePage({ user, pets, onBack }) {
       {/* ── Header ── */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                     padding:"52px 16px 14px" }}>
-        {/* 左：返回 + icon */}
-        <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
-          <button onClick={onBack}
-            style={{ width:40, height:40, borderRadius:999,
-                     background:"rgba(255,255,255,0.6)", border:"none", cursor:"pointer",
-                     fontSize:22, color:TEXT, display:"flex", alignItems:"center",
-                     justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>‹</button>
+        <button onClick={onBack}
+          style={{ width:40, height:40, borderRadius:999,
+                   background:"rgba(255,255,255,0.6)", border:"none", cursor:"pointer",
+                   fontSize:22, color:TEXT, display:"flex", alignItems:"center",
+                   justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>‹</button>
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
           <AccountingIcon size={60} color={TEXT} />
+          <span style={{ fontSize:17, fontWeight:800, color:TEXT }}>宠物记账</span>
         </div>
-        {/* 中：标题绝对居中 */}
-        <span style={{ position:"absolute", left:0, right:0, textAlign:"center",
-                       fontSize:17, fontWeight:800, color:TEXT, pointerEvents:"none" }}>
-          宠物记账
-        </span>
         <button onClick={() => setAddOpen(true)}
           style={{ width:40, height:40, borderRadius:999, background:PRI, color:"white",
                    border:"none", cursor:"pointer", fontSize:22, fontWeight:700,
@@ -219,7 +214,7 @@ export default function ExpensePage({ user, pets, onBack }) {
       {addOpen && (
         <AddExpenseModal user={user} pets={pets}
           onClose={() => setAddOpen(false)}
-          onAdded={() => { setAddOpen(false); reload(); }} />
+          onAdded={() => { setAddOpen(false); reload(); onAmountChanged?.(); }} />
       )}
     </div>
   );
@@ -341,24 +336,17 @@ function AddExpenseModal({ user, pets, onClose, onAdded }) {
             {/* ── 日期 ── */}
             <div>
               <SectionTitle>日期</SectionTitle>
-              <div style={{ position:"relative" }}>
-                <button onClick={() => dateRef.current?.showPicker?.() || dateRef.current?.click()}
-                  style={{ width:"100%", height:64, borderRadius:20,
-                           background:"rgba(255,255,255,0.72)",
-                           border:"1px solid rgba(138,123,106,0.22)",
-                           padding:"0 20px", display:"flex", alignItems:"center", gap:12,
-                           cursor:"pointer", boxSizing:"border-box" }}>
-                  <Calendar size={20} color="#8A7B6A" strokeWidth={1.8} style={{ flexShrink:0 }}/>
-                  <span style={{ flex:1, textAlign:"left", fontSize:17, fontWeight:600,
-                                 color:"#1F1F1F" }}>
-                    {fmtDisplayDate(date)}
-                  </span>
-                  <ChevronRight size={18} color="#2B2B2B" strokeWidth={2}/>
-                </button>
-                <input ref={dateRef} type="date" value={date}
+              <div style={{ height:64, borderRadius:20,
+                            background:"rgba(255,255,255,0.72)",
+                            border:"1px solid rgba(138,123,106,0.22)",
+                            display:"flex", alignItems:"center", padding:"0 20px", gap:12 }}>
+                <Calendar size={20} color="#8A7B6A" strokeWidth={1.8} style={{ flexShrink:0 }}/>
+                <input type="date" value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer",
-                           zIndex:1, width:"100%", height:"100%" }}/>
+                  style={{ flex:1, border:"none", outline:"none", background:"transparent",
+                           fontSize:17, fontWeight:600, color:"#1F1F1F",
+                           fontFamily:"inherit", cursor:"pointer",
+                           WebkitAppearance:"none" }}/>
               </div>
             </div>
 
