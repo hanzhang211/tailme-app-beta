@@ -66,6 +66,8 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
   const [addRecordOpen,  setAddRecordOpen]  = useState(false);
   const [addDiseaseOpen, setAddDiseaseOpen] = useState(false);
   const [viewDisease,    setViewDisease]    = useState(null);
+  const [menuOpenId,     setMenuOpenId]     = useState(null);  // 更多菜单
+  const [editMedDisease, setEditMedDisease] = useState(null);  // 编辑用药
 
   // toast
   const [toast,     setToast]     = useState(null);
@@ -119,6 +121,17 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
     if (!confirm("删除这条疾病记录？")) return;
     try { await deleteDiseaseRecord(d.id, user.id); reload(); }
     catch (e) { alert(e.message); }
+  };
+
+  const markRecovered = async (d) => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const updated = await updateDiseaseRecord(d.id, user.id, {
+        status: "recovered", recovery_date: today,
+      });
+      setDiseases((prev) => prev.map((x) => x.id === d.id ? { ...x, ...updated } : x));
+      showToast(`${d.disease_name} 已标记为康复 ✨`);
+    } catch (e) { showToast(e.message, "error"); }
   };
 
   // 合并时间线
@@ -231,84 +244,209 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
             {diseases.length === 0 ? (
               <EmptyCard text="还没有疾病记录" sub="点击右侧 + 添加记录"/>
             ) : (
-              diseases.map((d) => {
-                const st       = DISEASE_STATUS[d.status] || DISEASE_STATUS.treating;
-                const dPet     = pets.find((p) => p.id === d.pet_id) || null;
-                const avatarSrc = dPet?.pet_avatar_thumb_url || dPet?.ai_avatar_url || null;
-                const hasMed   = !!d.medicine_name;
-                const hasRemind = hasMed && d.medicine_reminder_enabled && d.medicine_reminder_time;
-                return (
-                  <button key={d.id} onClick={() => setViewDisease(d)}
-                    style={{ width:"100%", background:"rgba(236,238,232,0.55)",
-                             borderRadius:18, padding:"12px 14px", marginBottom:8,
-                             border:"none", cursor:"pointer", textAlign:"left",
-                             display:"flex", alignItems:"flex-start", gap:12 }}>
-                    {/* 宠物头像 */}
-                    <div style={{ width:48, height:48, borderRadius:999, flexShrink:0, overflow:"hidden",
-                                  background:"rgba(95,167,102,0.1)",
-                                  display:"flex", alignItems:"center", justifyContent:"center" }}>
-                      {avatarSrc ? (
-                        <img src={avatarSrc} alt={dPet?.name}
-                          style={{ width:"100%", height:"100%", objectFit:"cover",
-                                   display:"block", mixBlendMode:"multiply" }}/>
-                      ) : dPet ? (
-                        <span style={{ fontSize:22 }}>{avatarForBreed(dPet.breed, dPet.pet_type)}</span>
-                      ) : (
-                        <Dog size={24} color={GREEN} strokeWidth={1.6}/>
-                      )}
+              <>
+                {diseases.map((d) => {
+                  const st       = DISEASE_STATUS[d.status] || DISEASE_STATUS.treating;
+                  const dPet     = pets.find((p) => p.id === d.pet_id) || null;
+                  const avatarSrc = dPet?.pet_avatar_thumb_url || dPet?.ai_avatar_url || null;
+                  const hasMed   = !!d.medicine_name;
+                  const isRecovered = d.status === "recovered";
+                  const menuOpen = menuOpenId === d.id;
+
+                  // 下次用药时间文字
+                  const nextTimeLabel = (() => {
+                    if (!d.medicine_reminder_time) return null;
+                    const t = fmtTime(d.medicine_reminder_time);
+                    const today = new Date().toISOString().slice(0, 10);
+                    const tmr   = new Date(); tmr.setDate(tmr.getDate()+1);
+                    const tomorrowStr = tmr.toISOString().slice(0, 10);
+                    if (d.medicine_end_date >= today) return `今天 ${t}`;
+                    if (d.medicine_start_date === tomorrowStr) return `明天 ${t}`;
+                    return t;
+                  })();
+
+                  return (
+                    <div key={d.id} style={{ background:"rgba(255,255,255,0.62)",
+                                             borderRadius:24, border:"1px solid rgba(138,123,106,0.10)",
+                                             boxShadow:"0 6px 18px rgba(0,0,0,0.04)",
+                                             padding:18, marginBottom:14, position:"relative" }}
+                         onClick={() => { if (!menuOpen) setViewDisease(d); }}>
+
+                      {/* ── 顶部：头像 + 内容 + 操作 ── */}
+                      <div style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
+
+                        {/* 宠物头像 */}
+                        <div style={{ width:72, height:72, borderRadius:999, flexShrink:0,
+                                      overflow:"hidden", background:"rgba(95,167,102,0.1)",
+                                      display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          {avatarSrc ? (
+                            <img src={avatarSrc} alt={dPet?.name}
+                              style={{ width:"100%", height:"100%", objectFit:"cover",
+                                       display:"block", mixBlendMode:"multiply" }}/>
+                          ) : dPet ? (
+                            <span style={{ fontSize:30 }}>{avatarForBreed(dPet.breed, dPet.pet_type)}</span>
+                          ) : (
+                            <Dog size={32} color={GREEN} strokeWidth={1.4}/>
+                          )}
+                        </div>
+
+                        {/* 中间内容 */}
+                        <div style={{ flex:1, minWidth:0 }}>
+                          {dPet && (
+                            <div style={{ fontSize:16, fontWeight:800, color:GREEN, marginBottom:2 }}>
+                              {dPet.name}
+                            </div>
+                          )}
+                          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                            <span style={{ fontSize:28, fontWeight:800, color:"#111" }}>
+                              {d.disease_name}
+                            </span>
+                            <span style={{ fontSize:14, fontWeight:700, padding:"5px 12px",
+                                           borderRadius:999,
+                                           background: isRecovered ? "rgba(95,167,102,0.14)" : "rgba(230,134,69,0.14)",
+                                           color: isRecovered ? GREEN : "#E68645" }}>
+                              {st.label}
+                            </span>
+                            <ChevronRight size={16} color="#8A9188" strokeWidth={2}/>
+                          </div>
+                          <div style={{ fontSize:15, color:"#6F756B", lineHeight:1.5,
+                                        overflow:"hidden", display:"-webkit-box",
+                                        WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>
+                            {d.symptoms || "暂无症状描述"}
+                          </div>
+                        </div>
+
+                        {/* 右侧操作 */}
+                        <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end",
+                                      gap:6, flexShrink:0 }}
+                             onClick={(e) => e.stopPropagation()}>
+                          {/* 标记已康复 */}
+                          {isRecovered ? (
+                            <div style={{ height:36, padding:"0 14px", borderRadius:999,
+                                          background:"rgba(95,167,102,0.14)", color:GREEN,
+                                          fontSize:13, fontWeight:700,
+                                          display:"flex", alignItems:"center" }}>
+                              已康复
+                            </div>
+                          ) : (
+                            <button onClick={() => markRecovered(d)}
+                              style={{ height:36, padding:"0 14px", borderRadius:999,
+                                       border:"1px solid rgba(95,167,102,0.35)",
+                                       color:GREEN, background:"rgba(255,255,255,0.55)",
+                                       fontSize:13, fontWeight:700, cursor:"pointer",
+                                       whiteSpace:"nowrap" }}>
+                              标记已康复
+                            </button>
+                          )}
+                          {/* 更多菜单 */}
+                          <div style={{ position:"relative" }}>
+                            <button onClick={() => setMenuOpenId(menuOpen ? null : d.id)}
+                              style={{ width:36, height:36, borderRadius:999,
+                                       background:"transparent", border:"none",
+                                       cursor:"pointer", display:"flex",
+                                       alignItems:"center", justifyContent:"center" }}>
+                              <Ellipsis size={18} color="#8A9188"/>
+                            </button>
+                            {menuOpen && (
+                              <div style={{ position:"absolute", right:0, top:40, zIndex:200,
+                                            background:"white", borderRadius:14, padding:"6px 0",
+                                            boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:130 }}>
+                                <MenuItem label="编辑用药" icon={<Pencil size={14} color={SUB}/>}
+                                  onClick={() => { setMenuOpenId(null); setEditMedDisease(d); }}/>
+                                <div style={{ height:1, background:"rgba(0,0,0,0.06)", margin:"4px 10px" }}/>
+                                <MenuItem label="删除记录" color="#D94040"
+                                  icon={<span style={{ fontSize:13 }}>🗑</span>}
+                                  onClick={() => { setMenuOpenId(null); handleDeleteDisease(d); }}/>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ── 用药信息条 ── */}
+                      <div style={{ marginTop:14, background:"rgba(95,167,102,0.08)",
+                                    borderRadius:18, padding:"14px 16px",
+                                    display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}
+                           onClick={(e) => e.stopPropagation()}>
+
+                        {/* 左：用药详情 */}
+                        <div>
+                          <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:6 }}>
+                            <Pill size={14} color={GREEN} strokeWidth={1.8}/>
+                            <span style={{ fontSize:13, fontWeight:800, color:GREEN }}>用药详情</span>
+                          </div>
+                          {hasMed ? (
+                            <div style={{ fontSize:15, fontWeight:600, color:"#1F1F1F" }}>
+                              {[d.medicine_name, d.medicine_dosage, d.medicine_frequency]
+                                .filter(Boolean).join(" · ")}
+                            </div>
+                          ) : (
+                            <div>
+                              <div style={{ fontSize:13, color:"#8A9188", marginBottom:4 }}>
+                                暂无用药记录
+                              </div>
+                              <button onClick={() => setEditMedDisease(d)}
+                                style={{ fontSize:12, fontWeight:700, color:GREEN,
+                                         background:"transparent", border:"none", cursor:"pointer",
+                                         padding:0 }}>
+                                + 添加用药
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 右：下次用药时间 / 用药周期 */}
+                        <div>
+                          <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:6 }}>
+                            {isRecovered
+                              ? <Calendar size={14} color={GREEN} strokeWidth={1.8}/>
+                              : <Clock    size={14} color={GREEN} strokeWidth={1.8}/>}
+                            <span style={{ fontSize:13, fontWeight:800, color:GREEN }}>
+                              {isRecovered ? "用药周期" : "下次用药时间"}
+                            </span>
+                          </div>
+                          {isRecovered ? (
+                            <div>
+                              <div style={{ fontSize:14, fontWeight:700, color:"#1F1F1F", marginBottom:5 }}>
+                                {[fmtShort(d.medicine_start_date), fmtShort(d.medicine_end_date)]
+                                  .filter(Boolean).join(" - ") || "未设置"}
+                              </div>
+                              {hasMed && (
+                                <span style={{ fontSize:12, fontWeight:700, padding:"3px 10px",
+                                               borderRadius:999,
+                                               background:"rgba(95,167,102,0.14)", color:GREEN,
+                                               display:"inline-flex", alignItems:"center", gap:4 }}>
+                                  <CircleCheck size={11} color={GREEN} strokeWidth={2}/> 已完成
+                                </span>
+                              )}
+                            </div>
+                          ) : nextTimeLabel ? (
+                            <div>
+                              <div style={{ fontSize:18, fontWeight:800, color:"#1F1F1F", marginBottom:5 }}>
+                                {nextTimeLabel}
+                              </div>
+                              <span style={{ fontSize:12, fontWeight:700, padding:"3px 10px",
+                                             borderRadius:999, display:"inline-flex",
+                                             alignItems:"center", gap:4,
+                                             background: d.medicine_reminder_enabled
+                                               ? "rgba(95,167,102,0.14)" : "rgba(138,123,106,0.10)",
+                                             color: d.medicine_reminder_enabled ? GREEN : "#8A7B6A" }}>
+                                <Bell size={10} color={d.medicine_reminder_enabled ? GREEN : "#8A7B6A"}/>
+                                {d.medicine_reminder_enabled ? "已设置提醒" : "未提醒"}
+                              </span>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize:14, color:"#8A9188" }}>未设置提醒</div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    {/* 内容 */}
-                    <div style={{ flex:1, minWidth:0 }}>
-                      {dPet && (
-                        <div style={{ fontSize:11, color:GREEN, fontWeight:700, marginBottom:2 }}>
-                          {dPet.name}
-                        </div>
-                      )}
-                      <div style={{ fontSize:15, fontWeight:700, color:TEXT }}>{d.disease_name}</div>
-                      {d.symptoms && (
-                        <div style={{ fontSize:12, color:SUB, marginTop:2,
-                                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                          {d.symptoms}
-                        </div>
-                      )}
-                      {/* 用药摘要 */}
-                      {hasMed && (
-                        <div style={{ fontSize:11, color:SUB, marginTop:4,
-                                      display:"flex", alignItems:"center", gap:4 }}>
-                          <Pill size={11} color={GREEN} strokeWidth={1.8}/>
-                          <span style={{ color:GREEN, fontWeight:600 }}>
-                            {[d.medicine_name, d.medicine_dosage, d.medicine_frequency].filter(Boolean).join(" · ")}
-                          </span>
-                        </div>
-                      )}
-                      {/* 提醒摘要 */}
-                      {hasRemind && (
-                        <div style={{ fontSize:11, color:SUB, marginTop:2,
-                                      display:"flex", alignItems:"center", gap:4 }}>
-                          <Bell size={10} color={GREEN}/>
-                          <span style={{ color:GREEN }}>
-                            提醒：{isToday(d.medicine_end_date) ? `今天 ${fmtTime(d.medicine_reminder_time)}` : fmtTime(d.medicine_reminder_time)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    {/* 状态标签 */}
-                    <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0 }}>
-                      <span style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:999,
-                                     background:st.bg, color:st.color }}>
-                        {st.label}
-                      </span>
-                      {hasRemind && (
-                        <span style={{ fontSize:10, fontWeight:600, padding:"3px 8px", borderRadius:999,
-                                       background:"rgba(95,167,102,0.12)", color:GREEN }}>
-                          提醒已开启
-                        </span>
-                      )}
-                      <span style={{ color:SUB, fontSize:14 }}>›</span>
-                    </div>
-                  </button>
-                );
-              })
+                  );
+                })}
+                <div style={{ textAlign:"center", fontSize:12, color:"#B5AFA9", padding:"4px 0" }}>
+                  没有更多记录了
+                </div>
+              </>
             )}
           </div>
 
@@ -378,6 +516,17 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
           onAdded={() => { setAddDiseaseOpen(false); reload(); showToast("疾病记录已保存 ✨"); }}
           onError={(msg) => showToast(msg, "error")}/>
       )}
+      {editMedDisease && (
+        <EditMedicationModal
+          disease={editMedDisease}
+          user={user}
+          onClose={() => setEditMedDisease(null)}
+          onSaved={(updated) => {
+            setDiseases((prev) => prev.map((d) => d.id === updated.id ? { ...d, ...updated } : d));
+            setEditMedDisease(null);
+            showToast("用药信息已更新 ✨");
+          }}/>
+      )}
       {viewDisease && (
         <DiseaseDetailSheet
           disease={viewDisease}
@@ -423,6 +572,18 @@ function FTitle({ children }) {
     </div>
   );
 }
+function MenuItem({ label, icon, onClick, color }) {
+  return (
+    <button onClick={onClick}
+      style={{ width:"100%", padding:"11px 18px", textAlign:"left",
+               background:"transparent", border:"none", cursor:"pointer",
+               fontSize:14, fontWeight:600, color: color || TEXT,
+               display:"flex", alignItems:"center", gap:8 }}>
+      {icon} {label}
+    </button>
+  );
+}
+
 function EmptyCard({ icon, text, sub }) {
   return (
     <div style={{ textAlign:"center", padding:"24px 0 8px",
