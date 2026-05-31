@@ -246,11 +246,12 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
             ) : (
               <>
                 {diseases.filter((d) => d.status !== "recovered").map((d) => {
-                  const st       = DISEASE_STATUS[d.status] || DISEASE_STATUS.treating;
-                  const dPet     = pets.find((p) => p.id === d.pet_id) || null;
-                  const avatarSrc = dPet?.pet_avatar_thumb_url || dPet?.ai_avatar_url || null;
-                  const hasMed   = !!d.medicine_name;
-                  const menuOpen = menuOpenId === d.id;
+                  const st          = DISEASE_STATUS[d.status] || DISEASE_STATUS.treating;
+                  const dPet        = pets.find((p) => p.id === d.pet_id) || null;
+                  const avatarSrc   = dPet?.pet_avatar_thumb_url || dPet?.ai_avatar_url || null;
+                  const hasMed      = !!d.medicine_name;
+                  const isRecovered = false; // filtered out above, always false here
+                  const menuOpen    = menuOpenId === d.id;
 
                   const nextTimeLabel = (() => {
                     if (!d.medicine_reminder_time) return null;
