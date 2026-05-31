@@ -175,7 +175,7 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
           <ChevronLeft size={22} color={TEXT} strokeWidth={2.5}/>
         </button>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <HealthIcon size={32} color={TEXT}/>
+          <HealthIcon size={70} color={TEXT}/>
           <span style={{ fontSize:17, fontWeight:800, color:TEXT }}>宠物健康</span>
         </div>
         <button onClick={() => setAddRecordOpen(true)} disabled={!pet?.id}

@@ -60,7 +60,7 @@ export default function RecipePage({ onBack }) {
                    fontSize:22, color:TEXT, display:"flex", alignItems:"center",
                    justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>‹</button>
         <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-          <RecipeIcon size={32} color={TEXT} />
+          <RecipeIcon size={70} color={TEXT} />
           <span style={{ fontSize:17, fontWeight:800, color:TEXT }}>宠物食谱</span>
         </div>
         <div style={{ width:40 }} />
