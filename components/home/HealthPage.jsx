@@ -130,7 +130,7 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
         status: "recovered", recovery_date: today,
       });
       setDiseases((prev) => prev.map((x) => x.id === d.id ? { ...x, ...updated } : x));
-      showToast(`${d.disease_name} 已标记为康复 ✨`);
+      showToast(`${d.disease_name} 已康复，已移入健康记录 ✨`);
     } catch (e) { showToast(e.message, "error"); }
   };
 
@@ -245,23 +245,21 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
               <EmptyCard text="还没有疾病记录" sub="点击右侧 + 添加记录"/>
             ) : (
               <>
-                {diseases.map((d) => {
+                {diseases.filter((d) => d.status !== "recovered").map((d) => {
                   const st       = DISEASE_STATUS[d.status] || DISEASE_STATUS.treating;
                   const dPet     = pets.find((p) => p.id === d.pet_id) || null;
                   const avatarSrc = dPet?.pet_avatar_thumb_url || dPet?.ai_avatar_url || null;
                   const hasMed   = !!d.medicine_name;
-                  const isRecovered = d.status === "recovered";
                   const menuOpen = menuOpenId === d.id;
 
-                  // 下次用药时间文字
                   const nextTimeLabel = (() => {
                     if (!d.medicine_reminder_time) return null;
-                    const t = fmtTime(d.medicine_reminder_time);
+                    const t     = fmtTime(d.medicine_reminder_time);
                     const today = new Date().toISOString().slice(0, 10);
                     const tmr   = new Date(); tmr.setDate(tmr.getDate()+1);
-                    const tomorrowStr = tmr.toISOString().slice(0, 10);
-                    if (d.medicine_end_date >= today) return `今天 ${t}`;
-                    if (d.medicine_start_date === tomorrowStr) return `明天 ${t}`;
+                    const tmorStr = tmr.toISOString().slice(0, 10);
+                    if (!d.medicine_end_date || d.medicine_end_date >= today) return `今天 ${t}`;
+                    if (d.medicine_start_date === tmorStr) return `明天 ${t}`;
                     return t;
                   })();
 
@@ -272,10 +270,49 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
                                              padding:18, marginBottom:14, position:"relative" }}
                          onClick={() => { if (!menuOpen) setViewDisease(d); }}>
 
-                      {/* ── 顶部：头像 + 内容 + 操作 ── */}
-                      <div style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
+                      {/* ── 行1：宠物名 + 操作按钮（独立行，不挤内容）── */}
+                      <div style={{ display:"flex", justifyContent:"space-between",
+                                    alignItems:"center", marginBottom:12 }}
+                           onClick={(e) => e.stopPropagation()}>
+                        <div style={{ fontSize:16, fontWeight:800, color:GREEN }}>
+                          {dPet?.name || ""}
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                          <button onClick={() => markRecovered(d)}
+                            style={{ height:34, padding:"0 13px", borderRadius:999,
+                                     border:"1px solid rgba(95,167,102,0.35)",
+                                     color:GREEN, background:"rgba(255,255,255,0.55)",
+                                     fontSize:13, fontWeight:700, cursor:"pointer",
+                                     whiteSpace:"nowrap" }}>
+                            标记已康复
+                          </button>
+                          <div style={{ position:"relative" }}>
+                            <button onClick={() => setMenuOpenId(menuOpen ? null : d.id)}
+                              style={{ width:34, height:34, borderRadius:999,
+                                       background:"transparent", border:"none",
+                                       cursor:"pointer", display:"flex",
+                                       alignItems:"center", justifyContent:"center" }}>
+                              <Ellipsis size={17} color="#8A9188"/>
+                            </button>
+                            {menuOpen && (
+                              <div style={{ position:"absolute", right:0, top:38, zIndex:200,
+                                            background:"white", borderRadius:14, padding:"6px 0",
+                                            boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:130 }}>
+                                <MenuItem label="编辑用药" icon={<Pencil size={14} color={SUB}/>}
+                                  onClick={() => { setMenuOpenId(null); setEditMedDisease(d); }}/>
+                                <div style={{ height:1, background:"rgba(0,0,0,0.06)", margin:"4px 10px" }}/>
+                                <MenuItem label="删除记录" color="#D94040"
+                                  icon={<span style={{ fontSize:13 }}>🗑</span>}
+                                  onClick={() => { setMenuOpenId(null); handleDeleteDisease(d); }}/>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
 
-                        {/* 宠物头像 */}
+                      {/* ── 行2：头像 + 疾病名称/状态/症状（充足空间）── */}
+                      <div style={{ display:"flex", gap:14, alignItems:"flex-start",
+                                    marginBottom:14 }}>
                         <div style={{ width:72, height:72, borderRadius:999, flexShrink:0,
                                       overflow:"hidden", background:"rgba(95,167,102,0.1)",
                                       display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -289,76 +326,25 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
                             <Dog size={32} color={GREEN} strokeWidth={1.4}/>
                           )}
                         </div>
-
-                        {/* 中间内容 */}
                         <div style={{ flex:1, minWidth:0 }}>
-                          {dPet && (
-                            <div style={{ fontSize:16, fontWeight:800, color:GREEN, marginBottom:2 }}>
-                              {dPet.name}
-                            </div>
-                          )}
-                          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-                            <span style={{ fontSize:28, fontWeight:800, color:"#111" }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:8,
+                                        flexWrap:"wrap", marginBottom:6 }}>
+                            <span style={{ fontSize:28, fontWeight:800, color:"#111",
+                                           wordBreak:"keep-all" }}>
                               {d.disease_name}
                             </span>
-                            <span style={{ fontSize:14, fontWeight:700, padding:"5px 12px",
-                                           borderRadius:999,
-                                           background: isRecovered ? "rgba(95,167,102,0.14)" : "rgba(230,134,69,0.14)",
-                                           color: isRecovered ? GREEN : "#E68645" }}>
+                            <span style={{ fontSize:13, fontWeight:700, padding:"4px 11px",
+                                           borderRadius:999, flexShrink:0, whiteSpace:"nowrap",
+                                           background:"rgba(230,134,69,0.14)", color:"#E68645" }}>
                               {st.label}
                             </span>
-                            <ChevronRight size={16} color="#8A9188" strokeWidth={2}/>
+                            <ChevronRight size={15} color="#8A9188" strokeWidth={2}
+                              style={{ flexShrink:0 }}/>
                           </div>
-                          <div style={{ fontSize:15, color:"#6F756B", lineHeight:1.5,
+                          <div style={{ fontSize:14, color:"#6F756B", lineHeight:1.55,
                                         overflow:"hidden", display:"-webkit-box",
                                         WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>
                             {d.symptoms || "暂无症状描述"}
-                          </div>
-                        </div>
-
-                        {/* 右侧操作 */}
-                        <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end",
-                                      gap:6, flexShrink:0 }}
-                             onClick={(e) => e.stopPropagation()}>
-                          {/* 标记已康复 */}
-                          {isRecovered ? (
-                            <div style={{ height:36, padding:"0 14px", borderRadius:999,
-                                          background:"rgba(95,167,102,0.14)", color:GREEN,
-                                          fontSize:13, fontWeight:700,
-                                          display:"flex", alignItems:"center" }}>
-                              已康复
-                            </div>
-                          ) : (
-                            <button onClick={() => markRecovered(d)}
-                              style={{ height:36, padding:"0 14px", borderRadius:999,
-                                       border:"1px solid rgba(95,167,102,0.35)",
-                                       color:GREEN, background:"rgba(255,255,255,0.55)",
-                                       fontSize:13, fontWeight:700, cursor:"pointer",
-                                       whiteSpace:"nowrap" }}>
-                              标记已康复
-                            </button>
-                          )}
-                          {/* 更多菜单 */}
-                          <div style={{ position:"relative" }}>
-                            <button onClick={() => setMenuOpenId(menuOpen ? null : d.id)}
-                              style={{ width:36, height:36, borderRadius:999,
-                                       background:"transparent", border:"none",
-                                       cursor:"pointer", display:"flex",
-                                       alignItems:"center", justifyContent:"center" }}>
-                              <Ellipsis size={18} color="#8A9188"/>
-                            </button>
-                            {menuOpen && (
-                              <div style={{ position:"absolute", right:0, top:40, zIndex:200,
-                                            background:"white", borderRadius:14, padding:"6px 0",
-                                            boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:130 }}>
-                                <MenuItem label="编辑用药" icon={<Pencil size={14} color={SUB}/>}
-                                  onClick={() => { setMenuOpenId(null); setEditMedDisease(d); }}/>
-                                <div style={{ height:1, background:"rgba(0,0,0,0.06)", margin:"4px 10px" }}/>
-                                <MenuItem label="删除记录" color="#D94040"
-                                  icon={<span style={{ fontSize:13 }}>🗑</span>}
-                                  onClick={() => { setMenuOpenId(null); handleDeleteDisease(d); }}/>
-                              </div>
-                            )}
                           </div>
                         </div>
                       </div>
