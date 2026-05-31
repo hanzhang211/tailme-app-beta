@@ -329,17 +329,19 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
                         </div>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:8,
-                                        flexWrap:"wrap", marginBottom:6 }}>
-                            <span style={{ fontSize:28, fontWeight:800, color:"#111",
-                                           wordBreak:"keep-all" }}>
-                              {d.disease_name}
+                                        marginBottom:6, overflow:"hidden" }}>
+                            <span style={{ fontSize:18, fontWeight:800, color:"#111",
+                                           overflow:"hidden", textOverflow:"ellipsis",
+                                           whiteSpace:"nowrap", maxWidth:120,
+                                           flexShrink:1 }}>
+                              {d.disease_name.slice(0, 12)}
                             </span>
-                            <span style={{ fontSize:13, fontWeight:700, padding:"4px 11px",
+                            <span style={{ fontSize:13, fontWeight:700, padding:"4px 10px",
                                            borderRadius:999, flexShrink:0, whiteSpace:"nowrap",
                                            background:"rgba(230,134,69,0.14)", color:"#E68645" }}>
                               {st.label}
                             </span>
-                            <ChevronRight size={15} color="#8A9188" strokeWidth={2}
+                            <ChevronRight size={14} color="#8A9188" strokeWidth={2}
                               style={{ flexShrink:0 }}/>
                           </div>
                           <div style={{ fontSize:14, color:"#6F756B", lineHeight:1.55,
