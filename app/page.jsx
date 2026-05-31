@@ -1026,26 +1026,28 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
 
       <div style={{ padding:"14px 14px 90px" }}>
         {/* 3 个入口卡：记账 / 食谱 / 健康 */}
-        <div style={{ display:"flex", gap:10, marginBottom:12 }}>
+        <div style={{ display:"flex", gap:12, marginBottom:12 }}>
           <HomeNavCard
             icon={<AccountingIcon size={36} />} label="宠物记账"
             value={monthExpense == null ? "—" : `¥${Number(monthExpense).toFixed(0)}`}
-            sub="本月"
+            sub="本月" valueSize={30}
+            bg="#F2E5DA" deco="paw"
             onClick={() => setSubPage("expenses")}
-            H_BORDER={H_BORDER} H_SHADOW={H_SHADOW} H_SUB={H_SUB} tint={C.tint} text={C.text} />
+            H_SUB={H_SUB} text={C.text} />
           <HomeNavCard
             icon={<RecipeIcon size={36} />} label="宠物食谱"
             value={todayRecipe?.title || "看看推荐"}
-            sub="今日推荐"
-            single
+            sub="今日推荐" valueSize={20}
+            bg="#F4ECD9" deco="bowl"
             onClick={() => setSubPage("recipes")}
-            H_BORDER={H_BORDER} H_SHADOW={H_SHADOW} H_SUB={H_SUB} tint={C.tint} text={C.text} />
+            H_SUB={H_SUB} text={C.text} />
           <HomeNavCard
             icon={<HealthIcon size={36} />} label="宠物健康"
             value={(pet?.neutered ? "已绝育" : "未绝育")}
-            sub={pet?.vaccinated ? "疫苗齐全" : "疫苗待补"}
+            sub={pet?.vaccinated ? "疫苗齐全" : "疫苗待补"} valueSize={22}
+            bg="#ECEEE8" deco="shield"
             onClick={() => setSubPage("health")}
-            H_BORDER={H_BORDER} H_SHADOW={H_SHADOW} H_SUB={H_SUB} tint={C.tint} text={C.text} />
+            H_SUB={H_SUB} text={C.text} />
         </div>
 
         {/* Feeding */}
@@ -1287,24 +1289,76 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
 /* ══════════════════════════════════════════════════════════════
    HOME NAV CARD — 首页 3 个入口的统一样式
 ══════════════════════════════════════════════════════════════ */
-function HomeNavCard({ icon, label, value, sub, single, onClick, H_BORDER, H_SHADOW, H_SUB, tint, text }) {
+/* 装饰性背景 SVG（右下角，透明度 0.08） */
+function CardDeco({ type }) {
+  const s = { position:"absolute", bottom:-12, right:-12, opacity:0.08, pointerEvents:"none", color:"#1A1006" };
+  if (type === "paw") return (
+    <div style={s}>
+      <svg width="100" height="100" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
+        <ellipse cx="27" cy="38" rx="8" ry="11"/>
+        <ellipse cx="50" cy="28" rx="9" ry="12"/>
+        <ellipse cx="73" cy="38" rx="8" ry="11"/>
+        <path d="M33 58 Q22 78 38 88 Q55 95 72 88 Q88 78 77 58 Q70 48 55 48 Q40 48 33 58Z"/>
+      </svg>
+    </div>
+  );
+  if (type === "bowl") return (
+    <div style={s}>
+      <svg width="100" height="100" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M15 52 Q15 82 50 82 Q85 82 85 52"/>
+        <ellipse cx="50" cy="52" rx="35" ry="10"/>
+        <line x1="50" y1="82" x2="50" y2="91"/>
+        <line x1="36" y1="91" x2="64" y2="91"/>
+      </svg>
+    </div>
+  );
+  if (type === "shield") return (
+    <div style={s}>
+      <svg width="100" height="100" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M50 10 L80 22 L80 55 Q80 80 50 90 Q20 80 20 55 L20 22 Z"/>
+        <path d="M38 50 L45 50 L45 38 L55 38 L55 50 L62 50 L62 60 L55 60 L55 72 L45 72 L45 60 L38 60 Z"/>
+      </svg>
+    </div>
+  );
+  return null;
+}
+
+function HomeNavCard({ icon, label, value, sub, valueSize = 26, bg, deco, onClick, H_SUB, text }) {
   return (
     <button onClick={onClick}
-      style={{ flex:1, background:"white", border:`1px solid ${H_BORDER}`,
-               borderRadius:16, padding:"12px 8px",
-               boxShadow:H_SHADOW, cursor:"pointer",
+      style={{ flex:1, background: bg || "#F2E5DA", border:"none",
+               borderRadius:24, minHeight:140,
+               boxShadow:"0 6px 18px rgba(0,0,0,0.05)", cursor:"pointer",
                display:"flex", flexDirection:"column", alignItems:"center",
-               gap:6, minWidth:0 }}>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"center",
-                    width:36, height:36 }}>{icon}</div>
-      <div style={{ fontSize:10, color:H_SUB }}>{label}</div>
-      <div style={{ fontSize: single ? 11 : 12, fontWeight:700, color:text, marginTop:1,
+               justifyContent:"flex-start", padding:"12px 6px 10px",
+               minWidth:0, position:"relative", overflow:"hidden", textAlign:"center" }}>
+
+      {/* 右下角装饰 */}
+      <CardDeco type={deco} />
+
+      {/* Icon 圆形浮层 */}
+      <div style={{ width:60, height:60, borderRadius:999,
+                    background:"rgba(255,255,255,0.6)",
+                    backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
+                    boxShadow:"0 4px 12px rgba(0,0,0,0.04)",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    flexShrink:0, marginBottom:6 }}>
+        {icon}
+      </div>
+
+      {/* 标签 */}
+      <div style={{ fontSize:10, color:H_SUB, marginBottom:3, letterSpacing:0.3 }}>{label}</div>
+
+      {/* 主数据 */}
+      <div style={{ fontSize:valueSize, fontWeight:700, color:text || "#1A1006", lineHeight:1.1,
                     maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis",
-                    whiteSpace:"nowrap", padding:"0 2px" }}>
+                    whiteSpace:"nowrap", padding:"0 4px" }}>
         {value}
       </div>
+
+      {/* 副标签 */}
       {sub && (
-        <div style={{ fontSize:9, color:H_SUB }}>{sub}</div>
+        <div style={{ fontSize:10, color:H_SUB, marginTop:3 }}>{sub}</div>
       )}
     </button>
   );
