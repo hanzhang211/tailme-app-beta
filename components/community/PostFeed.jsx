@@ -332,7 +332,7 @@ export default function PostFeed({ user, pet }) {
               const cover = p.cover_thumbnail_url || p.cover_image_url || null;
               return (
                 <div key={p.id} onClick={() => openDetail(p)}
-                  style={{ flex:1, minWidth:0, background:"white", borderRadius:14,
+                  style={{ flex:"0 0 calc((100% - 16px) / 3)", minWidth:0, background:"white", borderRadius:14,
                            overflow:"hidden", cursor:"pointer",
                            boxShadow:"0 2px 10px rgba(0,0,0,0.06)" }}>
                   <div style={{ width:"100%", aspectRatio:"1 / 1", background:C.tint,
