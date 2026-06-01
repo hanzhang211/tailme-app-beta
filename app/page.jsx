@@ -127,6 +127,21 @@ const C = {
   light:"#D6D5D8",    // 浅灰紫 / 辅助填充
   border:"#D6D5D8",
 };
+// 宠物聊天气泡随机文案池（营造不同宠物主动陪伴的氛围）
+const CHAT_BUBBLE_PHRASES = [
+  "点我聊聊～",
+  "我在等你呀 🐾",
+  "今天开心吗？💛",
+  "我有点想你 ✨",
+  "来找我玩吧 🐾",
+  "陪陪我嘛 🥺",
+  "我来陪你啦 ✨",
+  "要不要聊聊天？",
+  "今天过得怎么样？",
+  "我想和你说话 💛",
+  "快来摸摸我 🐾",
+  "想听你说说今天 ✨",
+];
 const cardStyle = { background:C.card, borderRadius:20, padding:16, marginBottom:12, boxShadow:"0 2px 14px rgba(0,0,0,0.05)" };
 const btnStyle  = (active) => ({
   background: active ? C.pri : "#FFFFFF", color: active ? "#fff" : "#1A1006",
@@ -700,6 +715,18 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   const avatarSrc = pet.pet_avatar_thumb_url || pet.ai_avatar_url || null;
   useEffect(() => { setAvatarBroken(false); setAvatarLoaded(false); }, [pet?.id, avatarSrc]);
 
+  // 聊天气泡文案：首次打开随机一条，切换宠物时重新随机（尽量避开上一条），同一次浏览保持不变
+  const lastBubbleIdx = useRef(-1);
+  const [bubbleText, setBubbleText] = useState(CHAT_BUBBLE_PHRASES[0]);
+  useEffect(() => {
+    let idx = Math.floor(Math.random() * CHAT_BUBBLE_PHRASES.length);
+    if (CHAT_BUBBLE_PHRASES.length > 1 && idx === lastBubbleIdx.current) {
+      idx = (idx + 1) % CHAT_BUBBLE_PHRASES.length;
+    }
+    lastBubbleIdx.current = idx;
+    setBubbleText(CHAT_BUBBLE_PHRASES[idx]);
+  }, [pet?.id]);
+
   // 多宠物 carousel
   const petIdx      = pets.findIndex((p) => p.id === pet?.id);
   const hasPrev     = petIdx > 0;
@@ -1245,7 +1272,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                        color:C.pri, fontSize:13.5, fontWeight:800, whiteSpace:"nowrap",
                        cursor:"pointer",
                        animation:"chatBubbleBreath 2.8s ease-in-out infinite" }}>
-              点我聊聊～
+              {bubbleText}
               {/* 小三角尾巴：在气泡右下角，指向宠物 */}
               <span style={{ position:"absolute", right:20, bottom:-8, width:0, height:0,
                              borderLeft:"8px solid transparent", borderRight:"8px solid transparent",
