@@ -14,7 +14,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  listPosts, listPostsByTag, getHotTopics, getRecommendedPosts,
+  listPosts, listPostsByTag, getHotTopics, getRecommendedPosts, listFollowingPosts,
   likePost, unlikePost, getMyLikedPostIds,
 } from "@/services/communityService";
 import PetAvatar  from "@/components/PetAvatar";
@@ -86,6 +86,12 @@ export default function PostFeed({ user, pet }) {
   // 🔥 今日热门话题 + ✨ 今日推荐（真实数据，5分钟缓存）
   const [hotTopics, setHotTopics] = useState([]);
   const [recommend, setRecommend] = useState([]);
+
+  // 顶部分区：推荐 / 关注 / 同城 / 最新
+  const [feedTab, setFeedTab] = useState("recommend");
+  const [followPosts,   setFollowPosts]   = useState([]);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [followLoaded,  setFollowLoaded]  = useState(false);
 
   const [toastMsg, setToastMsg] = useState(null);
   const toastTimerRef = useRef();
@@ -184,6 +190,27 @@ export default function PostFeed({ user, pet }) {
   };
   const [topicL, topicR] = useMemo(() => splitTwoCols(topicPosts), [topicPosts]);
 
+  /* ── 「关注」流：首次切到该 tab 时加载（我赞过的人发的帖） ── */
+  useEffect(() => {
+    if (feedTab !== "follow" || followLoaded || !user?.id) return;
+    let alive = true;
+    setFollowLoading(true);
+    listFollowingPosts(user.id)
+      .then(async (list) => {
+        if (!alive) return;
+        setFollowPosts(list);
+        setFollowLoaded(true);
+        if (list.length) {
+          const liked = await getMyLikedPostIds(user.id, list.map((p) => p.id));
+          if (alive) setLikedSet((prev) => { const n = new Set(prev); liked.forEach((id) => n.add(id)); return n; });
+        }
+      })
+      .catch((e) => { if (alive) toast(e.message, "error"); })
+      .finally(() => { if (alive) setFollowLoading(false); });
+    return () => { alive = false; };
+  }, [feedTab, followLoaded, user?.id]); // eslint-disable-line
+  const [followL, followR] = useMemo(() => splitTwoCols(followPosts), [followPosts]);
+
   /* ── 点赞同步 ────────────────────────────────────── */
   const handleLikeChange = (postId, isLikedNow, likeDelta) => {
     setLikedSet((prev) => {
@@ -243,6 +270,24 @@ export default function PostFeed({ user, pet }) {
       )}
 
       <div style={{ display: topicTag ? "none" : "block" }}>
+
+      {/* 顶部分区 Tab：推荐 / 关注 / 同城 / 最新 */}
+      <div style={{ display:"flex", gap:20, padding:"12px 16px 0" }}>
+        {[["recommend","推荐"], ["follow","关注"], ["city","同城"], ["latest","最新"]].map(([key, label]) => {
+          const on = feedTab === key;
+          return (
+            <button key={key} onClick={() => setFeedTab(key)}
+              style={{ background:"transparent", border:"none", cursor:"pointer", padding:"0 0 6px",
+                       fontSize:15, fontWeight: on ? 800 : 600, color: on ? C.text : C.sub,
+                       position:"relative" }}>
+              {label}
+              {on && <span style={{ position:"absolute", left:"50%", bottom:0, transform:"translateX(-50%)",
+                                    width:18, height:3, borderRadius:2, background:C.pri }} />}
+            </button>
+          );
+        })}
+      </div>
+
       <div style={{ padding:"14px 14px 0" }}>
         <button onClick={() => setComposeOpen(true)}
           style={{ width:"100%", padding:"12px 16px", textAlign:"left",
@@ -258,8 +303,8 @@ export default function PostFeed({ user, pet }) {
         </button>
       </div>
 
-      {/* 🔥 今日热门话题（真实统计 · 5分钟缓存） */}
-      {hotTopics.length > 0 && (
+      {/* 🔥 今日热门话题（真实统计 · 5分钟缓存）—— 仅「推荐」 */}
+      {feedTab === "recommend" && hotTopics.length > 0 && (
         <div style={{ padding:"14px 14px 0" }}>
           <div style={{ fontSize:13, fontWeight:800, color:C.text, marginBottom:8 }}>🔥 今日热门</div>
           <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none" }}>
@@ -277,8 +322,8 @@ export default function PostFeed({ user, pet }) {
         </div>
       )}
 
-      {/* ✨ 今日推荐（likes*2 + comments*3 · 近48h · 真实封面） */}
-      {recommend.length > 0 && (
+      {/* ✨ 今日推荐（likes*2 + comments*3 · 近48h · 真实封面）—— 仅「推荐」 */}
+      {feedTab === "recommend" && recommend.length > 0 && (
         <div style={{ padding:"16px 14px 0" }}>
           <div style={{ fontSize:13, fontWeight:800, color:C.text, marginBottom:8 }}>✨ 今日推荐</div>
           <div style={{ display:"flex", gap:8 }}>
@@ -314,6 +359,7 @@ export default function PostFeed({ user, pet }) {
         </div>
       )}
 
+      {(feedTab === "recommend" || feedTab === "latest") && (
       <div style={{ display:"flex", gap:8, padding:"12px 12px 0" }}>
         {[leftCol, rightCol].map((col, ci) => (
           <div key={ci} style={{ flex:1, display:"flex", flexDirection:"column", gap:8, minWidth:0 }}>
@@ -329,28 +375,63 @@ export default function PostFeed({ user, pet }) {
           </div>
         ))}
       </div>
-
-      {loading && <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>加载中…</div>}
-      {err     && <div style={{ textAlign:"center", color:"#D94040", fontSize:12, padding:20 }}>❌ {err}</div>}
-      {!loading && !err && posts.length === 0 && (
-        <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"60px 0" }}>
-          还没有帖子，做第一个分享的人吧 🐾
-        </div>
       )}
 
-      {/* 分页 sentinel */}
-      {hasMore && posts.length > 0 && (
-        <div ref={sentinelRef} style={{ height:60, display:"flex",
-                                        alignItems:"center", justifyContent:"center",
-                                        color:C.sub, fontSize:12 }}>
-          {loadingMore ? "加载中…" : ""}
+      {/* 关注流：我赞过/互动过的人的帖子 */}
+      {feedTab === "follow" && (
+        followLoading ? (
+          <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>加载中…</div>
+        ) : followPosts.length === 0 ? (
+          <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"60px 24px", lineHeight:1.8 }}>
+            还没有关注的内容 🐾<br/>
+            <span style={{ fontSize:12 }}>给喜欢的帖子点个赞，TA 的新动态就会出现在这里</span>
+          </div>
+        ) : (
+          <div style={{ display:"flex", gap:8, padding:"12px 12px 90px" }}>
+            {[followL, followR].map((col, ci) => (
+              <div key={ci} style={{ flex:1, display:"flex", flexDirection:"column", gap:8, minWidth:0 }}>
+                {col.map((p) => (
+                  <PostCard key={p.id} post={p} isLiked={likedSet.has(p.id)}
+                    onOpen={() => openDetail(p)} onToggleLike={(e) => handleCardLike(p, e)}
+                    onOpenTopic={openTopic} />
+                ))}
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {/* 同城流：暂未开放（需用户城市，按设计先占位，不用 mock） */}
+      {feedTab === "city" && (
+        <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"60px 24px", lineHeight:1.8 }}>
+          📍 同城功能即将开放<br/>
+          <span style={{ fontSize:12 }}>设置所在城市后，就能看到同城毛孩子的动态啦</span>
         </div>
       )}
-      {!hasMore && posts.length > 0 && (
-        <div style={{ textAlign:"center", color:C.sub, fontSize:11, padding:"20px 0 90px" }}>
-          —— 没有更多了 ——
-        </div>
-      )}
+
+      {(feedTab === "recommend" || feedTab === "latest") && (<>
+        {loading && <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>加载中…</div>}
+        {err     && <div style={{ textAlign:"center", color:"#D94040", fontSize:12, padding:20 }}>❌ {err}</div>}
+        {!loading && !err && posts.length === 0 && (
+          <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"60px 0" }}>
+            还没有帖子，做第一个分享的人吧 🐾
+          </div>
+        )}
+
+        {/* 分页 sentinel */}
+        {hasMore && posts.length > 0 && (
+          <div ref={sentinelRef} style={{ height:60, display:"flex",
+                                          alignItems:"center", justifyContent:"center",
+                                          color:C.sub, fontSize:12 }}>
+            {loadingMore ? "加载中…" : ""}
+          </div>
+        )}
+        {!hasMore && posts.length > 0 && (
+          <div style={{ textAlign:"center", color:C.sub, fontSize:11, padding:"20px 0 90px" }}>
+            —— 没有更多了 ——
+          </div>
+        )}
+      </>)}
       </div>{/* /主 feed 包裹（话题页打开时隐藏）*/}
 
       {composeOpen && (

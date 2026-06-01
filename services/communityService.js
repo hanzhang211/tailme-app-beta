@@ -235,6 +235,38 @@ export async function listPosts({ limit = 20, before } = {}) {
   return data || [];
 }
 
+/**
+ * 「关注」流：我赞过/互动过的人发的帖子（按时间倒序，真实数据）。
+ * 逻辑：取我点赞过的帖子 → 这些帖子的作者 → 这些作者的全部可见帖子。
+ */
+export async function listFollowingPosts(userId, { limit = 30 } = {}) {
+  if (!userId) return [];
+  const sb = requireSupabase();
+  const { data: likes } = await sb.from("post_likes")
+    .select("post_id").eq("user_id", userId).limit(300);
+  const likedIds = (likes || []).map((l) => l.post_id);
+  if (!likedIds.length) return [];
+  const { data: likedPosts } = await sb.from("posts")
+    .select("user_id").in("id", likedIds);
+  const authorIds = [...new Set((likedPosts || []).map((p) => p.user_id).filter(Boolean))];
+  if (!authorIds.length) return [];
+  const { data, error } = await sb.from("posts")
+    .select(`
+      id, title, content, post_type, text_bg_color,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
+      like_count, comment_count, created_at, hashtags,
+      user_id, pet_id,
+      user:users!posts_user_id_fkey ( username, avatar_url ),
+      pet:pets!posts_pet_id_fkey ( name, breed, ai_avatar_url )
+    `)
+    .eq("status", "visible")
+    .in("user_id", authorIds)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`获取关注流失败: ${error.message}`);
+  return data || [];
+}
+
 /* ══════════════════════════════════════════════════════════
    轻量内存缓存（5 分钟）—— 避免热门/推荐每次刷新全表扫
 ══════════════════════════════════════════════════════════ */
