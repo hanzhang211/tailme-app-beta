@@ -137,9 +137,11 @@ async function callReplicate(photoUrl: string, token: string, petType?: string) 
 }
 
 // 调 851-labs/background-remover 抠图，输出透明 PNG URL
+// 851-labs 是社区模型，必须用 /v1/predictions + version hash（不能用 official 端点）
+const REMBG_VERSION = "a029dff38972b5fda4ec5d75d7d1cd25aeff621d2cf4946a41055d7db66b80bc";
 async function callRembg(imageUrl: string, token: string) {
   const resp = await fetch(
-    `https://api.replicate.com/v1/models/851-labs/background-remover/predictions`,
+    `https://api.replicate.com/v1/predictions`,
     {
       method: "POST",
       headers: {
@@ -148,6 +150,7 @@ async function callRembg(imageUrl: string, token: string) {
         "Prefer":        "wait=60",
       },
       body: JSON.stringify({
+        version: REMBG_VERSION,
         input: { image: imageUrl, background_type: "rgba" },
       }),
     }

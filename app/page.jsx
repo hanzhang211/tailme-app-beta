@@ -694,9 +694,9 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   const [avatarOpen,       setAvatarOpen]   = useState(false);
   const [avatarBroken,     setAvatarBroken] = useState(false);
   const [avatarLoaded,     setAvatarLoaded] = useState(false);
-  // 优先用 ai_avatar_url（原始 PNG，背景比 thumb 变换填充更自然）
-  // URL 含时间戳，每次生成都不同，天然绕开缓存，无需手动 cache-bust
-  const avatarSrc = pet.ai_avatar_url || pet.pet_avatar_thumb_url || null;
+  // 优先用 thumb（300 WebP 小图，加载快）；rembg 抠图后 thumb 也是透明的
+  // URL 含时间戳，每次生成都不同，天然绕开缓存
+  const avatarSrc = pet.pet_avatar_thumb_url || pet.ai_avatar_url || null;
   useEffect(() => { setAvatarBroken(false); setAvatarLoaded(false); }, [pet?.id, avatarSrc]);
 
   // 多宠物 carousel
