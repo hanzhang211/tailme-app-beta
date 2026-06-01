@@ -142,17 +142,24 @@ function buildSystemPrompt(body: any) {
 function detectMemory(message: string): { memory_type: string; content: string } | null {
   if (!message) return null;
   const text = message.trim();
-  if (text.length < 4 || text.length > 200) return null;
+  if (text.length < 3 || text.length > 200) return null;
 
-  const goalKw = ["考试", "期末", "考研", "面试", "找工作", "求职", "毕业", "答辩", "目标", "计划", "想要", "打算", "比赛", "项目"];
-  const stressKw = ["焦虑", "压力", "难过", "崩溃", "好累", "很累", "失眠", "睡不着", "孤独", "emo", "烦", "抑郁", "委屈", "想哭"];
-  const likeKw = ["喜欢", "最爱", "爱吃", "最喜欢", "讨厌", "害怕"];
+  // 跳过提问句：避免把「你还记得我喜欢什么吗？」这类问题误存成记忆
+  if (/[?？]/.test(text)) return null;
+  if (/^(你|您)/.test(text) && /(吗|嘛|呢|啊)$/.test(text)) return null;
+
+  // 个人资料：姓名、所在地、年龄、生日等（用户的稳定长期信息）
+  const profileKw = ["我叫", "我名字", "我的名字", "我是", "我在", "我住", "我家在", "我家住", "我来自", "我今年", "我的生日", "我生日", "我属", "我的工作", "我做"];
+  const goalKw = ["考试", "期末", "考研", "面试", "找工作", "求职", "毕业", "答辩", "目标", "计划", "想要", "打算", "比赛", "项目", "准备"];
+  const stressKw = ["焦虑", "压力", "难过", "崩溃", "好累", "很累", "失眠", "睡不着", "孤独", "emo", "烦", "抑郁", "委屈", "想哭", "不开心", "心情不好"];
+  const likeKw = ["喜欢", "最爱", "爱吃", "最喜欢", "讨厌", "害怕", "爱喝"];
 
   const has = (arr: string[]) => arr.some((k) => text.includes(k));
 
-  if (has(goalKw))   return { memory_type: "goal",   content: text };
-  if (has(stressKw)) return { memory_type: "stress", content: text };
-  if (has(likeKw))   return { memory_type: "like",   content: text };
+  if (has(profileKw)) return { memory_type: "profile", content: text };
+  if (has(goalKw))    return { memory_type: "goal",    content: text };
+  if (has(stressKw))  return { memory_type: "stress",  content: text };
+  if (has(likeKw))    return { memory_type: "like",    content: text };
   return null;
 }
 
@@ -192,12 +199,14 @@ export async function POST(req: Request) {
     ownershipOk = !!petOwnerId && !!userId && petOwnerId === userId;
 
     if (ownershipOk) {
+      // 显式按 user_id + pet_id 查询（用户隔离）
       const { data: mems } = await supabaseAdmin
         .from("pet_ai_memories")
         .select("memory_type, content")
+        .eq("user_id", userId)
         .eq("pet_id", petId)
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(10);
       memories = mems || [];
     }
   }
