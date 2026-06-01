@@ -14,7 +14,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  listPosts,
+  listPosts, listPostsByTag, getHotTopics, getRecommendedPosts,
   likePost, unlikePost, getMyLikedPostIds,
 } from "@/services/communityService";
 import PetAvatar  from "@/components/PetAvatar";
@@ -27,6 +27,36 @@ const C = {
 };
 
 const PAGE_SIZE = 20;
+
+/** 相对时间：刚刚 / x分钟前 / x小时前 / x天前 / 日期 */
+function relativeTime(iso) {
+  if (!iso) return "";
+  const t = new Date(iso).getTime();
+  if (!isFinite(t)) return "";
+  const diff = Date.now() - t;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "刚刚";
+  if (min < 60) return `${min}分钟前`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}小时前`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}天前`;
+  return new Date(iso).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
+}
+
+/** 双列瀑布流分列（主 feed 与话题页复用） */
+function splitTwoCols(list) {
+  const L = [], R = [];
+  let lh = 0, rh = 0;
+  for (const p of list) {
+    const isText = p.post_type === "text" || (!p.cover_thumbnail_url && !p.cover_image_url);
+    const ratio = isText ? textCoverRatio(p) : imageCoverRatio(p);
+    const estimateH = 1 / ratio + 0.45;
+    if (lh <= rh) { L.push(p); lh += estimateH; }
+    else          { R.push(p); rh += estimateH; }
+  }
+  return [L, R];
+}
 
 function textCoverRatio(post) {
   // 文字卡：根据内容长度撑高度（瀑布流自然错落）
@@ -52,6 +82,10 @@ export default function PostFeed({ user, pet }) {
 
   const [composeOpen, setComposeOpen] = useState(false);
   const [detailId,    setDetailId]    = useState(null);
+
+  // 🔥 今日热门话题 + ✨ 今日推荐（真实数据，5分钟缓存）
+  const [hotTopics, setHotTopics] = useState([]);
+  const [recommend, setRecommend] = useState([]);
 
   const [toastMsg, setToastMsg] = useState(null);
   const toastTimerRef = useRef();
@@ -85,6 +119,9 @@ export default function PostFeed({ user, pet }) {
         if (alive) setLoading(false);
       }
     })();
+    // 热门话题 + 推荐（非阻塞，失败静默）
+    getHotTopics().then((t) => { if (alive) setHotTopics(t); }).catch(() => {});
+    getRecommendedPosts().then((r) => { if (alive) setRecommend(r); }).catch(() => {});
     return () => { alive = false; };
   }, [user?.id]);
 
@@ -125,19 +162,27 @@ export default function PostFeed({ user, pet }) {
   }, [hasMore, posts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── 瀑布流分列 ──────────────────────────────────── */
-  const [leftCol, rightCol] = useMemo(() => {
-    const L = [], R = [];
-    let lh = 0, rh = 0;
-    for (const p of posts) {
-      const isText = p.post_type === "text" || (!p.cover_thumbnail_url && !p.cover_image_url);
-      // 估算卡片高度（用 ratio 倒数 = 高/宽）
-      const ratio = isText ? textCoverRatio(p) : imageCoverRatio(p);
-      const estimateH = 1 / ratio + 0.45;
-      if (lh <= rh) { L.push(p); lh += estimateH; }
-      else          { R.push(p); rh += estimateH; }
-    }
-    return [L, R];
-  }, [posts]);
+  const [leftCol, rightCol] = useMemo(() => splitTwoCols(posts), [posts]);
+
+  /* ── 话题页（Phase 1）：点击 #话题 → 展示该 tag 的所有帖子 ── */
+  const [topicTag,     setTopicTag]     = useState(null);
+  const [topicPosts,   setTopicPosts]   = useState([]);
+  const [topicLoading, setTopicLoading] = useState(false);
+  const openTopic = async (tag) => {
+    if (!tag) return;
+    setTopicTag(tag);
+    setTopicLoading(true);
+    try {
+      const list = await listPostsByTag(tag);
+      setTopicPosts(list);
+      if (user?.id && list.length) {
+        const liked = await getMyLikedPostIds(user.id, list.map((p) => p.id));
+        setLikedSet((prev) => { const n = new Set(prev); liked.forEach((id) => n.add(id)); return n; });
+      }
+    } catch (e) { toast(e.message, "error"); }
+    finally { setTopicLoading(false); }
+  };
+  const [topicL, topicR] = useMemo(() => splitTwoCols(topicPosts), [topicPosts]);
 
   /* ── 点赞同步 ────────────────────────────────────── */
   const handleLikeChange = (postId, isLikedNow, likeDelta) => {
@@ -184,6 +229,20 @@ export default function PostFeed({ user, pet }) {
     <div ref={scrollRef}
       style={{ height:"100%", overflowY:"auto", background:C.bg, position:"relative" }}>
 
+      {topicTag && (
+        <TopicView
+          tag={topicTag}
+          loading={topicLoading}
+          colL={topicL} colR={topicR}
+          likedSet={likedSet}
+          onBack={() => { setTopicTag(null); setTopicPosts([]); }}
+          onOpenPost={openDetail}
+          onToggleLike={handleCardLike}
+          onOpenTopic={openTopic}
+        />
+      )}
+
+      <div style={{ display: topicTag ? "none" : "block" }}>
       <div style={{ padding:"14px 14px 0" }}>
         <button onClick={() => setComposeOpen(true)}
           style={{ width:"100%", padding:"12px 16px", textAlign:"left",
@@ -199,6 +258,62 @@ export default function PostFeed({ user, pet }) {
         </button>
       </div>
 
+      {/* 🔥 今日热门话题（真实统计 · 5分钟缓存） */}
+      {hotTopics.length > 0 && (
+        <div style={{ padding:"14px 14px 0" }}>
+          <div style={{ fontSize:13, fontWeight:800, color:C.text, marginBottom:8 }}>🔥 今日热门</div>
+          <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none" }}>
+            {hotTopics.map(({ tag, count }) => (
+              <button key={tag} onClick={() => openTopic(tag)}
+                style={{ flexShrink:0, display:"flex", alignItems:"center", gap:5,
+                         background:"white", border:`1px solid ${C.border}`, borderRadius:999,
+                         padding:"6px 12px", cursor:"pointer",
+                         boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+                <span style={{ fontSize:12.5, fontWeight:700, color:C.pri }}># {tag}</span>
+                <span style={{ fontSize:10, color:C.sub }}>{count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ✨ 今日推荐（likes*2 + comments*3 · 近48h · 真实封面） */}
+      {recommend.length > 0 && (
+        <div style={{ padding:"16px 14px 0" }}>
+          <div style={{ fontSize:13, fontWeight:800, color:C.text, marginBottom:8 }}>✨ 今日推荐</div>
+          <div style={{ display:"flex", gap:8 }}>
+            {recommend.map((p, i) => {
+              const label = ["最受欢迎狗狗", "最可爱猫咪", "今日最佳照片"][i] || "热门推荐";
+              const cover = p.cover_thumbnail_url || p.cover_image_url || null;
+              return (
+                <div key={p.id} onClick={() => openDetail(p)}
+                  style={{ flex:1, minWidth:0, background:"white", borderRadius:14,
+                           overflow:"hidden", cursor:"pointer",
+                           boxShadow:"0 2px 10px rgba(0,0,0,0.06)" }}>
+                  <div style={{ width:"100%", aspectRatio:"1 / 1", background:C.tint,
+                                display:"flex", alignItems:"center", justifyContent:"center",
+                                overflow:"hidden" }}>
+                    {cover
+                      ? <img src={cover} alt="" loading="lazy"
+                          style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                      : <span style={{ fontSize:26 }}>🐾</span>}
+                  </div>
+                  <div style={{ padding:"7px 8px 8px" }}>
+                    <div style={{ fontSize:11, fontWeight:800, color:C.text,
+                                  overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      {label}
+                    </div>
+                    <div style={{ fontSize:10, color:C.pri, fontWeight:600, marginTop:2 }}>
+                      {p.like_count || 0} 个点赞
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div style={{ display:"flex", gap:8, padding:"12px 12px 0" }}>
         {[leftCol, rightCol].map((col, ci) => (
           <div key={ci} style={{ flex:1, display:"flex", flexDirection:"column", gap:8, minWidth:0 }}>
@@ -208,6 +323,7 @@ export default function PostFeed({ user, pet }) {
                 isLiked={likedSet.has(p.id)}
                 onOpen={() => openDetail(p)}
                 onToggleLike={(e) => handleCardLike(p, e)}
+                onOpenTopic={openTopic}
               />
             ))}
           </div>
@@ -235,6 +351,7 @@ export default function PostFeed({ user, pet }) {
           —— 没有更多了 ——
         </div>
       )}
+      </div>{/* /主 feed 包裹（话题页打开时隐藏）*/}
 
       {composeOpen && (
         <PostCompose
@@ -265,8 +382,11 @@ export default function PostFeed({ user, pet }) {
 /* ──────────────────────────────────────────────────────
    单张 Feed 卡片：只显示 thumbnail
    ────────────────────────────────────────────────────── */
-function PostCard({ post, isLiked, onOpen, onToggleLike }) {
-  const display = post.user?.username || "未命名宠物";
+function PostCard({ post, isLiked, onOpen, onToggleLike, onOpenTopic }) {
+  const primaryName = post.pet?.name || post.user?.username || "未命名宠物";
+  const breed = post.pet?.breed || "";
+  const time  = relativeTime(post.created_at);
+  const tags  = Array.isArray(post.hashtags) ? post.hashtags : [];
   const thumbUrl = post.cover_thumbnail_url || post.cover_image_url || null;
   const isText  = post.post_type === "text" || !thumbUrl;
 
@@ -312,20 +432,85 @@ function PostCard({ post, isLiked, onOpen, onToggleLike }) {
         </div>
       )}
 
-      <div style={{ padding:"8px 10px", display:"flex", alignItems:"center", gap:6 }}>
-        <PetAvatar pet={post.pet} overrideUrl={post.user?.avatar_url} size={22} bg={C.tint} />
-        <div style={{ flex:1, fontSize:11, color:C.sub,
-                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-          {display}
+      {/* #话题 胶囊（可点击进入话题页） */}
+      {tags.length > 0 && (
+        <div style={{ padding:"7px 10px 0", display:"flex", flexWrap:"wrap", gap:5 }}>
+          {tags.slice(0, 3).map((tag) => (
+            <button key={tag}
+              onClick={(e) => { e.stopPropagation(); onOpenTopic?.(tag); }}
+              style={{ fontSize:10, fontWeight:600, color:C.pri, background:C.tint,
+                       border:"none", borderRadius:999, padding:"2px 8px", cursor:"pointer",
+                       maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+              #{tag}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 作者行：宠物头像 + 宠物名 + 品种·时间 + 点赞 */}
+      <div style={{ padding:"8px 10px", display:"flex", alignItems:"center", gap:7 }}>
+        <PetAvatar pet={post.pet} overrideUrl={post.user?.avatar_url} size={24} bg={C.tint} />
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize:11.5, fontWeight:700, color:C.text,
+                        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {primaryName}
+          </div>
+          {(breed || time) && (
+            <div style={{ fontSize:10, color:C.sub, marginTop:1,
+                          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+              {[breed, time].filter(Boolean).join(" · ")}
+            </div>
+          )}
         </div>
         <button onClick={onToggleLike}
           style={{ background:"transparent", border:"none", cursor:"pointer",
-                   display:"flex", alignItems:"center", gap:3,
+                   display:"flex", alignItems:"center", gap:3, flexShrink:0,
                    color: isLiked ? C.pri : C.sub,
                    fontSize:11, fontWeight: isLiked ? 700 : 500, padding:0 }}>
           {isLiked ? "❤️" : "🤍"} {post.like_count || 0}
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────
+   话题页（Phase 1）：某个 #话题 下的所有帖子
+   ────────────────────────────────────────────────────── */
+function TopicView({ tag, loading, colL, colR, likedSet, onBack, onOpenPost, onToggleLike, onOpenTopic }) {
+  const total = colL.length + colR.length;
+  return (
+    <div>
+      <div style={{ padding:"14px 14px 6px", display:"flex", alignItems:"center", gap:10 }}>
+        <button onClick={onBack}
+          style={{ width:34, height:34, borderRadius:999, flexShrink:0,
+                   background:"white", border:`1px solid ${C.border}`, cursor:"pointer",
+                   fontSize:18, color:C.text, display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
+        <div style={{ minWidth:0 }}>
+          <div style={{ fontSize:18, fontWeight:800, color:C.pri,
+                        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}># {tag}</div>
+          <div style={{ fontSize:12, color:C.sub }}>{loading ? "加载中…" : `${total} 篇帖子`}</div>
+        </div>
+      </div>
+
+      <div style={{ display:"flex", gap:8, padding:"8px 12px 0" }}>
+        {[colL, colR].map((col, ci) => (
+          <div key={ci} style={{ flex:1, display:"flex", flexDirection:"column", gap:8, minWidth:0 }}>
+            {col.map((p) => (
+              <PostCard key={p.id} post={p} isLiked={likedSet.has(p.id)}
+                onOpen={() => onOpenPost(p)} onToggleLike={(e) => onToggleLike(p, e)}
+                onOpenTopic={onOpenTopic} />
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {!loading && total === 0 && (
+        <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"50px 0" }}>
+          该话题还没有帖子 🐾
+        </div>
+      )}
+      <div style={{ height:90 }} />
     </div>
   );
 }

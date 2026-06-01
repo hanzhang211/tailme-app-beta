@@ -23,6 +23,7 @@ import {
   unsubscribeChannel,
   deleteOwnContent,
   reportContent,
+  getGroupStats,
 } from "@/services/communityService";
 import { avatarForBreed } from "@/services/breedAvatar";
 import PetAvatar from "@/components/PetAvatar";
@@ -55,6 +56,9 @@ export default function ChatRoom({ user, pet, pets = [] }) {
   const scrollRef  = useRef(null);
   const channelRef = useRef(null);
 
+  /* 群活跃度统计（成员/在线 + 本周最火，真实数据 5分钟缓存） */
+  const [groupStats, setGroupStats] = useState({ statByBreed: {}, hotGroups: [] });
+
   /* ── 拉房间列表 ────────────────────────────────── */
   useEffect(() => {
     (async () => {
@@ -67,6 +71,7 @@ export default function ChatRoom({ user, pet, pets = [] }) {
         setLoadingRooms(false);
       }
     })();
+    getGroupStats().then(setGroupStats).catch(() => {});
   }, []);
 
   const generalRoom = rooms.find((r) => r.breed === null);
@@ -199,16 +204,40 @@ export default function ChatRoom({ user, pet, pets = [] }) {
             添加毛孩子后，会自动看到 TA 的品种群聊哦 🐾
           </div>
         ) : (
-          myBreeds.map(({ breed, pet_type }) => (
-            <LobbyCard
-              key={breed}
-              icon={avatarForBreed(breed, pet_type)}
-              title={`${breed}群聊`}
-              subtitle={`和${breed}家长一起交流经验`}
-              badge="我的品种"
-              onClick={() => enterBreedRoom({ breed, pet_type })}
-            />
-          ))
+          myBreeds.map(({ breed, pet_type }) => {
+            const s = groupStats.statByBreed[breed];
+            const sub = s
+              ? `${s.members} 位家长 · ${s.online} 人在线`
+              : `和${breed}家长一起交流经验`;
+            return (
+              <LobbyCard
+                key={breed}
+                icon={avatarForBreed(breed, pet_type)}
+                title={`${breed}群聊`}
+                subtitle={sub}
+                badge="我的品种"
+                onClick={() => enterBreedRoom({ breed, pet_type })}
+              />
+            );
+          })
+        )}
+
+        {/* 🔥 本周最火（近7天群消息数 Top3，真实派生） */}
+        {groupStats.hotGroups.length > 0 && (
+          <>
+            <div style={{ fontSize:12, fontWeight:700, color:C.sub, margin:"14px 0 8px", letterSpacing:0.5 }}>
+              🔥 本周最火
+            </div>
+            {groupStats.hotGroups.map((g) => (
+              <LobbyCard
+                key={g.roomId}
+                icon={avatarForBreed(g.breed, g.pet_type)}
+                title={`${g.breed}群聊`}
+                subtitle={`${g.members} 位家长 · ${g.online} 人在线 · 本周 ${g.msgCount} 条消息`}
+                onClick={() => enterBreedRoom({ breed: g.breed, pet_type: g.pet_type })}
+              />
+            ))}
+          </>
         )}
 
         {/* 汪星人社区 */}

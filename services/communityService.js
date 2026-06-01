@@ -197,16 +197,33 @@ export function subscribeComments(postId, { onInsert, onDelete } = {}) {
  *  - cover_thumbnail_url 缺失时回退到 cover_image_url
  *  - 用 cursor (before) 而非 offset，避免新帖插入导致跳页
  */
+/**
+ * 从文本解析 #话题（中文/字母数字，去重，最多 10 个，单个 ≤20 字）。
+ * 例： "今天遛狗 #今日遛狗打卡 #哈士奇" → ["今日遛狗打卡","哈士奇"]
+ */
+export function parseHashtags(text) {
+  if (!text) return [];
+  const out = [];
+  const re = /#([一-龥\w]{1,20})/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const tag = m[1];
+    if (tag && !out.includes(tag)) out.push(tag);
+    if (out.length >= 10) break;
+  }
+  return out;
+}
+
 export async function listPosts({ limit = 20, before } = {}) {
   const sb = requireSupabase();
   let q = sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
       cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
-      like_count, comment_count, created_at,
+      like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),
-      pet:pets!posts_pet_id_fkey ( breed, ai_avatar_url )
+      pet:pets!posts_pet_id_fkey ( name, breed, ai_avatar_url )
     `)
     .eq("status", "visible")
     .order("created_at", { ascending: false })
@@ -215,6 +232,150 @@ export async function listPosts({ limit = 20, before } = {}) {
 
   const { data, error } = await q;
   if (error) throw new Error(`获取帖子失败: ${error.message}`);
+  return data || [];
+}
+
+/* ══════════════════════════════════════════════════════════
+   轻量内存缓存（5 分钟）—— 避免热门/推荐每次刷新全表扫
+══════════════════════════════════════════════════════════ */
+const _cache = new Map();
+async function cached(key, ttlMs, fn) {
+  const hit = _cache.get(key);
+  if (hit && Date.now() - hit.t < ttlMs) return hit.v;
+  const v = await fn();
+  _cache.set(key, { t: Date.now(), v });
+  return v;
+}
+const FIVE_MIN = 5 * 60 * 1000;
+
+/**
+ * 🔥 今日热门话题：统计近 N 天帖子 hashtags 出现次数，取前 top（真实数据，非 mock）。
+ */
+export async function getHotTopics({ days = 7, top = 5 } = {}) {
+  return cached(`hotTopics_${days}_${top}`, FIVE_MIN, async () => {
+    const sb = requireSupabase();
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+    const { data, error } = await sb.from("posts")
+      .select("hashtags")
+      .eq("status", "visible")
+      .gte("created_at", since)
+      .limit(1000);
+    if (error) throw new Error(`获取热门话题失败: ${error.message}`);
+    const count = {};
+    (data || []).forEach((p) => (p.hashtags || []).forEach((t) => {
+      if (t) count[t] = (count[t] || 0) + 1;
+    }));
+    return Object.entries(count)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, top)
+      .map(([tag, n]) => ({ tag, count: n }));
+  });
+}
+
+/**
+ * ✨ 今日推荐：近 hours 小时内，按 likes*2 + comments*3 排序，取前 top（真实帖子封面）。
+ */
+export async function getRecommendedPosts({ hours = 48, top = 3 } = {}) {
+  return cached(`recommend_${hours}_${top}`, FIVE_MIN, async () => {
+    const sb = requireSupabase();
+    const since = new Date(Date.now() - hours * 3600000).toISOString();
+    const { data, error } = await sb.from("posts")
+      .select(`
+        id, title, content, post_type, text_bg_color,
+        cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
+        like_count, comment_count, created_at, hashtags,
+        user_id, pet_id,
+        user:users!posts_user_id_fkey ( username, avatar_url ),
+        pet:pets!posts_pet_id_fkey ( name, breed, ai_avatar_url )
+      `)
+      .eq("status", "visible")
+      .gte("created_at", since)
+      .limit(100);
+    if (error) throw new Error(`获取推荐失败: ${error.message}`);
+    return (data || [])
+      .map((p) => ({ ...p, _score: (p.like_count || 0) * 2 + (p.comment_count || 0) * 3 }))
+      .sort((a, b) => b._score - a._score)
+      .slice(0, top);
+  });
+}
+
+/**
+ * 品种群活跃度 + 🔥本周最火（真实派生，无新表，5分钟缓存）：
+ *  - 成员数：pets.breed 计数
+ *  - 在线数：该房间近 15 分钟发消息的去重用户数
+ *  - 本周最火：近 7 天群消息数 Top3
+ * 返回 { statByBreed: { [breed]: {members, online, msgCount7d} }, hotGroups: [...] }
+ */
+export async function getGroupStats() {
+  return cached("groupStats", FIVE_MIN, async () => {
+    const sb = requireSupabase();
+    const { data: rooms } = await sb.from("chat_rooms").select("id, name, breed");
+    const roomByBreed = {};
+    (rooms || []).forEach((r) => { if (r.breed) roomByBreed[r.breed] = r; });
+
+    const { data: petRows } = await sb.from("pets").select("breed").limit(5000);
+    const memberByBreed = {};
+    (petRows || []).forEach((p) => { if (p.breed) memberByBreed[p.breed] = (memberByBreed[p.breed] || 0) + 1; });
+
+    const since7  = new Date(Date.now() - 7 * 86400000).toISOString();
+    const since15 = Date.now() - 15 * 60000;
+    const { data: msgs } = await sb.from("messages")
+      .select("room_id, user_id, created_at")
+      .eq("status", "visible")
+      .gte("created_at", since7)
+      .order("created_at", { ascending: false })
+      .limit(3000);
+    const msgCount = {}, online = {};
+    (msgs || []).forEach((m) => {
+      msgCount[m.room_id] = (msgCount[m.room_id] || 0) + 1;
+      if (new Date(m.created_at).getTime() >= since15) {
+        (online[m.room_id] = online[m.room_id] || new Set()).add(m.user_id);
+      }
+    });
+
+    const statByBreed = {};
+    Object.entries(roomByBreed).forEach(([breed, r]) => {
+      statByBreed[breed] = {
+        members:    memberByBreed[breed] || 0,
+        online:     online[r.id]?.size || 0,
+        msgCount7d: msgCount[r.id] || 0,
+      };
+    });
+    const hotGroups = Object.entries(roomByBreed)
+      .map(([breed, r]) => ({
+        breed, roomId: r.id, pet_type: r.pet_type || "dog",
+        members: memberByBreed[breed] || 0,
+        online:  online[r.id]?.size || 0,
+        msgCount: msgCount[r.id] || 0,
+      }))
+      .filter((g) => g.msgCount > 0)
+      .sort((a, b) => b.msgCount - a.msgCount)
+      .slice(0, 3);
+
+    return { statByBreed, hotGroups };
+  });
+}
+
+/**
+ * 话题页：拉取包含某个 hashtag 的所有可见帖子（按时间倒序）。
+ */
+export async function listPostsByTag(tag, { limit = 30 } = {}) {
+  if (!tag) return [];
+  const sb = requireSupabase();
+  const { data, error } = await sb.from("posts")
+    .select(`
+      id, title, content, post_type, text_bg_color,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
+      like_count, comment_count, created_at, hashtags,
+      user_id, pet_id,
+      user:users!posts_user_id_fkey ( username, avatar_url ),
+      pet:pets!posts_pet_id_fkey ( name, breed, ai_avatar_url )
+    `)
+    .eq("status", "visible")
+    .contains("hashtags", [tag])
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`获取话题帖子失败: ${error.message}`);
   return data || [];
 }
 
@@ -234,10 +395,10 @@ export async function listMyPosts(userId, { limit = 50, before } = {}) {
     .select(`
       id, title, content, post_type, text_bg_color,
       cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
-      like_count, comment_count, created_at,
+      like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),
-      pet:pets!posts_pet_id_fkey ( breed, ai_avatar_url )
+      pet:pets!posts_pet_id_fkey ( name, breed, ai_avatar_url )
     `)
     .eq("user_id", userId)
     .eq("status", "visible")
@@ -267,10 +428,10 @@ export async function listLikedPosts(userId, { limit = 50 } = {}) {
     .select(`
       id, title, content, post_type, text_bg_color,
       cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
-      like_count, comment_count, created_at,
+      like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),
-      pet:pets!posts_pet_id_fkey ( breed, ai_avatar_url )
+      pet:pets!posts_pet_id_fkey ( name, breed, ai_avatar_url )
     `)
     .in("id", ids)
     .eq("status", "visible");
@@ -331,6 +492,9 @@ export async function createPost({
   const hasThumb = Array.isArray(thumbnailUrls) && thumbnailUrls.length;
   const hasOrig  = Array.isArray(originalImageUrls) && originalImageUrls.length;
 
+  // 自动解析 #话题（标题 + 正文）
+  const hashtags = parseHashtags(`${title || ""} ${content || ""}`);
+
   const { data, error } = await sb
     .from("posts")
     .insert({
@@ -338,6 +502,7 @@ export async function createPost({
       pet_id:              petId || null,
       title:               (title || "").trim() || null,
       content:             (content || "").trim(),
+      hashtags,
       post_type:           postType || (hasDisp ? "image" : "text"),
       text_bg_color:       textBgColor || null,
       display_image_urls:  hasDisp ? displayImageUrls : null,
@@ -354,7 +519,7 @@ export async function createPost({
       id, title, content, post_type, text_bg_color,
       display_image_urls, thumbnail_urls, original_image_urls, image_urls,
       cover_image_url, cover_thumbnail_url, cover_aspect_ratio,
-      status, like_count, comment_count, created_at,
+      status, like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),
       pet:pets!posts_pet_id_fkey ( name, breed, ai_avatar_url )
