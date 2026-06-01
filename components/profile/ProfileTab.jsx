@@ -58,6 +58,8 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   // 关注/粉丝
   const [followCounts, setFollowCounts] = useState({ following: 0, followers: 0 });
   const [followView,   setFollowView]   = useState(null); // null | "following" | "followers"
+  // 我的页子页：null=主页菜单 | "posts"=我的帖子 | "pets"=我的宠物
+  const [subView, setSubView] = useState(null);
 
   const [toastMsg, setToastMsg] = useState(null);
   const toastTimerRef = useRef();
@@ -202,142 +204,115 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   return (
     <div style={{ height:"100%", overflowY:"auto", background:C.bg, position:"relative" }}>
 
-      {/* ── 顶部：头像 / 用户名 / 设置 ───────────────────── */}
-      <div style={{ background:"white", padding:"52px 18px 18px",
-                    borderBottom:`1px solid ${C.border}` }}>
-        <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-          {/* 用户头像（可点击换头像）；优先 user.avatar_url，否则宠物头像/emoji 兜底 */}
-          <div onClick={() => setAvatarPickerOpen(true)}
-            style={{ position:"relative", cursor:"pointer", flexShrink:0 }}>
-            <PetAvatar pet={headerPet} overrideUrl={user?.avatar_url} size={60} bg={C.tint} />
-            <div style={{ position:"absolute", bottom:-2, right:-2, width:22, height:22,
-                          borderRadius:"50%", background:C.pri, border:"2px solid white",
-                          display:"flex", alignItems:"center", justifyContent:"center",
-                          fontSize:11, color:"white" }}>✎</div>
+      {/* ════ 我的宠物 子页 ════ */}
+      {subView === "pets" && (
+        <>
+          <SubBack title="我的宠物" onBack={() => setSubView(null)}
+            right={pets.length < PET_LIMIT ? (
+              <button onClick={handleAddPet}
+                style={{ fontSize:12, color:C.pri, fontWeight:700, background:"transparent",
+                         border:"none", cursor:"pointer" }}>＋ 添加</button>
+            ) : null} />
+          <div style={{ padding:"14px 14px 90px", display:"flex", flexDirection:"column", gap:12 }}>
+            {pets.length === 0 ? (
+              <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"40px 0" }}>
+                还没有毛孩子，去添加一只吧 🐾
+              </div>
+            ) : pets.map((p) => (
+              <PetCard key={p.id} pet={p} isActive={pet?.id === p.id}
+                onAvatar={() => setAvatarPet(p)} onEdit={() => setEditorPet(p)} />
+            ))}
           </div>
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:18, fontWeight:800, color:C.text }}>
-              {user?.username || "未命名"}
-            </div>
-            <div style={{ fontSize:11, color:C.sub, marginTop:2 }}>
-              手机号 {maskPhone(user?.phone)}
-            </div>
-          </div>
-          <button onClick={() => setSettingsOpen(true)}
-            style={{ width:38, height:38, borderRadius:"50%", background:C.tint,
-                     border:`1px solid ${C.border}`,
-                     display:"flex", alignItems:"center", justifyContent:"center",
-                     fontSize:16, cursor:"pointer" }}>⚙</button>
-        </div>
+        </>
+      )}
 
-        {/* 统计：获赞 ｜ 关注 ｜ 粉丝（关注/粉丝可点击进入列表） */}
-        <div style={{ display:"flex", marginTop:18 }}>
-          {[
-            { label:"获赞", val: stats.totalLikes,        onClick: null },
-            { label:"关注", val: followCounts.following,  onClick: () => setFollowView("following") },
-            { label:"粉丝", val: followCounts.followers,  onClick: () => setFollowView("followers") },
-          ].map((s) => (
-            <div key={s.label} onClick={s.onClick || undefined}
-              style={{ flex:1, textAlign:"center", cursor: s.onClick ? "pointer" : "default" }}>
-              <div style={{ fontSize:20, fontWeight:800, color:C.text }}>{s.val}</div>
-              <div style={{ fontSize:11, color:C.sub, marginTop:2 }}>{s.label}</div>
+      {/* ════ 我的帖子 子页（我的作品 / 我赞过）════ */}
+      {subView === "posts" && (
+        <>
+          <SubBack title="我的帖子" onBack={() => setSubView(null)} />
+          <div style={{ padding:"10px 14px 0", position:"sticky", top:0, background:C.bg, zIndex:2 }}>
+            <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${C.border}` }}>
+              {[{ key:"mine", label:"我的作品" }, { key:"liked", label:"我赞过" }].map((t) => {
+                const on = activeTab === t.key;
+                return (
+                  <button key={t.key} onClick={() => setActiveTab(t.key)}
+                    style={{ flex:1, padding:"10px 0", fontSize:13, fontWeight: on ? 700 : 600,
+                             color: on ? C.text : C.sub, background:"transparent", border:"none",
+                             cursor:"pointer", position:"relative" }}>
+                    {t.label}
+                    {on && <div style={{ position:"absolute", left:"50%", bottom:-1, transform:"translateX(-50%)",
+                                         width:24, height:2.5, borderRadius:3, background:C.pri }} />}
+                  </button>
+                );
+              })}
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── 宠物卡片区 ──────────────────────────────────── */}
-      <div style={{ padding:"14px 14px 4px" }}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-                      marginBottom:10 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:C.text }}>
-            我的毛孩子 <span style={{ color:C.sub, fontWeight:500, marginLeft:4 }}>
-              {pets.length}/{PET_LIMIT}
-            </span>
           </div>
-          {pets.length < PET_LIMIT && (
-            <button onClick={handleAddPet}
-              style={{ fontSize:11, color:C.pri, fontWeight:700,
-                       background:"transparent", border:"none", cursor:"pointer" }}>
-              ＋ 添加毛孩子
-            </button>
-          )}
-        </div>
-
-        {pets.length === 0 ? (
-          <div style={{ textAlign:"center", color:C.sub, fontSize:12, padding:"24px 0" }}>
-            还没有毛孩子，去添加一只吧 🐾
-          </div>
-        ) : (
-          <>
-          <style>{`.pet-carousel::-webkit-scrollbar{display:none}`}</style>
-          <div className="pet-carousel"
-            style={{ display:"flex", gap:10, overflowX:"auto", overflowY:"hidden",
-                     scrollSnapType:"x mandatory", WebkitOverflowScrolling:"touch",
-                     paddingBottom:6, scrollbarWidth:"none", msOverflowStyle:"none" }}>
-            {pets.map((p) => (
-              <div key={p.id}
-                style={{ flex:"0 0 80%", maxWidth:300, scrollSnapAlign:"start" }}>
-                <PetCard pet={p}
-                  isActive={pet?.id === p.id}
-                  onAvatar={() => setAvatarPet(p)}
-                  onEdit={() => setEditorPet(p)}
-                />
+          <div style={{ display:"flex", gap:8, padding:"12px 12px 90px" }}>
+            {[leftCol, rightCol].map((col, ci) => (
+              <div key={ci} style={{ flex:1, display:"flex", flexDirection:"column", gap:8, minWidth:0 }}>
+                {col.map((p) => (
+                  <MiniPostCard key={p.id} post={p}
+                    onOpen={() => setDetailId(p.id)}
+                    onDelete={activeTab === "mine" ? (e) => handleDeletePost(p, e) : null} />
+                ))}
               </div>
             ))}
           </div>
-          </>
-        )}
-      </div>
-
-      {/* ── Tab 切换 ────────────────────────────────────── */}
-      <div style={{ padding:"18px 14px 0", position:"sticky", top:0, background:C.bg, zIndex:2 }}>
-        <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${C.border}` }}>
-          {[
-            { key:"mine",  label:"我的作品" },
-            { key:"liked", label:"我赞过"  },
-          ].map((t) => {
-            const on = activeTab === t.key;
-            return (
-              <button key={t.key} onClick={() => setActiveTab(t.key)}
-                style={{ flex:1, padding:"10px 0", fontSize:13,
-                         fontWeight: on ? 700 : 600,
-                         color: on ? C.text : C.sub,
-                         background:"transparent", border:"none", cursor:"pointer",
-                         position:"relative" }}>
-                {t.label}
-                {on && <div style={{ position:"absolute", left:"50%", bottom:-1,
-                                     transform:"translateX(-50%)",
-                                     width:24, height:2.5, borderRadius:3,
-                                     background:C.pri }} />}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Posts grid ──────────────────────────────────── */}
-      <div style={{ display:"flex", gap:8, padding:"12px 12px 90px" }}>
-        {[leftCol, rightCol].map((col, ci) => (
-          <div key={ci} style={{ flex:1, display:"flex", flexDirection:"column", gap:8, minWidth:0 }}>
-            {col.map((p) => (
-              <MiniPostCard
-                key={p.id} post={p}
-                onOpen={() => setDetailId(p.id)}
-                onDelete={activeTab === "mine" ? (e) => handleDeletePost(p, e) : null}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-
-      {loadingPosts && (
-        <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>加载中…</div>
+          {loadingPosts && <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>加载中…</div>}
+          {!loadingPosts && posts.length === 0 && (
+            <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"40px 0 90px" }}>
+              {activeTab === "mine" ? "还没有发布过作品，去社群发一条吧 ✏️" : "还没有赞过的帖子"}
+            </div>
+          )}
+        </>
       )}
-      {!loadingPosts && posts.length === 0 && (
-        <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"40px 0 90px" }}>
-          {activeTab === "mine" ? "还没有发布过作品，去社群发一条吧 ✏️" : "还没有赞过的帖子"}
-        </div>
+
+      {/* ════ 我的 主页（头部 + 统计 + 菜单）════ */}
+      {subView === null && (
+        <>
+          {/* 顶部：头像（可点换头像）/ 用户名 / 设置 */}
+          <div style={{ background:"white", padding:"52px 18px 18px", borderBottom:`1px solid ${C.border}` }}>
+            <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+              <div onClick={() => setAvatarPickerOpen(true)}
+                style={{ position:"relative", cursor:"pointer", flexShrink:0 }}>
+                <PetAvatar pet={headerPet} overrideUrl={user?.avatar_url} size={60} bg={C.tint} />
+                <div style={{ position:"absolute", bottom:-2, right:-2, width:22, height:22,
+                              borderRadius:"50%", background:C.pri, border:"2px solid white",
+                              display:"flex", alignItems:"center", justifyContent:"center",
+                              fontSize:11, color:"white" }}>✎</div>
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:18, fontWeight:800, color:C.text }}>{user?.username || "未命名"}</div>
+                <div style={{ fontSize:11, color:C.sub, marginTop:2 }}>手机号 {maskPhone(user?.phone)}</div>
+              </div>
+              <button onClick={() => setSettingsOpen(true)}
+                style={{ width:38, height:38, borderRadius:"50%", background:C.tint, border:`1px solid ${C.border}`,
+                         display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, cursor:"pointer" }}>⚙</button>
+            </div>
+
+            {/* 统计：获赞 ｜ 关注 ｜ 粉丝 */}
+            <div style={{ display:"flex", marginTop:18 }}>
+              {[
+                { label:"获赞", val: stats.totalLikes,        onClick: null },
+                { label:"关注", val: followCounts.following,  onClick: () => setFollowView("following") },
+                { label:"粉丝", val: followCounts.followers,  onClick: () => setFollowView("followers") },
+              ].map((s) => (
+                <div key={s.label} onClick={s.onClick || undefined}
+                  style={{ flex:1, textAlign:"center", cursor: s.onClick ? "pointer" : "default" }}>
+                  <div style={{ fontSize:20, fontWeight:800, color:C.text }}>{s.val}</div>
+                  <div style={{ fontSize:11, color:C.sub, marginTop:2 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 菜单列表 */}
+          <div style={{ padding:"14px 14px 90px", display:"flex", flexDirection:"column", gap:10 }}>
+            <MenuRow icon="📝" label="我的帖子" hint={`${stats.postCount} 篇`} onClick={() => setSubView("posts")} />
+            <MenuRow icon="🐾" label="我的宠物" hint={`${pets.length} 只`} onClick={() => setSubView("pets")} />
+            <MenuRow icon="⚙️" label="设置" onClick={() => setSettingsOpen(true)} />
+          </div>
+        </>
       )}
 
       {/* ── modals ─────────────────────────────────────── */}
@@ -412,6 +387,37 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
         />
       )}
     </div>
+  );
+}
+
+/* 子页返回头 */
+function SubBack({ title, onBack, right }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"52px 16px 12px",
+                  background:"white", borderBottom:`1px solid ${C.border}` }}>
+      <button onClick={onBack}
+        style={{ width:34, height:34, borderRadius:999, background:C.bg, border:`1px solid ${C.border}`,
+                 cursor:"pointer", fontSize:18, color:C.text }}>‹</button>
+      <div style={{ flex:1, fontSize:16, fontWeight:800, color:C.text }}>{title}</div>
+      {right}
+    </div>
+  );
+}
+
+/* 主页菜单行 */
+function MenuRow({ icon, label, hint, onClick }) {
+  return (
+    <button onClick={onClick}
+      style={{ width:"100%", display:"flex", alignItems:"center", gap:12,
+               background:"white", border:`1px solid ${C.border}`, borderRadius:16,
+               padding:"15px 16px", cursor:"pointer", textAlign:"left",
+               boxShadow:"0 1px 6px rgba(0,0,0,0.04)" }}>
+      <span style={{ width:34, height:34, borderRadius:10, background:C.tint, flexShrink:0,
+                     display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>{icon}</span>
+      <span style={{ flex:1, fontSize:15, fontWeight:700, color:C.text }}>{label}</span>
+      {hint && <span style={{ fontSize:12, color:C.sub }}>{hint}</span>}
+      <span style={{ fontSize:16, color:"#C5B9B0", marginLeft:6 }}>›</span>
+    </button>
   );
 }
 
