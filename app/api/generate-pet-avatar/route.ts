@@ -136,6 +136,50 @@ async function callReplicate(photoUrl: string, token: string, petType?: string) 
   return String(url);
 }
 
+// 调 851-labs/background-remover 抠图，输出透明 PNG URL
+async function callRembg(imageUrl: string, token: string) {
+  const resp = await fetch(
+    `https://api.replicate.com/v1/models/851-labs/background-remover/predictions`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type":  "application/json",
+        "Prefer":        "wait=60",
+      },
+      body: JSON.stringify({
+        input: { image: imageUrl, background_type: "rgba" },
+      }),
+    }
+  );
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`抠图调用失败 (${resp.status}): ${text.slice(0, 160)}`);
+  }
+  let prediction: any = await resp.json();
+  const start = Date.now();
+  while (
+    prediction.status !== "succeeded" &&
+    prediction.status !== "failed" &&
+    prediction.status !== "canceled" &&
+    Date.now() - start < 60_000
+  ) {
+    await new Promise((r) => setTimeout(r, 1500));
+    const poll = await fetch(
+      `https://api.replicate.com/v1/predictions/${prediction.id}`,
+      { headers: { "Authorization": `Bearer ${token}` } }
+    );
+    if (!poll.ok) throw new Error(`抠图轮询失败: ${poll.status}`);
+    prediction = await poll.json();
+  }
+  if (prediction.status !== "succeeded" || !prediction.output) {
+    throw new Error(`抠图失败：${prediction.status || "timeout"}`);
+  }
+  const url = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
+  if (!url) throw new Error("抠图未返回图片 URL");
+  return String(url);
+}
+
 export async function POST(req: Request) {
   const token = process.env.REPLICATE_API_TOKEN;
   if (!token) {
@@ -173,8 +217,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e.message || "生成失败" }, { status: 502 });
   }
 
-  // 2) 下载 Replicate 输出（Replicate URL 短期有效）
-  const imgResp = await fetch(replicateUrl);
+  // 1.5) 抠图：把生成图背景去掉，输出透明 PNG（失败则回退原图，不中断生成）
+  let finalImageUrl = replicateUrl;
+  try {
+    finalImageUrl = await callRembg(replicateUrl, token);
+  } catch (e: any) {
+    console.error("rembg 抠图失败，回退原图:", e?.message);
+  }
+
+  // 2) 下载最终图（透明图或回退原图）
+  const imgResp = await fetch(finalImageUrl);
   if (!imgResp.ok) {
     return NextResponse.json({ error: "下载生成图失败" }, { status: 502 });
   }
