@@ -1179,13 +1179,13 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                     fetchPriority="high"
                     onLoad={() => setAvatarLoaded(true)}
                     onError={() => setAvatarBroken(true)}
-                    style={{ width:170, height:170, objectFit:"contain", display:"block",
+                    style={{ width:210, height:210, objectFit:"contain", display:"block",
                              opacity: avatarLoaded ? 1 : 0,
                              transition:"opacity 0.45s ease",
                              animation:"float 3s ease-in-out infinite",
                              mixBlendMode:"multiply" }} />
                 ) : (
-                  <div style={{ fontSize:120, lineHeight:1,
+                  <div style={{ fontSize:150, lineHeight:1,
                                 animation:"float 3s ease-in-out infinite" }}>
                     🐶
                   </div>
