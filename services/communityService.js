@@ -332,6 +332,46 @@ export async function getRecommendedPosts({ hours = 48, top = 3 } = {}) {
 }
 
 /**
+ * 「我加入的群聊」：我发过言的群（去重）+ 每群最近一条消息（真实，无新表）。
+ * 返回 [{ id, name, breed, pet_type, lastMsg:{content, created_at, username} }]，按最近消息倒序。
+ */
+export async function getMyJoinedRooms(userId, { limit = 20 } = {}) {
+  if (!userId) return [];
+  const sb = requireSupabase();
+  const { data: myMsgs } = await sb.from("messages")
+    .select("room_id").eq("user_id", userId)
+    .order("created_at", { ascending: false }).limit(300);
+  const roomIds = [...new Set((myMsgs || []).map((m) => m.room_id))].slice(0, limit);
+  if (!roomIds.length) return [];
+
+  const { data: rooms } = await sb.from("chat_rooms")
+    .select("id, name, breed, pet_type").in("id", roomIds);
+  const roomById = {};
+  (rooms || []).forEach((r) => { roomById[r.id] = r; });
+
+  // 这些房间最近的消息（一次拉，挑每房第一条）
+  const { data: recent } = await sb.from("messages")
+    .select("room_id, content, created_at, user:users!user_id ( username )")
+    .in("room_id", roomIds).eq("status", "visible")
+    .order("created_at", { ascending: false }).limit(400);
+  const lastByRoom = {};
+  (recent || []).forEach((m) => {
+    if (!lastByRoom[m.room_id]) {
+      lastByRoom[m.room_id] = { content: m.content, created_at: m.created_at, username: m.user?.username || "" };
+    }
+  });
+
+  return roomIds
+    .map((id) => {
+      const r = roomById[id];
+      if (!r) return null;
+      return { id, name: r.name, breed: r.breed, pet_type: r.pet_type || "dog", lastMsg: lastByRoom[id] || null };
+    })
+    .filter(Boolean)
+    .sort((a, b) => (b.lastMsg?.created_at || "").localeCompare(a.lastMsg?.created_at || ""));
+}
+
+/**
  * 品种群活跃度 + 🔥本周最火（真实派生，无新表，5分钟缓存）：
  *  - 成员数：pets.breed 计数
  *  - 在线数：该房间近 15 分钟发消息的去重用户数
