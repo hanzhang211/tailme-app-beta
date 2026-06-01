@@ -1570,68 +1570,12 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                   <div style={{ fontSize:13, color:H_SUB, marginBottom:14 }}>
                     还没有为 <b style={{ color:C.text }}>{pet.name}</b> 添加喂食计划
                   </div>
-                  <button onClick={() => { setFeedings([{ ...DEFAULT_FEEDING }]); setHasFeedRecord(true); setEdit(true); }}
+                  <button onClick={() => setSubPage("feeding")}
                     style={{ background:C.pri, color:"white", border:"none", borderRadius:999,
                              padding:"10px 24px", fontSize:14, fontWeight:700, cursor:"pointer" }}>
                     + 添加喂食计划
                   </button>
                 </div>
-
-              ) : editFeed ? (
-                /* 编辑模式保持不变 */
-                <>
-                  {feedings.map((f, i) => (
-                    <div key={i} style={{ background:H_SURFACE, border:`1px solid ${H_BORDER}`,
-                                          borderRadius:14, padding:12, marginBottom:8 }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                        <span style={{ fontSize:12, fontWeight:700, color:C.text }}>
-                          {FEED_ICONS[i]} {FEED_LABELS[i]}
-                        </span>
-                        {feedings.length > 1 && (
-                          <button onClick={() => removeFeed(i)}
-                            style={{ background:"transparent", border:"none", fontSize:11,
-                                     color:"#C0392B", cursor:"pointer", padding:"2px 6px" }}>删除</button>
-                        )}
-                      </div>
-                      <div style={{ marginBottom:8 }}>
-                        <div style={{ fontSize:11, color:H_SUB, marginBottom:4 }}>喂食时间</div>
-                        <input type="time" value={f.time} onChange={(e) => updFeed(i,"time",e.target.value)}
-                          style={{ width:"100%", borderRadius:10, padding:"8px 10px", fontSize:15,
-                                   fontWeight:700, border:`1px solid ${H_BORDER}`, background:"white",
-                                   boxSizing:"border-box", color:C.text }}/>
-                      </div>
-                      <div style={{ display:"flex", gap:8, marginBottom:8 }}>
-                        <div style={{ flex:2 }}>
-                          <div style={{ fontSize:11, color:H_SUB, marginBottom:4 }}>喂食量</div>
-                          <input type="number" min="0" step="0.5" value={f.amount}
-                            onChange={(e) => updFeed(i,"amount",e.target.value)} placeholder="120"
-                            style={{ width:"100%", borderRadius:10, padding:"8px 10px", fontSize:14,
-                                     border:`1px solid ${H_BORDER}`, background:"white", boxSizing:"border-box" }}/>
-                        </div>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontSize:11, color:H_SUB, marginBottom:4 }}>单位</div>
-                          <select value={f.unit} onChange={(e) => updFeed(i,"unit",e.target.value)}
-                            style={{ width:"100%", borderRadius:10, padding:"8px 6px", fontSize:14,
-                                     border:`1px solid ${H_BORDER}`, background:"white", boxSizing:"border-box" }}>
-                            {FEED_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize:11, color:H_SUB, marginBottom:4 }}>备注（可选）</div>
-                        <input value={f.note} onChange={(e) => updFeed(i,"note",e.target.value)}
-                          placeholder="比如：减肥餐、湿粮..."
-                          style={{ width:"100%", borderRadius:10, padding:"8px 10px", fontSize:13,
-                                   border:`1px solid ${H_BORDER}`, background:"white", boxSizing:"border-box" }}/>
-                      </div>
-                    </div>
-                  ))}
-                  <button onClick={addFeed}
-                    style={{ width:"100%", background:"transparent", border:`1.5px dashed ${H_BORDER}`,
-                             borderRadius:14, padding:"10px 0", fontSize:13, color:H_SUB, cursor:"pointer", marginBottom:4 }}>
-                    + 添加一顿
-                  </button>
-                </>
 
               ) : (
                 /* 首页摘要：下一顿待执行 or 全完成 */
