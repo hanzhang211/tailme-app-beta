@@ -24,42 +24,26 @@ export const maxDuration = 90;
 
 const REPLICATE_MODEL = "black-forest-labs/flux-kontext-pro";
 
+// 风格只管「写实 3D 渲染」，背景由后续 rembg 抠图负责，不再用 sticker/transparent 等词
 const BASE_REQUIREMENTS = [
   "Requirements:",
   "- preserve the original pet's fur color, face shape, ears, and expression",
   "- soft Pixar-style 3D rendering",
+  "- realistic detailed 3D render with soft volumetric lighting and fluffy fur",
   "- centered composition",
+  "- full body pet character",
+  "- simple clean plain background",
   "- app icon style",
   "- adorable and premium",
   "- no text",
   "- no human",
   "- no extra objects",
-  "- transparent background only",
-  "- no background",
-  "- no floor",
-  "- no shadow",
-  "- no cast shadow",
-  "- no ground shadow",
-  "- no studio background",
-  "- no reflection",
-  "- no gradient background",
-  "- no white square background",
-  "- isolated pet sticker style",
   "- symmetrical face",
   "- rounded cute proportions",
   "- suitable for a mobile app pet profile avatar",
   "",
   "Style:",
-  "minimal, soft lighting, high detail, kawaii, polished 3D mascot icon, sticker, transparent PNG with alpha channel",
-  "",
-  "full body pet character,",
-  "isolated subject,",
-  "clean transparent-style background,",
-  "no shadow,",
-  "no floor shadow,",
-  "no white studio backdrop,",
-  "cutout sticker style,",
-  "centered composition",
+  "minimal, soft lighting, high detail, kawaii, polished 3D mascot icon",
 ].join("\n");
 
 const DOG_PROMPT = [
