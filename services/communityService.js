@@ -219,7 +219,7 @@ export async function listPosts({ limit = 20, before } = {}) {
   let q = sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
-      cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls,
       like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),
@@ -253,7 +253,7 @@ export async function listFollowingPosts(userId, { limit = 30 } = {}) {
   const { data, error } = await sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
-      cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls,
       like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),
@@ -437,7 +437,7 @@ export async function listPostsByTag(tag, { limit = 30 } = {}) {
   const { data, error } = await sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
-      cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls,
       like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),
@@ -466,7 +466,7 @@ export async function listMyPosts(userId, { limit = 50, before } = {}) {
   let q = sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
-      cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls,
       like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),
@@ -499,7 +499,7 @@ export async function listLikedPosts(userId, { limit = 50 } = {}) {
   const { data, error } = await sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
-      cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls,
       like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),

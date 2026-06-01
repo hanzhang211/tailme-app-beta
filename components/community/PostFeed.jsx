@@ -501,7 +501,8 @@ function PostCard({ post, isLiked, onOpen, onToggleLike, onOpenTopic }) {
           </div>
         </div>
       ) : (
-        <CoverImage src={thumbUrl} ratio={imageCoverRatio(post)} />
+        <CoverImage src={thumbUrl} ratio={imageCoverRatio(post)}
+          count={Array.isArray(post.image_urls) ? post.image_urls.length : 0} />
       )}
 
       {/* 标题（图片帖外露） */}
@@ -599,13 +600,23 @@ function TopicView({ tag, loading, colL, colR, likedSet, onBack, onOpenPost, onT
 /* ──────────────────────────────────────────────────────
    封面图：skeleton + lazy + fade-in + fallback
    ────────────────────────────────────────────────────── */
-function CoverImage({ src, ratio }) {
+function CoverImage({ src, ratio, count = 0 }) {
   const [state, setState] = useState("loading"); // loading | loaded | error
 
   return (
     <div style={{ position:"relative", width:"100%",
                   aspectRatio: `${ratio} / 1`,
                   background: C.tint, overflow:"hidden" }}>
+      {/* 多图角标 1/N */}
+      {count > 1 && (
+        <div style={{ position:"absolute", top:6, right:6, zIndex:2,
+                      background:"rgba(0,0,0,0.45)", color:"#fff",
+                      fontSize:10, fontWeight:700, lineHeight:1,
+                      padding:"3px 7px", borderRadius:999,
+                      backdropFilter:"blur(2px)", WebkitBackdropFilter:"blur(2px)" }}>
+          1/{count}
+        </div>
+      )}
       {/* skeleton 动效 */}
       {state === "loading" && (
         <div style={{ position:"absolute", inset:0,
