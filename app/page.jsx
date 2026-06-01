@@ -1264,12 +1264,14 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
             <button onClick={() => setSubPage("petchat")}
               aria-label="和宠物聊聊"
               style={{ position:"relative",
-                       width:136, height:48, padding:0,
+                       width:"fit-content", maxWidth:160, minWidth:90,
+                       padding:"10px 14px",
                        display:"flex", alignItems:"center", justifyContent:"center",
                        background:"#FFFDF8",
                        border:`1.5px solid ${C.pri}`, borderRadius:18,
                        boxShadow:"0 3px 9px rgba(230,134,69,0.12)",
-                       color:C.pri, fontSize:13.5, fontWeight:800, whiteSpace:"nowrap",
+                       color:C.pri, fontSize:13.5, fontWeight:800, lineHeight:1.3,
+                       textAlign:"center", wordBreak:"break-word",
                        cursor:"pointer",
                        animation:"chatBubbleBreath 2.8s ease-in-out infinite" }}>
               {bubbleText}
