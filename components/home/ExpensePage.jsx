@@ -187,10 +187,15 @@ export default function ExpensePage({ user, pets, onBack, onAmountChanged }) {
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
                   <span style={{ fontSize:13, fontWeight:700, color:TEXT }}>{it.category}</span>
-                  {it.pet?.name && (
+                  {it.pet?.name ? (
                     <span style={{ fontSize:10, padding:"2px 8px", borderRadius:10,
                                    background:"rgba(230,134,69,0.12)", color:PRI, fontWeight:600 }}>
                       {it.pet.name}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize:10, padding:"2px 8px", borderRadius:10,
+                                   background:"rgba(138,123,106,0.12)", color:SUB, fontWeight:600 }}>
+                      通用
                     </span>
                   )}
                 </div>
@@ -225,7 +230,7 @@ function AddExpenseModal({ user, pets, onClose, onAdded }) {
   const [amount,   setAmount]   = useState("");
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[6]);
   const [date,     setDate]     = useState(new Date().toISOString().slice(0, 10));
-  const [petId,    setPetId]    = useState(pets?.[0]?.id || "");
+  const [petId,    setPetId]    = useState("");   // 默认「通用」（不绑定任何宠物），不自动用 activePet
   const [note,     setNote]     = useState("");
   const [saving,   setSaving]   = useState(false);
   const [err,      setErr]      = useState(null);
@@ -350,10 +355,10 @@ function AddExpenseModal({ user, pets, onClose, onAdded }) {
               </div>
             </div>
 
-            {/* ── 关联宠物 ── */}
-            {pets && pets.length > 1 && (
+            {/* ── 关联毛孩子（可选）── 默认「通用」，用户可手动选某只宠物 */}
+            {pets && pets.length > 0 && (
               <div>
-                <SectionTitle>关联宠物</SectionTitle>
+                <SectionTitle>关联毛孩子（可选）</SectionTitle>
                 <select value={petId} onChange={(e) => setPetId(e.target.value)}
                   style={{ width:"100%", height:52, borderRadius:18,
                            background:"rgba(255,255,255,0.72)",
@@ -361,7 +366,7 @@ function AddExpenseModal({ user, pets, onClose, onAdded }) {
                            padding:"0 16px", fontSize:15, fontWeight:600, color:"#2B2B2B",
                            outline:"none", boxSizing:"border-box", fontFamily:"inherit",
                            appearance:"none" }}>
-                  <option value="">不指定</option>
+                  <option value="">通用</option>
                   {pets.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>

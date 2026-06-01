@@ -1151,7 +1151,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   }
 
   if (subPage === "expenses") {
-    return <ExpensePage user={user} pets={pet ? [pet] : []} onBack={() => setSubPage(null)}
+    return <ExpensePage user={user} pets={pets} onBack={() => setSubPage(null)}
       onAmountChanged={() => getMonthlyTotal(user.id).then(setMonthExpense).catch(() => {})} />;
   }
   if (subPage === "recipes") {
