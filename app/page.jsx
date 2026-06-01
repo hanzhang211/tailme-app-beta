@@ -750,6 +750,22 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   const [editFeed, setEdit]       = useState(false);
   const [feedLoading, setFeedLoading]     = useState(false);
   const [hasFeedRecord, setHasFeedRecord] = useState(false);
+
+  // 每日喂食完成状态（localStorage，key 含日期+pet.id，第二天自动重置）
+  const today = new Date().toISOString().slice(0, 10);
+  const feedDoneKey = `tailme_feed_done_${today}_${pet?.id || ""}`;
+  const [doneMeals, setDoneMeals] = useState(() => {
+    try { const s = localStorage.getItem(feedDoneKey); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
+  // pet 切换时重新读取对应记录
+  useEffect(() => {
+    try { const s = localStorage.getItem(feedDoneKey); setDoneMeals(s ? JSON.parse(s) : {}); } catch { setDoneMeals({}); }
+  }, [pet?.id, today]); // eslint-disable-line
+  const toggleMealDone = (i) => {
+    const next = { ...doneMeals, [i]: !doneMeals[i] };
+    setDoneMeals(next);
+    try { localStorage.setItem(feedDoneKey, JSON.stringify(next)); } catch {}
+  };
   const [uplType, setUpl]   = useState(null);
   const [loading, setLoad]  = useState(false);
   const [result, setResult] = useState(null);
@@ -1144,17 +1160,15 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
 
         {/* ── Feeding Card（iOS Widget 风格）── */}
         {(() => {
-          const MEAL_CFG = [
-            { Icon:Sun,      grad:"linear-gradient(135deg,#FFE6A8,#F4A64E)", ic:"white",    suggest:"06:00–10:00" },
-            { Icon:Moon,     grad:"linear-gradient(135deg,#F9B087,#8B4C7A)", ic:"white",    suggest:"16:00–20:00" },
-            { Icon:MoonStar, grad:"linear-gradient(135deg,#22375C,#687AAE)", ic:"#FFE6A8",  suggest:"12:00–15:00" },
-          ];
-          const isDone = (t) => {
-            if (!t) return false;
-            const [h,m] = t.split(":").map(Number);
-            const now = new Date();
-            return now.getHours()*60 + now.getMinutes() > h*60+m;
+          // 根据时间决定图标和渐变（不依赖下标）
+          const mealIconCfg = (t) => {
+            const h = t ? parseInt(t.split(":")[0], 10) : 8;
+            if (h >= 5  && h < 12) return { Icon:Sun,      grad:"linear-gradient(135deg,#FFE6A8,#F4A64E)", ic:"white" };
+            if (h >= 12 && h < 18) return { Icon:Sun,      grad:"linear-gradient(135deg,#FFD6A5,#E88A35)", ic:"white" };
+            if (h >= 18 && h < 24) return { Icon:Moon,     grad:"linear-gradient(135deg,#F9B087,#8B4C7A)", ic:"white" };
+            return                         { Icon:MoonStar, grad:"linear-gradient(135deg,#22375C,#687AAE)", ic:"#FFE6A8" };
           };
+          const SUGGEST = ["06:00–10:00","12:00–15:00","16:00–20:00"];
           const FoodBowl = () => (
             <svg width="80" height="62" viewBox="0 0 90 70" fill="none" style={{ flexShrink:0 }}>
               <ellipse cx="45" cy="20" rx="32" ry="12" fill="#E6A348" opacity="0.45"/>
@@ -1277,22 +1291,22 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                 /* 查看模式 — iOS Widget 风格 */
                 <>
                   <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:16 }}>
-                    {feedings.map((f, i) => {
-                      const cfg  = MEAL_CFG[i] || MEAL_CFG[0];
+                    {feedings.slice(0, 3).map((f, i) => {
+                      const cfg   = mealIconCfg(f.time);
                       const MIcon = cfg.Icon;
-                      const done = isDone(f.time);
+                      const done  = !!doneMeals[i];
                       return (
                         <div key={i} style={{ display:"flex", alignItems:"center", gap:16,
                                               background:"rgba(244,236,217,0.42)",
                                               border:"1px solid rgba(230,134,69,0.14)",
                                               borderRadius:22, padding:16 }}>
-                          {/* 左：渐变图标 */}
+                          {/* 左：渐变图标（随时间变化） */}
                           <div style={{ width:64, height:64, borderRadius:18, flexShrink:0,
                                         background:cfg.grad, display:"flex", alignItems:"center",
                                         justifyContent:"center" }}>
                             <MIcon size={30} color={cfg.ic} strokeWidth={1.8}/>
                           </div>
-                          {/* 中：文字 */}
+                          {/* 中：固定标题 + 用户时间 */}
                           <div style={{ flex:1, minWidth:0 }}>
                             <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:4 }}>
                               <MIcon size={13} color="#E68645" strokeWidth={1.8}/>
@@ -1309,21 +1323,23 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                               )}
                             </div>
                           </div>
-                          {/* 右：状态 */}
+                          {/* 右：可点击状态（当日有效，次日重置） */}
                           <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end",
                                         gap:6, flexShrink:0 }}>
-                            <div style={{ display:"flex", alignItems:"center", gap:5,
-                                          height:34, padding:"0 13px", borderRadius:999,
-                                          background: done ? "rgba(95,167,102,0.14)" : "rgba(230,134,69,0.12)",
-                                          color: done ? "#5FA766" : "#E68645",
-                                          fontSize:13, fontWeight:800 }}>
+                            <button onClick={() => toggleMealDone(i)}
+                              style={{ display:"flex", alignItems:"center", gap:5,
+                                       height:34, padding:"0 13px", borderRadius:999,
+                                       background: done ? "rgba(95,167,102,0.14)" : "rgba(230,134,69,0.12)",
+                                       color: done ? "#5FA766" : "#E68645",
+                                       fontSize:13, fontWeight:800,
+                                       border:"none", cursor:"pointer", transition:"all .2s" }}>
                               {done
                                 ? <CheckCircle size={14} strokeWidth={2.2}/>
                                 : <Clock size={14} strokeWidth={2.2}/>}
                               {done ? "已完成" : "待喂食"}
-                            </div>
+                            </button>
                             <div style={{ fontSize:11, color:"#8A7B6A" }}>
-                              建议：{cfg.suggest}
+                              建议：{SUGGEST[i] || SUGGEST[0]}
                             </div>
                           </div>
                         </div>
