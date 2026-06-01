@@ -47,7 +47,7 @@ function relativeTime(iso) {
 }
 
 /** 双列瀑布流分列（主 feed 与话题页复用） */
-function splitTwoCols(list) {
+export function splitTwoCols(list) {
   const L = [], R = [];
   let lh = 0, rh = 0;
   for (const p of list) {
@@ -74,7 +74,7 @@ function imageCoverRatio(post) {
   return Math.max(0.55, Math.min(1.6, r));   // 限幅防极端
 }
 
-export default function PostFeed({ user, pet, onUserUpdated }) {
+export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
   const [posts,    setPosts]    = useState([]);
   const [likedSet, setLikedSet] = useState(new Set());
   const [loading,  setLoading]  = useState(true);
@@ -315,6 +315,7 @@ export default function PostFeed({ user, pet, onUserUpdated }) {
           onOpenPost={openDetail}
           onToggleLike={handleCardLike}
           onOpenTopic={openTopic}
+          onOpenProfile={onOpenProfile}
         />
       )}
 
@@ -419,6 +420,7 @@ export default function PostFeed({ user, pet, onUserUpdated }) {
                 onOpen={() => openDetail(p)}
                 onToggleLike={(e) => handleCardLike(p, e)}
                 onOpenTopic={openTopic}
+                onOpenProfile={onOpenProfile}
               />
             ))}
           </div>
@@ -442,7 +444,7 @@ export default function PostFeed({ user, pet, onUserUpdated }) {
                 {col.map((p) => (
                   <PostCard key={p.id} post={p} isLiked={likedSet.has(p.id)}
                     onOpen={() => openDetail(p)} onToggleLike={(e) => handleCardLike(p, e)}
-                    onOpenTopic={openTopic} />
+                    onOpenTopic={openTopic} onOpenProfile={onOpenProfile} />
                 ))}
               </div>
             ))}
@@ -490,7 +492,7 @@ export default function PostFeed({ user, pet, onUserUpdated }) {
                     {col.map((p) => (
                       <PostCard key={p.id} post={p} isLiked={likedSet.has(p.id)}
                         onOpen={() => openDetail(p)} onToggleLike={(e) => handleCardLike(p, e)}
-                        onOpenTopic={openTopic} />
+                        onOpenTopic={openTopic} onOpenProfile={onOpenProfile} />
                     ))}
                   </div>
                 ))}
@@ -554,7 +556,7 @@ export default function PostFeed({ user, pet, onUserUpdated }) {
 /* ──────────────────────────────────────────────────────
    单张 Feed 卡片：只显示 thumbnail
    ────────────────────────────────────────────────────── */
-function PostCard({ post, isLiked, onOpen, onToggleLike, onOpenTopic }) {
+export function PostCard({ post, isLiked, onOpen, onToggleLike, onOpenTopic, onOpenProfile }) {
   const primaryName = post.pet?.name || post.user?.username || "未命名宠物";
   const breed = post.pet?.breed || "";
   const time  = relativeTime(post.created_at);
@@ -620,20 +622,24 @@ function PostCard({ post, isLiked, onOpen, onToggleLike, onOpenTopic }) {
         </div>
       )}
 
-      {/* 作者行：宠物头像 + 宠物名 + 品种·时间 + 点赞 */}
+      {/* 作者行：宠物头像 + 宠物名 + 品种·时间 + 点赞（头像+名字可点进主页） */}
       <div style={{ padding:"8px 10px", display:"flex", alignItems:"center", gap:7 }}>
-        <PetAvatar pet={post.pet} overrideUrl={post.user?.avatar_url} size={24} bg={C.tint} />
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:11.5, fontWeight:700, color:C.text,
-                        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-            {primaryName}
-          </div>
-          {(breed || time) && (
-            <div style={{ fontSize:10, color:C.sub, marginTop:1,
+        <div onClick={(e) => { if (onOpenProfile && post.user_id) { e.stopPropagation(); onOpenProfile(post.user_id); } }}
+          style={{ display:"flex", alignItems:"center", gap:7, flex:1, minWidth:0,
+                   cursor: onOpenProfile ? "pointer" : "default" }}>
+          <PetAvatar pet={post.pet} overrideUrl={post.user?.avatar_url} size={24} bg={C.tint} />
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:11.5, fontWeight:700, color:C.text,
                           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-              {[breed, time].filter(Boolean).join(" · ")}
+              {primaryName}
             </div>
-          )}
+            {(breed || time) && (
+              <div style={{ fontSize:10, color:C.sub, marginTop:1,
+                            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                {[breed, time].filter(Boolean).join(" · ")}
+              </div>
+            )}
+          </div>
         </div>
         <button onClick={onToggleLike}
           style={{ background:"transparent", border:"none", cursor:"pointer",
@@ -650,7 +656,7 @@ function PostCard({ post, isLiked, onOpen, onToggleLike, onOpenTopic }) {
 /* ──────────────────────────────────────────────────────
    话题页（Phase 1）：某个 #话题 下的所有帖子
    ────────────────────────────────────────────────────── */
-function TopicView({ tag, loading, colL, colR, likedSet, onBack, onOpenPost, onToggleLike, onOpenTopic }) {
+function TopicView({ tag, loading, colL, colR, likedSet, onBack, onOpenPost, onToggleLike, onOpenTopic, onOpenProfile }) {
   const total = colL.length + colR.length;
   return (
     <div>
@@ -672,7 +678,7 @@ function TopicView({ tag, loading, colL, colR, likedSet, onBack, onOpenPost, onT
             {col.map((p) => (
               <PostCard key={p.id} post={p} isLiked={likedSet.has(p.id)}
                 onOpen={() => onOpenPost(p)} onToggleLike={(e) => onToggleLike(p, e)}
-                onOpenTopic={onOpenTopic} />
+                onOpenTopic={onOpenTopic} onOpenProfile={onOpenProfile} />
             ))}
           </div>
         ))}

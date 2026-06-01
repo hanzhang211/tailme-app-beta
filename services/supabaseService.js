@@ -238,6 +238,16 @@ export async function updatePetAiGrowth(petId, aiExp, aiLevel) {
   return data;
 }
 
+/* ── 批量统计一组用户各自的宠物数量 ──────────────────────────── */
+export async function getPetCountByUsers(userIds = []) {
+  if (!userIds.length) return {};
+  const sb = requireSupabase();
+  const { data } = await sb.from("pets").select("user_id").in("user_id", userIds);
+  const m = {};
+  (data || []).forEach((p) => { if (p.user_id) m[p.user_id] = (m[p.user_id] || 0) + 1; });
+  return m;
+}
+
 /* ── 更新用户城市（users.city，用于社区同城）──────────────────── */
 export async function updateUserCity(userId, city) {
   const sb = requireSupabase();

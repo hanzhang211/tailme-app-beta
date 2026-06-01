@@ -26,6 +26,7 @@ import { checkUsername } from "@/services/contentFilter";
 import { formatPetAge, formatBirthday, PERSONALITIES, todayISO } from "@/services/petAge";
 import MapTab from "@/components/map/MapTab";
 import CommunityTab from "@/components/community/CommunityTab";
+import UserProfile from "@/components/community/UserProfile";
 import ProfileTab from "@/components/profile/ProfileTab";
 import ExpensePage from "@/components/home/ExpensePage";
 import RecipePage  from "@/components/home/RecipePage";
@@ -1912,6 +1913,7 @@ export default function AppRoot() {
   const [pets, setPets]     = useState([]);   // 全部宠物列表
   const [pet, setPet]       = useState(null); // 当前激活宠物
   const [tab, setTab]       = useState(2);
+  const [profileUserId, setProfileUserId] = useState(null); // 用户主页浮层
 
   const userId = user?.id ?? null;
 
@@ -2036,8 +2038,8 @@ export default function AppRoot() {
         {tab === 0 && <SocialTab />}
         {tab === 1 && <MapTab />}
         {tab === 2 && <HomeTab user={user} pet={pet} pets={pets} onPetUpdate={handlePetDataUpdated} onSwitchPet={setActivePet} />}
-        {tab === 3 && <CommunityTab user={user} pet={pet} pets={pets} onUserUpdated={setUser} />}
-        {tab === 4 && <ProfileTab user={user} pet={pet} onSetActivePet={setActivePet} onPetUpdated={handlePetDataUpdated} onPetDeleted={handlePetDeleted} onUserUpdated={setUser} onLogout={handleLogout} />}
+        {tab === 3 && <CommunityTab user={user} pet={pet} pets={pets} onUserUpdated={setUser} onOpenProfile={setProfileUserId} />}
+        {tab === 4 && <ProfileTab user={user} pet={pet} onSetActivePet={setActivePet} onPetUpdated={handlePetDataUpdated} onPetDeleted={handlePetDeleted} onUserUpdated={setUser} onOpenProfile={setProfileUserId} onLogout={handleLogout} />}
       </div>
       <div style={{ position:"absolute", bottom:0, left:0, right:0, height:60,
                     background:"white", display:"flex", zIndex:100 }}>
@@ -2077,6 +2079,12 @@ export default function AppRoot() {
           </button>
         ))}
       </div>
+
+      {/* 用户主页浮层（任意位置点击作者/关注列表打开） */}
+      {profileUserId && (
+        <UserProfile viewerId={user?.id} userId={profileUserId}
+          onClose={() => setProfileUserId(null)} />
+      )}
     </>
   );
 }

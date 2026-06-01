@@ -12,11 +12,12 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getUserPets, deletePet, updateUserAvatar } from "@/services/supabaseService";
+import { getUserPets, deletePet, updateUserAvatar, getPetCountByUsers } from "@/services/supabaseService";
 import { uploadUserAvatar } from "@/services/petAvatarService";
 import {
   listMyPosts, listLikedPosts, getUserStats,
   deleteOwnContent,
+  getFollowCounts, listFollowing, listFollowers, getFollowingSet, followUser,
 } from "@/services/communityService";
 import { formatPetAge, formatBirthday } from "@/services/petAge";
 import { avatarForBreed } from "@/services/breedAvatar";
@@ -41,7 +42,7 @@ function maskPhone(phone) {
   return s.slice(0, 3) + "****" + s.slice(-4);
 }
 
-export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, onPetDeleted, onUserUpdated, onLogout }) {
+export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, onPetDeleted, onUserUpdated, onOpenProfile, onLogout }) {
   const [pets,        setPets]        = useState([]);
   const [stats,       setStats]       = useState({ totalLikes: 0, postCount: 0, likedCount: 0 });
   const [myPosts,     setMyPosts]     = useState([]);
@@ -53,6 +54,10 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [avatarPet,    setAvatarPet]    = useState(null); // 当前生成头像的宠物，null=关闭
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false); // 用户头像选择弹窗
+
+  // 关注/粉丝
+  const [followCounts, setFollowCounts] = useState({ following: 0, followers: 0 });
+  const [followView,   setFollowView]   = useState(null); // null | "following" | "followers"
 
   const [toastMsg, setToastMsg] = useState(null);
   const toastTimerRef = useRef();
@@ -75,6 +80,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
       setPets(petsList || []);
       setStats(statsData);
       setMyPosts(mine);
+      getFollowCounts(user.id).then(setFollowCounts).catch(() => {});
     } catch (e) {
       toast(e.message, "error");
     } finally {
@@ -224,14 +230,15 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
                      fontSize:16, cursor:"pointer" }}>⚙</button>
         </div>
 
-        {/* 统计 */}
+        {/* 统计：获赞 ｜ 关注 ｜ 粉丝（关注/粉丝可点击进入列表） */}
         <div style={{ display:"flex", marginTop:18 }}>
           {[
-            { label:"获赞", val: stats.totalLikes },
-            { label:"作品", val: stats.postCount },
-            { label:"赞过", val: stats.likedCount },
+            { label:"获赞", val: stats.totalLikes,        onClick: null },
+            { label:"关注", val: followCounts.following,  onClick: () => setFollowView("following") },
+            { label:"粉丝", val: followCounts.followers,  onClick: () => setFollowView("followers") },
           ].map((s) => (
-            <div key={s.label} style={{ flex:1, textAlign:"center" }}>
+            <div key={s.label} onClick={s.onClick || undefined}
+              style={{ flex:1, textAlign:"center", cursor: s.onClick ? "pointer" : "default" }}>
               <div style={{ fontSize:20, fontWeight:800, color:C.text }}>{s.val}</div>
               <div style={{ fontSize:11, color:C.sub, marginTop:2 }}>{s.label}</div>
             </div>
@@ -396,6 +403,124 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
       )}
 
       {toastMsg && <Toast msg={toastMsg.msg} level={toastMsg.level} />}
+
+      {followView && (
+        <FollowListView
+          mode={followView} meId={user?.id}
+          onBack={() => setFollowView(null)}
+          onOpenProfile={(uid) => { setFollowView(null); onOpenProfile?.(uid); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────
+   我的关注 / 我的粉丝 列表（浮层）
+   ────────────────────────────────────────────────────── */
+function FollowListView({ mode, meId, onBack, onOpenProfile }) {
+  const isFollowing = mode === "following";
+  const [list,    setList]    = useState([]);
+  const [petCnt,  setPetCnt]  = useState({});
+  const [iFollow, setIFollow] = useState(new Set()); // 我已关注的（用于粉丝页“回关”判断）
+  const [loading, setLoading] = useState(true);
+  const [q,       setQ]       = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    (async () => {
+      try {
+        const rows = isFollowing ? await listFollowing(meId) : await listFollowers(meId);
+        if (!alive) return;
+        setList(rows);
+        const ids = rows.map((u) => u.id);
+        const [cnt, fset] = await Promise.all([
+          getPetCountByUsers(ids).catch(() => ({})),
+          isFollowing ? Promise.resolve(new Set(ids)) : getFollowingSet(meId, ids).catch(() => new Set()),
+        ]);
+        if (!alive) return;
+        setPetCnt(cnt); setIFollow(fset);
+      } finally { if (alive) setLoading(false); }
+    })();
+    return () => { alive = false; };
+  }, [mode, meId]); // eslint-disable-line
+
+  const handleBackFollow = async (uid, e) => {
+    e.stopPropagation();
+    if (iFollow.has(uid)) return;
+    setIFollow((prev) => new Set(prev).add(uid));
+    try { await followUser(meId, uid); } catch { setIFollow((prev) => { const n = new Set(prev); n.delete(uid); return n; }); }
+  };
+
+  const filtered = q.trim()
+    ? list.filter((u) => (u.username || "").toLowerCase().includes(q.trim().toLowerCase()))
+    : list;
+
+  return (
+    <div style={{ position:"absolute", inset:0, zIndex:120, background:C.bg, display:"flex", flexDirection:"column" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"52px 16px 12px",
+                    background:"white", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+        <button onClick={onBack}
+          style={{ width:34, height:34, borderRadius:999, background:C.bg, border:`1px solid ${C.border}`,
+                   cursor:"pointer", fontSize:18, color:C.text }}>‹</button>
+        <div style={{ fontSize:16, fontWeight:800, color:C.text }}>{isFollowing ? "我的关注" : "我的粉丝"}</div>
+      </div>
+
+      <div style={{ padding:"12px 14px 0", flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, background:"white",
+                      border:`1px solid ${C.border}`, borderRadius:22, padding:"8px 14px" }}>
+          <span style={{ fontSize:14, color:C.sub }}>🔍</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索昵称"
+            style={{ flex:1, border:"none", outline:"none", background:"transparent", fontSize:13, color:C.text, minWidth:0 }} />
+        </div>
+      </div>
+
+      <div style={{ flex:1, overflowY:"auto", padding:"12px 14px 24px" }}>
+        {loading ? (
+          <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>加载中…</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"40px 0" }}>
+            {q.trim() ? "没找到相关用户" : (isFollowing ? "还没有关注任何人" : "还没有粉丝")}
+          </div>
+        ) : filtered.map((u) => (
+          <div key={u.id} onClick={() => onOpenProfile?.(u.id)}
+            style={{ display:"flex", alignItems:"center", gap:12, background:"white",
+                     border:`1px solid ${C.border}`, borderRadius:16, padding:"12px 14px",
+                     marginBottom:8, cursor:"pointer" }}>
+            <div style={{ width:44, height:44, borderRadius:"50%", background:C.tint, flexShrink:0,
+                          overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>
+              {u.avatar_url ? <img src={u.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🐾"}
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:C.text,
+                            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                {u.username || "毛孩子家长"}
+              </div>
+              <div style={{ fontSize:11, color:C.sub, marginTop:2 }}>
+                {petCnt[u.id] || 0} 只毛孩子{u.city ? ` · ${u.city}` : ""}
+              </div>
+            </div>
+            {isFollowing ? (
+              <span style={{ flexShrink:0, fontSize:12, fontWeight:600, color:C.sub,
+                             background:C.bg, border:`1px solid ${C.border}`, borderRadius:999, padding:"5px 12px" }}>
+                已关注
+              </span>
+            ) : iFollow.has(u.id) ? (
+              <span style={{ flexShrink:0, fontSize:12, fontWeight:600, color:C.sub,
+                             background:C.bg, border:`1px solid ${C.border}`, borderRadius:999, padding:"5px 12px" }}>
+                已关注
+              </span>
+            ) : (
+              <button onClick={(e) => handleBackFollow(u.id, e)}
+                style={{ flexShrink:0, fontSize:12, fontWeight:700, color:"white",
+                         background:C.pri, border:"none", borderRadius:999, padding:"6px 13px", cursor:"pointer" }}>
+                回关
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -267,6 +267,83 @@ export async function listFollowingPosts(userId, { limit = 30 } = {}) {
   return data || [];
 }
 
+/* ══════════════════════════════════════════════════════════
+   关注系统（follows 表）
+══════════════════════════════════════════════════════════ */
+export async function followUser(followerId, followingId) {
+  if (!followerId || !followingId || followerId === followingId) return;
+  const sb = requireSupabase();
+  const { error } = await sb.from("follows").insert({ follower_id: followerId, following_id: followingId });
+  if (error && error.code !== "23505") throw new Error(`关注失败: ${error.message}`); // 23505=已关注，忽略
+}
+
+export async function unfollowUser(followerId, followingId) {
+  if (!followerId || !followingId) return;
+  const sb = requireSupabase();
+  const { error } = await sb.from("follows").delete()
+    .eq("follower_id", followerId).eq("following_id", followingId);
+  if (error) throw new Error(`取消关注失败: ${error.message}`);
+}
+
+export async function isFollowing(followerId, followingId) {
+  if (!followerId || !followingId) return false;
+  const sb = requireSupabase();
+  const { data } = await sb.from("follows").select("id")
+    .eq("follower_id", followerId).eq("following_id", followingId).maybeSingle();
+  return !!data;
+}
+
+/** 关注数 + 粉丝数（count，不取行） */
+export async function getFollowCounts(userId) {
+  if (!userId) return { following: 0, followers: 0 };
+  const sb = requireSupabase();
+  const [a, b] = await Promise.all([
+    sb.from("follows").select("id", { count: "exact", head: true }).eq("follower_id", userId),
+    sb.from("follows").select("id", { count: "exact", head: true }).eq("following_id", userId),
+  ]);
+  return { following: a.count || 0, followers: b.count || 0 };
+}
+
+/** 某用户所有可见帖子的获赞总数 */
+export async function getUserLikeTotal(userId) {
+  if (!userId) return 0;
+  const sb = requireSupabase();
+  const { data } = await sb.from("posts").select("like_count")
+    .eq("user_id", userId).eq("status", "visible");
+  return (data || []).reduce((s, p) => s + (p.like_count || 0), 0);
+}
+
+/** 我关注的人（含资料），按关注时间倒序 */
+export async function listFollowing(userId, { limit = 200 } = {}) {
+  if (!userId) return [];
+  const sb = requireSupabase();
+  const { data, error } = await sb.from("follows")
+    .select("created_at, following:users!follows_following_id_fkey ( id, username, avatar_url, city )")
+    .eq("follower_id", userId).order("created_at", { ascending: false }).limit(limit);
+  if (error) throw new Error(`获取关注列表失败: ${error.message}`);
+  return (data || []).map((r) => ({ ...(r.following || {}), followed_at: r.created_at })).filter((u) => u.id);
+}
+
+/** 我的粉丝（含资料） */
+export async function listFollowers(userId, { limit = 200 } = {}) {
+  if (!userId) return [];
+  const sb = requireSupabase();
+  const { data, error } = await sb.from("follows")
+    .select("created_at, follower:users!follows_follower_id_fkey ( id, username, avatar_url, city )")
+    .eq("following_id", userId).order("created_at", { ascending: false }).limit(limit);
+  if (error) throw new Error(`获取粉丝列表失败: ${error.message}`);
+  return (data || []).map((r) => ({ ...(r.follower || {}), followed_at: r.created_at })).filter((u) => u.id);
+}
+
+/** 一批用户里，我已关注了哪些（返回 Set） */
+export async function getFollowingSet(followerId, userIds = []) {
+  if (!followerId || !userIds.length) return new Set();
+  const sb = requireSupabase();
+  const { data } = await sb.from("follows").select("following_id")
+    .eq("follower_id", followerId).in("following_id", userIds);
+  return new Set((data || []).map((r) => r.following_id));
+}
+
 /**
  * 「同城」流：同城用户发的帖子（users.city === city，真实数据）。
  */
