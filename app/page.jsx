@@ -879,25 +879,25 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           {/* 宠物图 + AI 入口卡片 包裹层（relative；AI 卡片是手势 div 的兄弟节点，不影响滑动） */}
           <div style={{ position:"relative", width:"100%" }}>
 
-          {/* ── 装饰元素（pointer-events:none，不影响任何交互） ── */}
-          <div style={{ position:"absolute", left:14, top:24, color:"#F2A55F", opacity:0.4,
-                        transform:"rotate(-15deg)", pointerEvents:"none", zIndex:1 }}>
+          {/* ── 装饰元素：百分比定位，贴近居中宠物图（pointer-events:none）── */}
+          <div style={{ position:"absolute", left:"18%", top:"22%", color:"#F2A55F", opacity:0.42,
+                        transform:"rotate(-12deg)", pointerEvents:"none", zIndex:1 }}>
             <PawPrint size={30} strokeWidth={1.6}/>
           </div>
-          <div style={{ position:"absolute", left:26, top:80, color:"#F2A55F", opacity:0.38,
+          <div style={{ position:"absolute", left:"22%", top:"46%", color:"#F2A55F", opacity:0.38,
                         transform:"rotate(10deg)", pointerEvents:"none", zIndex:1 }}>
-            <Heart size={20} strokeWidth={1.6}/>
+            <Heart size={22} strokeWidth={1.6}/>
           </div>
-          <div style={{ position:"absolute", left:8, top:130, color:"#F2A55F", opacity:0.3,
+          <div style={{ position:"absolute", left:"20%", top:"66%", color:"#F2A55F", opacity:0.32,
                         pointerEvents:"none", zIndex:1 }}>
-            <Sparkles size={22} strokeWidth={1.6}/>
+            <Sparkles size={24} strokeWidth={1.6}/>
           </div>
           {/* 虚线弧线 */}
-          <svg style={{ position:"absolute", left:18, top:58, width:80, height:60,
+          <svg style={{ position:"absolute", left:"16%", top:"40%", width:90, height:70,
                         pointerEvents:"none", zIndex:1, opacity:0.45 }}
-               viewBox="0 0 80 60" fill="none">
-            <path d="M6 10 C22 52, 56 56, 74 28"
-              stroke="#E68645" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="6 8"/>
+               viewBox="0 0 90 70" fill="none">
+            <path d="M8 12 C20 55, 62 65, 82 28"
+              stroke="#E68645" strokeWidth="3" strokeLinecap="round" strokeDasharray="7 9"/>
           </svg>
 
           {/* ── Swipe carousel：左 ghost / 主头像 / 右 ghost ── */}
