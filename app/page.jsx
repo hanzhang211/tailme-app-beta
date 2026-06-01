@@ -36,7 +36,7 @@ import PetAvatar from "@/components/PetAvatar";
 import MapIcon from "@/components/MapIcon";
 import ChatIcon from "@/components/ChatIcon";
 import { AccountingIcon, RecipeIcon, HealthIcon } from "@/components/icons/HomeModuleIcons";
-import { Sparkles, ChevronRight, PawPrint, Heart, CalendarDays, Scale, Venus } from "lucide-react";
+import { Sparkles, ChevronRight, PawPrint, Heart, CalendarDays, Scale, Venus, Mars } from "lucide-react";
 import { DOG_BREEDS, CAT_BREEDS } from "@/services/breedAvatar";
 import { getMonthlyTotal } from "@/services/petExpenseService";
 import { getTodayRecipe }  from "@/services/petRecipeService";
@@ -1091,8 +1091,10 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
             { Icon:PawPrint,    bg:"#F7E8D8", ic:"#A86E3D", val: pet.breed || "—",  label:"品种" },
             { Icon:CalendarDays,bg:"#F8E1C7", ic:"#E68645", val: ageLabel,          label:"年龄" },
             { Icon:Scale,       bg:"#E4F1DF", ic:"#5FA766", val: pet.weight ? `${pet.weight} kg` : "—", label:"体重" },
-            { Icon:Venus,       bg:"#F8DDE4", ic:"#D9567A",
-              val: pet.gender === "male" ? "男孩" : pet.gender === "female" ? "女孩" : "—", label:"性别" },
+            { Icon: pet.gender === "male" ? Mars : Venus,
+              bg:   pet.gender === "male" ? "#DCE9F7" : "#F8DDE4",
+              ic:   pet.gender === "male" ? "#5A83B8" : "#D9567A",
+              val:  pet.gender === "male" ? "男孩" : pet.gender === "female" ? "女孩" : "—", label:"性别" },
           ].map(({ Icon, bg, ic, val, label }, i) => (
             <div key={label} style={{ flex:1, display:"flex", alignItems:"center", gap:8,
                                       padding:"0 8px",
