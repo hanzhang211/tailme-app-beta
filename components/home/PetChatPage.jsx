@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { ChevronLeft, Send } from "lucide-react";
 import PetAvatar from "@/components/PetAvatar";
+import PetTypingIndicator from "@/components/PetTypingIndicator";
 import { formatPetAge } from "@/services/petAge";
 import {
   sendPetChat, buildOpeningMessage,
@@ -191,12 +192,8 @@ export default function PetChatPage({ user, pet, onBack, onPetUpdate }) {
             <div style={{ flexShrink:0, marginBottom:2 }}>
               <PetAvatar pet={pet} size={30} bg={C.tint} />
             </div>
-            <div style={{ background:"#FFFFFF", color:C.sub,
-                          border:`1px solid ${C.border}`,
-                          borderRadius:"18px 18px 18px 4px", padding:"10px 14px",
-                          fontSize:13.5, lineHeight:1.5,
-                          boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
-              正在想怎么回复你…
+            <div style={{ padding:"8px 4px" }}>
+              <PetTypingIndicator />
             </div>
           </div>
         )}
