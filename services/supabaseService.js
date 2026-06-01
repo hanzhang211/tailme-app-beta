@@ -187,6 +187,57 @@ export async function updateUserAvatar(userId, avatarUrl) {
   return data;
 }
 
+/* ── AI 宠物聊天：长期记忆 ───────────────────────────────────── */
+// 读取某宠物最近 N 条记忆（默认 5），按时间倒序
+export async function getPetAiMemories(petId, limit = 5) {
+  if (!petId) return [];
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from("pet_ai_memories")
+    .select("id, memory_type, content, created_at")
+    .eq("pet_id", petId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.error("读取 AI 记忆失败:", error.message);
+    return [];
+  }
+  return data || [];
+}
+
+// 保存一条记忆（调用方负责去重）
+export async function savePetAiMemory(userId, petId, memoryType, content) {
+  if (!userId || !petId || !content) return null;
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from("pet_ai_memories")
+    .insert({ user_id: userId, pet_id: petId, memory_type: memoryType || "other", content })
+    .select()
+    .single();
+  if (error) {
+    console.error("保存 AI 记忆失败:", error.message);
+    return null;
+  }
+  return data;
+}
+
+/* ── AI 宠物聊天：成长系统（pets.ai_level / ai_exp）──────────────── */
+export async function updatePetAiGrowth(petId, aiExp, aiLevel) {
+  if (!petId) return null;
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from("pets")
+    .update({ ai_exp: aiExp, ai_level: aiLevel })
+    .eq("id", petId)
+    .select()
+    .single();
+  if (error) {
+    console.error("更新宠物成长值失败:", error.message);
+    return null;
+  }
+  return data;
+}
+
 /* ── 读取宠物喂食计划（所有顿，按 feeding_order 升序）─────────── */
 export async function getFeedingPlan(petId) {
   if (!petId) return [];

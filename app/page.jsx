@@ -1099,7 +1099,8 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     return <HealthPage user={user} pet={pet} pets={pets} onPetUpdate={onPetUpdate} onBack={() => setSubPage(null)} />;
   }
   if (subPage === "petchat") {
-    return <PetChatPage pet={pet} onBack={() => setSubPage(null)} />;
+    return <PetChatPage user={user} pet={pet} onPetUpdate={onPetUpdate}
+                        onBack={() => setSubPage(null)} />;
   }
   if (subPage === "news") {
     return <NewsPage onBack={() => setSubPage(null)} />;
