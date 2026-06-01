@@ -728,13 +728,16 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     setBubbleText(CHAT_BUBBLE_PHRASES[idx]);
   }, [pet?.id]);
 
-  // 多宠物 carousel
-  const petIdx      = pets.findIndex((p) => p.id === pet?.id);
-  const hasPrev     = petIdx > 0;
-  const hasNext     = petIdx < pets.length - 1;
-  const showCarousel = pets.length > 1;
+  // 多宠物 carousel —— 循环轮播（环形）
+  const petCount     = pets.length;
+  const rawIdx       = pets.findIndex((p) => p.id === pet?.id);
+  const petIdx       = rawIdx < 0 ? 0 : rawIdx;
+  const showCarousel = petCount > 1;
+  // 环形上一只 / 下一只（即使在首/尾也回绕）
+  const prevPet = showCarousel ? pets[(petIdx - 1 + petCount) % petCount] : null;
+  const nextPet = showCarousel ? pets[(petIdx + 1) % petCount] : null;
 
-  // Swipe 手势
+  // Swipe 手势（循环，无边界，无 rubber-band）
   const touchStartX = useRef(null);
   const [dragX, setDragX] = useState(0);
   const onTouchStart = (e) => {
@@ -743,17 +746,13 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   };
   const onTouchMove = (e) => {
     if (touchStartX.current === null || !showCarousel) return;
-    const dx = e.touches[0].clientX - touchStartX.current;
-    // 边界时 rubber-band 效果
-    if (dx > 0 && !hasPrev) setDragX(dx * 0.25);
-    else if (dx < 0 && !hasNext) setDragX(dx * 0.25);
-    else setDragX(dx);
+    setDragX(e.touches[0].clientX - touchStartX.current);
   };
   const onTouchEnd = () => {
     if (touchStartX.current === null) return;
     const THRESHOLD = 40;
-    if (dragX <= -THRESHOLD && hasNext) onSwitchPet?.(pets[petIdx + 1]);
-    else if (dragX >= THRESHOLD && hasPrev) onSwitchPet?.(pets[petIdx - 1]);
+    if (dragX <= -THRESHOLD && nextPet) onSwitchPet?.(nextPet);       // 左滑 → 下一只
+    else if (dragX >= THRESHOLD && prevPet) onSwitchPet?.(prevPet);   // 右滑 → 上一只
     setDragX(0);
     touchStartX.current = null;
   };
@@ -1244,27 +1243,23 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                             : "none",
                           willChange:"transform" }}>
 
-              {/* 左侧 ghost */}
-              {showCarousel && (
-                <div onClick={() => hasPrev && onSwitchPet?.(pets[petIdx - 1])}
+              {/* 左侧 ghost（环形上一只 prevPet） */}
+              {showCarousel && prevPet && (
+                <div onClick={() => onSwitchPet?.(prevPet)}
                   style={{ width:108, display:"flex", justifyContent:"center", alignItems:"center",
                            flexShrink:0, flexDirection:"column", gap:4,
                            background: H_BG,
-                           opacity: hasPrev ? 0.48 : 0,
+                           opacity: 0.48,
                            transform:"scale(0.58)", transformOrigin:"right center",
-                           pointerEvents: hasPrev ? "auto" : "none",
-                           cursor: hasPrev ? "pointer" : "default",
+                           pointerEvents: "auto",
+                           cursor: "pointer",
                            transition:"opacity 0.3s ease" }}>
-                  {hasPrev && (
-                    <>
-                      <PetAvatar pet={pets[petIdx - 1]} size={90} bg="transparent" blendMode="multiply" />
-                      <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
-                                    textAlign:"center", maxWidth:70,
-                                    overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                        {pets[petIdx - 1].name}
-                      </div>
-                    </>
-                  )}
+                  <PetAvatar pet={prevPet} size={90} bg="transparent" blendMode="multiply" />
+                  <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
+                                textAlign:"center", maxWidth:70,
+                                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    {prevPet.name}
+                  </div>
                 </div>
               )}
 
@@ -1303,27 +1298,23 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                 )}
               </div>
 
-              {/* 右侧 ghost */}
-              {showCarousel && (
-                <div onClick={() => hasNext && onSwitchPet?.(pets[petIdx + 1])}
+              {/* 右侧 ghost（环形下一只 nextPet） */}
+              {showCarousel && nextPet && (
+                <div onClick={() => onSwitchPet?.(nextPet)}
                   style={{ width:108, display:"flex", justifyContent:"center", alignItems:"center",
                            flexShrink:0, flexDirection:"column", gap:4,
                            background: H_BG,
-                           opacity: hasNext ? 0.48 : 0,
+                           opacity: 0.48,
                            transform:"scale(0.58)", transformOrigin:"left center",
-                           pointerEvents: hasNext ? "auto" : "none",
-                           cursor: hasNext ? "pointer" : "default",
+                           pointerEvents: "auto",
+                           cursor: "pointer",
                            transition:"opacity 0.3s ease" }}>
-                  {hasNext && (
-                    <>
-                      <PetAvatar pet={pets[petIdx + 1]} size={90} bg="transparent" blendMode="multiply" />
-                      <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
-                                    textAlign:"center", maxWidth:70,
-                                    overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                        {pets[petIdx + 1].name}
-                      </div>
-                    </>
-                  )}
+                  <PetAvatar pet={nextPet} size={90} bg="transparent" blendMode="multiply" />
+                  <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
+                                textAlign:"center", maxWidth:70,
+                                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    {nextPet.name}
+                  </div>
                 </div>
               )}
             </div>
@@ -1417,9 +1408,9 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           {showCarousel && (
             <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:10 }}>
               <button
-                onClick={() => hasPrev && onSwitchPet?.(pets[petIdx - 1])}
+                onClick={() => prevPet && onSwitchPet?.(prevPet)}
                 style={{ background:"transparent", border:"none", fontSize:22, lineHeight:1,
-                         color: hasPrev ? C.pri : H_BORDER, cursor: hasPrev ? "pointer" : "default",
+                         color: C.pri, cursor: "pointer",
                          padding:"0 4px" }}>‹</button>
               <div style={{ display:"flex", gap:6 }}>
                 {pets.map((p, i) => (
@@ -1430,9 +1421,9 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                 ))}
               </div>
               <button
-                onClick={() => hasNext && onSwitchPet?.(pets[petIdx + 1])}
+                onClick={() => nextPet && onSwitchPet?.(nextPet)}
                 style={{ background:"transparent", border:"none", fontSize:22, lineHeight:1,
-                         color: hasNext ? C.pri : H_BORDER, cursor: hasNext ? "pointer" : "default",
+                         color: C.pri, cursor: "pointer",
                          padding:"0 4px" }}>›</button>
             </div>
           )}
