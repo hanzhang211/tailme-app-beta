@@ -923,33 +923,51 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                                     border:"1px solid rgba(230,134,69,0.12)",
                                     overflow:"hidden" }}>
                 {/* 折叠头 */}
-                <button onClick={() => toggleExpand(i)}
-                  style={{ width:"100%", display:"flex", alignItems:"center", gap:14,
-                           padding:"14px 16px", background:"transparent", border:"none",
-                           cursor:"pointer", textAlign:"left" }}>
-                  <div style={{ width:54, height:54, borderRadius:16, flexShrink:0, background:cfg.grad,
-                                display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <MIcon size={26} color={cfg.ic} strokeWidth={1.8}/>
-                  </div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, color:"#8A7B6A", fontWeight:700, marginBottom:3 }}>
-                      {FEED_LABELS[i]}
+                <div style={{ display:"flex", alignItems:"center", padding:"14px 16px", gap:14 }}>
+                  {/* 点击主区域展开/折叠 */}
+                  <button onClick={() => toggleExpand(i)}
+                    style={{ display:"flex", alignItems:"center", gap:14, flex:1,
+                             background:"transparent", border:"none", cursor:"pointer", textAlign:"left",
+                             padding:0, minWidth:0 }}>
+                    <div style={{ width:54, height:54, borderRadius:16, flexShrink:0, background:cfg.grad,
+                                  display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <MIcon size={26} color={cfg.ic} strokeWidth={1.8}/>
                     </div>
-                    <div style={{ fontSize:20, fontWeight:800, color:"#111", lineHeight:1.1 }}>
-                      {formatFeedingTime(f.time)}
-                      {f.amount && (
-                        <span style={{ fontSize:14, fontWeight:800, color:C.pri, marginLeft:8 }}>
-                          {f.amount} {f.unit}
-                        </span>
-                      )}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, color:"#8A7B6A", fontWeight:700, marginBottom:3 }}>
+                        {FEED_LABELS[i]}
+                      </div>
+                      <div style={{ fontSize:20, fontWeight:800, color:"#111", lineHeight:1.1 }}>
+                        {formatFeedingTime(f.time)}
+                        {f.amount && (
+                          <span style={{ fontSize:14, fontWeight:800, color:C.pri, marginLeft:8 }}>
+                            {f.amount} {f.unit}
+                          </span>
+                        )}
+                      </div>
+                      {!open && <div style={{ fontSize:11, color:"#8A7B6A", marginTop:3 }}>
+                        建议：{SUGGEST_FP[i] || SUGGEST_FP[0]}
+                      </div>}
                     </div>
-                    {!open && <div style={{ fontSize:11, color:"#8A7B6A", marginTop:3 }}>
-                      建议：{SUGGEST_FP[i] || SUGGEST_FP[0]}
-                    </div>}
+                  </button>
+                  {/* 状态切换按钮（独立，不触发展开） */}
+                  <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                    <button onClick={() => toggleMealDone(i)}
+                      style={{ display:"flex", alignItems:"center", gap:4, height:30, padding:"0 10px",
+                               borderRadius:999, border:"none", cursor:"pointer", fontSize:12, fontWeight:800,
+                               transition:"all .2s",
+                               background: doneMeals[i] ? "rgba(95,167,102,0.14)" : "rgba(230,134,69,0.12)",
+                               color: doneMeals[i] ? "#5FA766" : "#E68645" }}>
+                      {doneMeals[i]
+                        ? <CheckCircle size={12} strokeWidth={2.2}/>
+                        : <Clock size={12} strokeWidth={2.2}/>}
+                      {doneMeals[i] ? "已完成" : "待喂食"}
+                    </button>
+                    <ChevronRight size={18} color="#C5B9B0" strokeWidth={2}
+                      onClick={() => toggleExpand(i)}
+                      style={{ transform: open ? "rotate(90deg)" : "none", transition:"transform .2s", cursor:"pointer" }}/>
                   </div>
-                  <ChevronRight size={20} color="#C5B9B0" strokeWidth={2}
-                    style={{ transform: open ? "rotate(90deg)" : "none", transition:"transform .2s", flexShrink:0 }}/>
-                </button>
+                </div>
 
                 {/* 展开编辑区 */}
                 {open && (
@@ -1520,11 +1538,12 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                         </div>
                       </div>
                       <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0 }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:4, height:32, padding:"0 11px",
-                                      borderRadius:999, background:"rgba(230,134,69,0.12)",
-                                      color:"#E68645", fontSize:12, fontWeight:800 }}>
+                        <button onClick={(e) => { e.stopPropagation(); toggleMealDone(nextIdx); }}
+                          style={{ display:"flex", alignItems:"center", gap:4, height:32, padding:"0 11px",
+                                   borderRadius:999, border:"none", cursor:"pointer", fontSize:12, fontWeight:800,
+                                   background:"rgba(230,134,69,0.12)", color:"#E68645" }}>
                           <Clock size={13} strokeWidth={2.2}/>待喂食
-                        </div>
+                        </button>
                         <ChevronRight size={16} color="#C5B9B0"/>
                       </div>
                     </button>
