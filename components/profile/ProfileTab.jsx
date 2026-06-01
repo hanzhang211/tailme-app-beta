@@ -41,7 +41,7 @@ function maskPhone(phone) {
   return s.slice(0, 3) + "****" + s.slice(-4);
 }
 
-export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, onUserUpdated, onLogout }) {
+export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, onPetDeleted, onUserUpdated, onLogout }) {
   const [pets,        setPets]        = useState([]);
   const [stats,       setStats]       = useState({ totalLikes: 0, postCount: 0, likedCount: 0 });
   const [myPosts,     setMyPosts]     = useState([]);
@@ -113,6 +113,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
     try {
       await deletePet(p.id, user.id);
       setPets((prev) => prev.filter((x) => x.id !== p.id));
+      onPetDeleted?.(p.id);   // 通知 AppRoot，首页 carousel 同步移除
       toast(`${p.name || "毛孩子"} 已移除`, "info");
     } catch (e) { toast(e.message, "error"); }
   };
@@ -126,6 +127,14 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
     setEditorPet(undefined);
     // 编辑已有宠物时通知 AppRoot 同步首页
     onPetUpdated?.(savedPet);
+  };
+
+  // PetEditor 内删除成功后：更新本地列表 + 通知 AppRoot（首页 carousel 同步移除）
+  const onPetDeletedFromEditor = (deletedPet) => {
+    setPets((prev) => prev.filter((x) => x.id !== deletedPet.id));
+    setEditorPet(undefined);
+    onPetDeleted?.(deletedPet.id);
+    toast(`${deletedPet.name || "毛孩子"} 已删除`, "info");
   };
 
   const onAvatarSaved = (updatedPet) => {
@@ -331,6 +340,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
           userId={user?.id}
           onClose={() => setEditorPet(undefined)}
           onSaved={onPetSaved}
+          onDeleted={onPetDeletedFromEditor}
           toast={toast}
         />
       )}

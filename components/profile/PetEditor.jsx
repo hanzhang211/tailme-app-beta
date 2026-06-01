@@ -9,7 +9,7 @@
  */
 
 import { useState } from "react";
-import { savePetProfile, updatePet } from "@/services/supabaseService";
+import { savePetProfile, updatePet, deletePet } from "@/services/supabaseService";
 import { PERSONALITIES, todayISO } from "@/services/petAge";
 import { DOG_BREEDS, CAT_BREEDS } from "@/services/breedAvatar";
 
@@ -18,7 +18,7 @@ const C = {
   sub:"#8A8074", light:"#D6D5D8", border:"#7A6F62",
 };
 
-export default function PetEditor({ pet, userId, onClose, onSaved, toast }) {
+export default function PetEditor({ pet, userId, onClose, onSaved, onDeleted, toast }) {
   const isEdit = !!pet;
   const [f, setF] = useState({
     pet_type:    pet?.pet_type || "dog",
@@ -36,6 +36,23 @@ export default function PetEditor({ pet, userId, onClose, onSaved, toast }) {
   const upd = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting]           = useState(false);
+
+  const handleDelete = async () => {
+    if (deleting) return;
+    setDeleting(true); setError(null);
+    try {
+      await deletePet(pet.id, userId);
+      onDeleted?.(pet);            // 通知上层：更新列表 + 首页同步移除
+      onClose?.();
+    } catch (e) {
+      setError(e.message);
+      toast?.(e.message || "删除失败，请重试", "error");
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
 
   // 只要求名字和品种，其余字段可选（避免旧数据缺字段导致按钮永久 disabled）
   const canSave = !saving && f.name?.trim() && f.breed;
@@ -195,8 +212,51 @@ export default function PetEditor({ pet, userId, onClose, onSaved, toast }) {
               ❌ {error}
             </div>
           )}
+
+          {/* 删除毛孩子（仅编辑模式） */}
+          {isEdit && (
+            <button onClick={() => setConfirmDelete(true)} disabled={saving || deleting}
+              style={{ width:"100%", marginTop:22, padding:"13px 0", borderRadius:14,
+                       background:"transparent", border:"1.5px solid #E2B4B4",
+                       color:"#D94040", fontSize:14, fontWeight:700,
+                       cursor: (saving || deleting) ? "default" : "pointer" }}>
+              🗑 删除这只毛孩子
+            </button>
+          )}
         </div>
       </div>
+
+      {/* 删除确认弹窗 */}
+      {confirmDelete && (
+        <div onClick={(e) => e.target === e.currentTarget && !deleting && setConfirmDelete(false)}
+          style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.5)",
+                   display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+          <div style={{ width:"100%", maxWidth:320, background:"#FFFFFF", borderRadius:20,
+                        padding:"22px 20px", textAlign:"center" }}>
+            <div style={{ fontSize:32, marginBottom:8 }}>🥺</div>
+            <div style={{ fontSize:16, fontWeight:800, color:C.text, marginBottom:8 }}>
+              确定要删除 {pet?.name || "这只毛孩子"} 吗？
+            </div>
+            <div style={{ fontSize:13, color:C.sub, lineHeight:1.6, marginBottom:20 }}>
+              删除后将无法恢复，TA 的喂食计划、健康/用药记录、AI 聊天记忆等相关资料也会一并清除。
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => setConfirmDelete(false)} disabled={deleting}
+                style={{ flex:1, padding:"11px 0", borderRadius:12, border:`1.5px solid ${C.light}`,
+                         background:"#FFFFFF", color:C.text, fontSize:14, fontWeight:700,
+                         cursor: deleting ? "default" : "pointer" }}>
+                再想想
+              </button>
+              <button onClick={handleDelete} disabled={deleting}
+                style={{ flex:1, padding:"11px 0", borderRadius:12, border:"none",
+                         background:"#D94040", color:"white", fontSize:14, fontWeight:700,
+                         cursor: deleting ? "default" : "pointer" }}>
+                {deleting ? "删除中…" : "确定删除"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`@keyframes compose-up { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
     </div>
   );

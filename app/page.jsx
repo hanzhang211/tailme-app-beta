@@ -1986,10 +1986,26 @@ export default function AppRoot() {
     if (newPet?.id) localStorage.setItem(LS_ACTIVE_PET, newPet.id);
   };
 
-  /* 更新某只宠物的数据（头像、资料等），同步到列表 + 若是激活宠物也更新 */
-  const handlePetDataUpdated = (updatedPet) => {
-    setPets((prev) => prev.map((p) => p.id === updatedPet.id ? updatedPet : p));
-    setPet((prev) => prev?.id === updatedPet.id ? updatedPet : prev);
+  /* 更新某只宠物的数据（头像、资料等），同步到列表 + 若是激活宠物也更新。
+     upsert：已存在则按 id 替换；不存在（新增宠物）则追加，让首页 carousel 立即出现新宠物，
+     并自动切换为当前激活宠物 */
+  const handlePetDataUpdated = (p) => {
+    const isNew = !pets.some((x) => x.id === p.id);
+    setPets((prev) => isNew ? [...prev, p] : prev.map((x) => x.id === p.id ? p : x));
+    if (isNew) setActivePet(p);                                  // 新增 → 自动切到新宠物
+    else setPet((prev) => prev?.id === p.id ? p : prev);
+  };
+
+  /* 删除宠物：从列表移除；若删的是当前激活宠物，自动切到列表第一只（无则 null） */
+  const handlePetDeleted = (petId) => {
+    setPets((prev) => prev.filter((x) => x.id !== petId));
+    setPet((cur) => {
+      if (cur?.id !== petId) return cur;
+      const fallback = pets.find((x) => x.id !== petId) || null;
+      if (fallback?.id) localStorage.setItem(LS_ACTIVE_PET, fallback.id);
+      else localStorage.removeItem(LS_ACTIVE_PET);
+      return fallback;
+    });
   };
 
   /* 状态分发：拿到 user + pets 之后决定下一步 */
@@ -2086,7 +2102,7 @@ export default function AppRoot() {
         {tab === 1 && <MapTab />}
         {tab === 2 && <HomeTab user={user} pet={pet} pets={pets} onPetUpdate={handlePetDataUpdated} onSwitchPet={setActivePet} />}
         {tab === 3 && <CommunityTab user={user} pet={pet} pets={pets} />}
-        {tab === 4 && <ProfileTab user={user} pet={pet} onSetActivePet={setActivePet} onPetUpdated={handlePetDataUpdated} onUserUpdated={setUser} onLogout={handleLogout} />}
+        {tab === 4 && <ProfileTab user={user} pet={pet} onSetActivePet={setActivePet} onPetUpdated={handlePetDataUpdated} onPetDeleted={handlePetDeleted} onUserUpdated={setUser} onLogout={handleLogout} />}
       </div>
       <div style={{ position:"absolute", bottom:0, left:0, right:0, height:60,
                     background:"white", display:"flex", zIndex:100 }}>
