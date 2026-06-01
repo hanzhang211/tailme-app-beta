@@ -1230,27 +1230,31 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
             </div>
           </div>
 
-          {/* 「点我聊聊～」说话气泡：浮在宠物头部右上方，点击进入 AI 宠物聊天占位页 */}
-          <button onClick={() => setSubPage("petchat")}
-            aria-label="和宠物聊聊"
-            style={{ position:"absolute", right:"10%", top:6, zIndex:6,
-                     display:"flex", alignItems:"center", gap:5,
-                     padding:"7px 13px",
-                     background:"#FFFDF8",
-                     border:`1.5px solid ${C.pri}`, borderRadius:"16px 16px 16px 4px",
-                     boxShadow:"0 4px 12px rgba(230,134,69,0.18)",
-                     color:C.pri, fontSize:12.5, fontWeight:800, whiteSpace:"nowrap",
-                     cursor:"pointer",
-                     animation:"chatBubbleBreath 2.8s ease-in-out infinite" }}>
-            💬 点我聊聊～
-            {/* 气泡小尾巴：指向宠物 */}
-            <span style={{ position:"absolute", left:14, bottom:-7, width:0, height:0,
-                           borderLeft:"7px solid transparent", borderRight:"7px solid transparent",
-                           borderTop:`8px solid ${C.pri}` }} />
-            <span style={{ position:"absolute", left:15, bottom:-5, width:0, height:0,
-                           borderLeft:"6px solid transparent", borderRight:"6px solid transparent",
-                           borderTop:"7px solid #FFFDF8" }} />
-          </button>
+          {/* 「点我聊聊～」说话气泡：浮在宠物左上方（左耳侧），点击进入 AI 宠物聊天占位页
+              外层固定 rotate(-6deg)，内层做呼吸动画，避免动画 transform 覆盖旋转 */}
+          <div style={{ position:"absolute", left:"7%", top:8, zIndex:6,
+                        transform:"rotate(-6deg)", transformOrigin:"center bottom" }}>
+            <button onClick={() => setSubPage("petchat")}
+              aria-label="和宠物聊聊"
+              style={{ position:"relative",
+                       width:136, height:48, padding:0,
+                       display:"flex", alignItems:"center", justifyContent:"center",
+                       background:"#FFFDF8",
+                       border:`1.5px solid ${C.pri}`, borderRadius:18,
+                       boxShadow:"0 3px 9px rgba(230,134,69,0.12)",
+                       color:C.pri, fontSize:13.5, fontWeight:800, whiteSpace:"nowrap",
+                       cursor:"pointer",
+                       animation:"chatBubbleBreath 2.8s ease-in-out infinite" }}>
+              点我聊聊～
+              {/* 小三角尾巴：在气泡右下角，指向宠物 */}
+              <span style={{ position:"absolute", right:20, bottom:-8, width:0, height:0,
+                             borderLeft:"8px solid transparent", borderRight:"8px solid transparent",
+                             borderTop:`9px solid ${C.pri}` }} />
+              <span style={{ position:"absolute", right:21, bottom:-6, width:0, height:0,
+                             borderLeft:"7px solid transparent", borderRight:"7px solid transparent",
+                             borderTop:"8px solid #FFFDF8" }} />
+            </button>
+          </div>
 
           {/* AI 入口卡片：浮在宠物图右下角（手势 div 的兄弟节点，点击触发原 setAvatarOpen 逻辑） */}
           <button onClick={() => setAvatarOpen(true)}
