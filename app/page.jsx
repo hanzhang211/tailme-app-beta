@@ -913,7 +913,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
         <div style={{ padding:"0 14px 90px", display:"flex", flexDirection:"column", gap:12 }}>
 
           {/* ── 折叠手风琴卡片 ── */}
-          {feedings.slice(0, 3).map((f, i) => {
+          {feedings.map((f, i) => {
             const cfg = mealIconCfgFP(f.time);
             const MIcon = cfg.Icon;
             const open = expandedMeal === i;
@@ -981,27 +981,33 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                       <input value={f.note} onChange={(e) => updFeed(i,"note",e.target.value)}
                         placeholder="例如：半罐猫粮" style={iStyle}/>
                     </div>
-                    {feedings.length > 1 && (
-                      <button onClick={() => { removeFeed(i); setExpandedMeal(null); }}
-                        style={{ display:"flex", alignItems:"center", gap:6, background:"transparent",
-                                 border:"none", cursor:"pointer", color:"#D94040", fontSize:14, fontWeight:600,
-                                 padding:"4px 0" }}>
-                        🗑 删除这一项
-                      </button>
-                    )}
+                    <button onClick={() => { removeFeed(i); setExpandedMeal(null); }}
+                      disabled={feedings.length <= 1}
+                      style={{ display:"flex", alignItems:"center", gap:6, background:"transparent",
+                               border:"none", cursor: feedings.length > 1 ? "pointer" : "default",
+                               color: feedings.length > 1 ? "#D94040" : "#C5B9B0",
+                               fontSize:14, fontWeight:600, padding:"4px 0" }}>
+                      🗑 删除这一项
+                    </button>
                   </div>
                 )}
               </div>
             );
           })}
 
-          {/* 添加喂食 */}
-          <button onClick={() => { addFeed(); setExpandedMeal(feedings.length); }}
-            style={{ width:"100%", height:52, background:"rgba(255,255,255,0.55)",
-                     border:"1.5px dashed rgba(230,134,69,0.4)", borderRadius:18,
-                     fontSize:15, fontWeight:700, color:C.pri, cursor:"pointer" }}>
-            + 添加喂食
-          </button>
+          {/* 添加喂食（最多 10 次） */}
+          {feedings.length < 10 ? (
+            <button onClick={() => { const idx = feedings.length; addFeed(); setExpandedMeal(idx); }}
+              style={{ width:"100%", height:52, background:"rgba(255,255,255,0.55)",
+                       border:"1.5px dashed rgba(230,134,69,0.4)", borderRadius:18,
+                       fontSize:15, fontWeight:700, color:C.pri, cursor:"pointer" }}>
+              + 添加喂食
+            </button>
+          ) : (
+            <div style={{ textAlign:"center", fontSize:13, color:H_SUB, padding:"6px 0" }}>
+              已添加 10 次喂食（上限）
+            </div>
+          )}
 
           {/* 橙色大保存按钮 */}
           <button onClick={doSaveAndBack}
