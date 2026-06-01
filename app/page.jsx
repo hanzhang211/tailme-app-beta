@@ -847,6 +847,176 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   const H_SHADOW   = "0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)";  // 轻柔阴影
   const H_SUB      = "#8A8074";  // 次级暖灰文字
 
+  if (subPage === "feeding") {
+    // ── 喂食计划详情页（内联，共用 HomeTab 状态）──
+    const mealIconCfgFP = (t) => {
+      const h = t ? parseInt(t.split(":")[0], 10) : 8;
+      if (h >= 5  && h < 12) return { Icon:Sun,      grad:"linear-gradient(135deg,#FFE6A8,#F4A64E)", ic:"white" };
+      if (h >= 12 && h < 18) return { Icon:Sun,      grad:"linear-gradient(135deg,#FFD6A5,#E88A35)", ic:"white" };
+      if (h >= 18 && h < 24) return { Icon:Moon,     grad:"linear-gradient(135deg,#F9B087,#8B4C7A)", ic:"white" };
+      return                         { Icon:MoonStar, grad:"linear-gradient(135deg,#22375C,#687AAE)", ic:"#FFE6A8" };
+    };
+    const SUGGEST_FP = ["06:00–10:00","12:00–15:00","16:00–20:00"];
+    const FoodBowlFP = () => (
+      <svg width="72" height="56" viewBox="0 0 90 70" fill="none" style={{ flexShrink:0 }}>
+        <ellipse cx="45" cy="20" rx="32" ry="12" fill="#E6A348" opacity="0.45"/>
+        <path d="M18 24H72L64 58H26L18 24Z" fill="#F4ECD9" stroke="#A86E3D" strokeWidth="3"/>
+        <circle cx="35" cy="40" r="3" fill="#A86E3D"/><circle cx="45" cy="37" r="3" fill="#A86E3D"/><circle cx="55" cy="40" r="3" fill="#A86E3D"/>
+      </svg>
+    );
+    return (
+      <div style={{ height:"100%", overflowY:"auto", background:H_BG }}>
+        {/* Header */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+                      padding:"52px 16px 14px", background:H_BG }}>
+          <button onClick={() => setSubPage(null)}
+            style={{ width:40, height:40, borderRadius:999, background:"rgba(255,255,255,0.6)",
+                     border:"none", cursor:"pointer", fontSize:22, color:C.text,
+                     display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <Utensils size={22} color={C.text} strokeWidth={2}/>
+            <span style={{ fontSize:17, fontWeight:800, color:C.text }}>喂食计划</span>
+          </div>
+          {(hasFeedRecord || editFeed) && (
+            <button onClick={handleSaveFeed}
+              style={{ height:36, padding:"0 14px", borderRadius:999, cursor:"pointer",
+                       display:"flex", alignItems:"center", gap:5, fontWeight:700,
+                       border:"1.5px solid rgba(230,134,69,0.35)",
+                       background:"rgba(255,255,255,0.55)", color:"#E68645", fontSize:13 }}>
+              <Settings size={14} strokeWidth={2}/>
+              {editFeed ? "完成" : "设置"}
+            </button>
+          )}
+        </div>
+
+        <div style={{ padding:"0 16px 90px", display:"flex", flexDirection:"column", gap:14 }}>
+          {/* 满喂食卡片（完整状态） */}
+          <div style={{ background:"rgba(255,255,255,0.72)", borderRadius:28, padding:20,
+                        boxShadow:"0 8px 24px rgba(0,0,0,0.06)", border:"1px solid rgba(255,255,255,0.7)" }}>
+            {!hasFeedRecord ? (
+              <div style={{ textAlign:"center", padding:"16px 0" }}>
+                <div style={{ fontSize:13, color:H_SUB, marginBottom:14 }}>
+                  还没有为 <b style={{ color:C.text }}>{pet.name}</b> 添加喂食计划
+                </div>
+                <button onClick={() => { setFeedings([{ ...DEFAULT_FEEDING }]); setHasFeedRecord(true); setEdit(true); }}
+                  style={{ background:C.pri, color:"white", border:"none", borderRadius:999,
+                           padding:"10px 24px", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+                  + 添加喂食计划
+                </button>
+              </div>
+            ) : editFeed ? (
+              <>
+                {feedings.map((f, i) => (
+                  <div key={i} style={{ background:H_SURFACE, border:`1px solid ${H_BORDER}`,
+                                        borderRadius:14, padding:12, marginBottom:8 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                      <span style={{ fontSize:12, fontWeight:700, color:C.text }}>{FEED_ICONS[i]} {FEED_LABELS[i]}</span>
+                      {feedings.length > 1 && (
+                        <button onClick={() => removeFeed(i)}
+                          style={{ background:"transparent", border:"none", fontSize:11, color:"#C0392B", cursor:"pointer", padding:"2px 6px" }}>删除</button>
+                      )}
+                    </div>
+                    <div style={{ marginBottom:8 }}>
+                      <div style={{ fontSize:11, color:H_SUB, marginBottom:4 }}>喂食时间</div>
+                      <input type="time" value={f.time} onChange={(e) => updFeed(i,"time",e.target.value)}
+                        style={{ width:"100%", borderRadius:10, padding:"8px 10px", fontSize:15, fontWeight:700,
+                                 border:`1px solid ${H_BORDER}`, background:"white", boxSizing:"border-box", color:C.text }}/>
+                    </div>
+                    <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                      <div style={{ flex:2 }}>
+                        <div style={{ fontSize:11, color:H_SUB, marginBottom:4 }}>喂食量</div>
+                        <input type="number" min="0" step="0.5" value={f.amount} onChange={(e) => updFeed(i,"amount",e.target.value)}
+                          placeholder="120" style={{ width:"100%", borderRadius:10, padding:"8px 10px", fontSize:14,
+                                   border:`1px solid ${H_BORDER}`, background:"white", boxSizing:"border-box" }}/>
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:11, color:H_SUB, marginBottom:4 }}>单位</div>
+                        <select value={f.unit} onChange={(e) => updFeed(i,"unit",e.target.value)}
+                          style={{ width:"100%", borderRadius:10, padding:"8px 6px", fontSize:14,
+                                   border:`1px solid ${H_BORDER}`, background:"white", boxSizing:"border-box" }}>
+                          {FEED_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <input value={f.note} onChange={(e) => updFeed(i,"note",e.target.value)}
+                      placeholder="备注（可选）" style={{ width:"100%", borderRadius:10, padding:"8px 10px",
+                               fontSize:13, border:`1px solid ${H_BORDER}`, background:"white", boxSizing:"border-box" }}/>
+                  </div>
+                ))}
+                {feedings.length < 3 ? (
+                  <button onClick={addFeed} style={{ width:"100%", background:"transparent",
+                           border:`1.5px dashed ${H_BORDER}`, borderRadius:14, padding:"10px 0",
+                           fontSize:13, color:H_SUB, cursor:"pointer" }}>+ 添加一顿</button>
+                ) : (
+                  <div style={{ textAlign:"center", fontSize:11, color:H_SUB, padding:"4px 0 8px" }}>
+                    一天最多记录 3 次喂食哦
+                  </div>
+                )}
+              </>
+            ) : (
+              // 全量查看
+              <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                {feedings.slice(0, 3).map((f, i) => {
+                  const cfg = mealIconCfgFP(f.time); const MIcon = cfg.Icon; const done = !!doneMeals[i];
+                  return (
+                    <div key={i} style={{ display:"flex", alignItems:"center", gap:14,
+                                          background:"rgba(244,236,217,0.42)",
+                                          border:"1px solid rgba(230,134,69,0.14)", borderRadius:20, padding:14 }}>
+                      <div style={{ width:58, height:58, borderRadius:16, flexShrink:0, background:cfg.grad,
+                                    display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <MIcon size={28} color={cfg.ic} strokeWidth={1.8}/>
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:12, color:"#8A7B6A", fontWeight:700, marginBottom:3 }}>{FEED_LABELS[i]}</div>
+                        <div style={{ fontSize:22, fontWeight:800, color:"#111", lineHeight:1.1 }}>
+                          {formatFeedingTime(f.time)}
+                          {f.amount && <span style={{ fontSize:15, fontWeight:800, color:"#E68645", marginLeft:5 }}>· {f.amount}{f.unit}</span>}
+                        </div>
+                        {f.note && <div style={{ fontSize:11, color:H_SUB, marginTop:3 }}>{f.note}</div>}
+                      </div>
+                      <button onClick={() => toggleMealDone(i)}
+                        style={{ display:"flex", alignItems:"center", gap:4, height:32, padding:"0 11px",
+                                 borderRadius:999, border:"none", cursor:"pointer", fontSize:12, fontWeight:800, transition:"all .2s",
+                                 background: done ? "rgba(95,167,102,0.14)" : "rgba(230,134,69,0.12)",
+                                 color: done ? "#5FA766" : "#E68645" }}>
+                        {done ? <CheckCircle size={13} strokeWidth={2.2}/> : <Clock size={13} strokeWidth={2.2}/>}
+                        {done ? "已完成" : "待喂食"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <ErrBox msg={feedError}/>
+          </div>
+
+          {/* 推荐喂食量 */}
+          {hasFeedRecord && !editFeed && (
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+                          background:"linear-gradient(135deg,rgba(255,255,255,0.66),rgba(244,236,217,0.75))",
+                          borderRadius:24, border:"1px solid rgba(230,134,69,0.18)",
+                          borderLeft:"6px solid #E68645", padding:"16px 16px 16px 18px" }}>
+              <div>
+                <div style={{ fontSize:13, fontWeight:700, color:"#8A7B6A", marginBottom:4 }}>推荐喂食量（每次）</div>
+                <div style={{ fontSize:28, fontWeight:900, color:"#E68645", lineHeight:1.1 }}>{feedAmt(pet.weight)}</div>
+                <div style={{ fontSize:12, color:"#8A7B6A", marginTop:4 }}>基于体重 {pet.weight}kg 估算 · 仅供参考</div>
+              </div>
+              <FoodBowlFP/>
+            </div>
+          )}
+
+          {/* 温馨提示 */}
+          {hasFeedRecord && !editFeed && (
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <Lightbulb size={15} color="#E6A348" strokeWidth={1.8} style={{ flexShrink:0 }}/>
+              <span style={{ fontSize:13, color:"#8A7B6A" }}>少食多餐，有助于消化吸收，保持活力满满～</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (subPage === "expenses") {
     return <ExpensePage user={user} pets={pet ? [pet] : []} onBack={() => setSubPage(null)}
       onAmountChanged={() => getMonthlyTotal(user.id).then(setMonthExpense).catch(() => {})} />;
@@ -1158,9 +1328,8 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
             H_SUB={H_SUB} text={C.text} />
         </div>
 
-        {/* ── Feeding Card（iOS Widget 风格）── */}
+        {/* ── Feeding Card（首页摘要：只显示下一顿）── */}
         {(() => {
-          // 根据时间决定图标和渐变（不依赖下标）
           const mealIconCfg = (t) => {
             const h = t ? parseInt(t.split(":")[0], 10) : 8;
             if (h >= 5  && h < 12) return { Icon:Sun,      grad:"linear-gradient(135deg,#FFE6A8,#F4A64E)", ic:"white" };
@@ -1288,93 +1457,64 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                 </>
 
               ) : (
-                /* 查看模式 — iOS Widget 风格 */
-                <>
-                  <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:16 }}>
-                    {feedings.slice(0, 3).map((f, i) => {
-                      const cfg   = mealIconCfg(f.time);
-                      const MIcon = cfg.Icon;
-                      const done  = !!doneMeals[i];
-                      return (
-                        <div key={i} style={{ display:"flex", alignItems:"center", gap:16,
-                                              background:"rgba(244,236,217,0.42)",
-                                              border:"1px solid rgba(230,134,69,0.14)",
-                                              borderRadius:22, padding:16 }}>
-                          {/* 左：渐变图标（随时间变化） */}
-                          <div style={{ width:64, height:64, borderRadius:18, flexShrink:0,
-                                        background:cfg.grad, display:"flex", alignItems:"center",
-                                        justifyContent:"center" }}>
-                            <MIcon size={30} color={cfg.ic} strokeWidth={1.8}/>
-                          </div>
-                          {/* 中：固定标题 + 用户时间 */}
-                          <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:4 }}>
-                              <MIcon size={13} color="#E68645" strokeWidth={1.8}/>
-                              <span style={{ fontSize:13, fontWeight:700, color:"#8A7B6A" }}>
-                                {FEED_LABELS[i]}
-                              </span>
-                            </div>
-                            <div style={{ fontSize:24, fontWeight:800, color:"#111", lineHeight:1.1 }}>
-                              {formatFeedingTime(f.time)}
-                              {f.amount && (
-                                <span style={{ fontSize:16, fontWeight:800, color:"#E68645", marginLeft:6 }}>
-                                  · {f.amount}{f.unit}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          {/* 右：可点击状态（当日有效，次日重置） */}
-                          <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end",
-                                        gap:6, flexShrink:0 }}>
-                            <button onClick={() => toggleMealDone(i)}
-                              style={{ display:"flex", alignItems:"center", gap:5,
-                                       height:34, padding:"0 13px", borderRadius:999,
-                                       background: done ? "rgba(95,167,102,0.14)" : "rgba(230,134,69,0.12)",
-                                       color: done ? "#5FA766" : "#E68645",
-                                       fontSize:13, fontWeight:800,
-                                       border:"none", cursor:"pointer", transition:"all .2s" }}>
-                              {done
-                                ? <CheckCircle size={14} strokeWidth={2.2}/>
-                                : <Clock size={14} strokeWidth={2.2}/>}
-                              {done ? "已完成" : "待喂食"}
-                            </button>
-                            <div style={{ fontSize:11, color:"#8A7B6A" }}>
-                              建议：{SUGGEST[i] || SUGGEST[0]}
+                /* 首页摘要：下一顿待执行 or 全完成 */
+                (() => {
+                  const meals = feedings.slice(0, 3);
+                  const nextIdx = meals.findIndex((_, i) => !doneMeals[i]);
+                  const allDone = nextIdx === -1;
+                  if (allDone) {
+                    return (
+                      <button onClick={() => setSubPage("feeding")}
+                        style={{ width:"100%", background:"rgba(95,167,102,0.08)",
+                                 border:"1px solid rgba(95,167,102,0.2)", borderRadius:20,
+                                 padding:"18px 16px", cursor:"pointer", textAlign:"left" }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                          <CheckCircle size={40} color="#5FA766" strokeWidth={1.6}/>
+                          <div>
+                            <div style={{ fontSize:16, fontWeight:800, color:"#5FA766" }}>今日喂食已完成</div>
+                            <div style={{ fontSize:13, color:"#7A8275", marginTop:3 }}>
+                              {meals.length} 顿喂食均已完成 · 点击查看详情
                             </div>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* 推荐喂食量卡片 */}
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-                                background:"linear-gradient(135deg,rgba(255,255,255,0.66),rgba(244,236,217,0.75))",
-                                borderRadius:24, border:"1px solid rgba(230,134,69,0.18)",
-                                borderLeft:"6px solid #E68645", padding:"18px 18px 18px 20px",
-                                marginBottom:12 }}>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:"#8A7B6A", marginBottom:4 }}>
-                        推荐喂食量（每次）
+                      </button>
+                    );
+                  }
+                  const f = meals[nextIdx];
+                  const cfg = mealIconCfg(f.time); const MIcon = cfg.Icon;
+                  return (
+                    <button onClick={() => setSubPage("feeding")}
+                      style={{ width:"100%", background:"rgba(244,236,217,0.42)",
+                               border:"1px solid rgba(230,134,69,0.14)", borderRadius:22,
+                               padding:16, cursor:"pointer", textAlign:"left",
+                               display:"flex", alignItems:"center", gap:14 }}>
+                      <div style={{ width:58, height:58, borderRadius:16, flexShrink:0,
+                                    background:cfg.grad, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <MIcon size={28} color={cfg.ic} strokeWidth={1.8}/>
                       </div>
-                      <div style={{ fontSize:30, fontWeight:900, color:"#E68645", lineHeight:1.1 }}>
-                        {feedAmt(pet.weight)}
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:12, color:"#8A7B6A", fontWeight:700, marginBottom:3 }}>
+                          下一顿 · {FEED_LABELS[nextIdx]}
+                        </div>
+                        <div style={{ fontSize:22, fontWeight:800, color:"#111", lineHeight:1.1 }}>
+                          今天 {formatFeedingTime(f.time)}
+                          {f.amount && <span style={{ fontSize:15, fontWeight:800, color:"#E68645", marginLeft:5 }}>· {f.amount}{f.unit}</span>}
+                        </div>
+                        <div style={{ fontSize:11, color:"#8A7B6A", marginTop:4 }}>
+                          建议：{SUGGEST[nextIdx] || SUGGEST[0]} · 点击管理
+                        </div>
                       </div>
-                      <div style={{ fontSize:12, color:"#8A7B6A", marginTop:5 }}>
-                        基于体重 {pet.weight}kg 估算 · 仅供参考
+                      <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:4, height:32, padding:"0 11px",
+                                      borderRadius:999, background:"rgba(230,134,69,0.12)",
+                                      color:"#E68645", fontSize:12, fontWeight:800 }}>
+                          <Clock size={13} strokeWidth={2.2}/>待喂食
+                        </div>
+                        <ChevronRight size={16} color="#C5B9B0"/>
                       </div>
-                    </div>
-                    <FoodBowl/>
-                  </div>
-
-                  {/* 温馨提示 */}
-                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    <Lightbulb size={16} color="#E6A348" strokeWidth={1.8} style={{ flexShrink:0 }}/>
-                    <span style={{ fontSize:13, color:"#8A7B6A" }}>
-                      少食多餐，有助于消化吸收，保持活力满满～
-                    </span>
-                  </div>
-                </>
+                    </button>
+                  );
+                })()
               )}
               <ErrBox msg={feedError} />
             </div>
