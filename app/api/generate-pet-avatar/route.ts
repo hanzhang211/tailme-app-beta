@@ -51,6 +51,15 @@ const BASE_REQUIREMENTS = [
   "",
   "Style:",
   "minimal, soft lighting, high detail, kawaii, polished 3D mascot icon, sticker, transparent PNG with alpha channel",
+  "",
+  "full body pet character,",
+  "isolated subject,",
+  "clean transparent-style background,",
+  "no shadow,",
+  "no floor shadow,",
+  "no white studio backdrop,",
+  "cutout sticker style,",
+  "centered composition",
 ].join("\n");
 
 const DOG_PROMPT = [
@@ -173,14 +182,14 @@ export async function POST(req: Request) {
   const bytes    = new Uint8Array(arrayBuf);
 
   // 3) 上传到 Supabase Storage（service_role 绕过 RLS）
-  // 使用固定路径（upsert），方便 CDN 缓存和 thumb URL 稳定
-  const path = `${userId}/${petId}/avatar-full.png`;
+  // 用时间戳路径：每次生成 URL 都不同，避免 CDN 缓存导致"重新生成却显示旧图"
+  const path = `${userId}/${petId}/ai-${Date.now()}.png`;
   const { error: upErr } = await supabaseAdmin.storage
     .from("pet-avatars")
     .upload(path, bytes, {
       contentType: "image/png",
       cacheControl: "86400",
-      upsert: true,
+      upsert: false,
     });
   if (upErr) {
     return NextResponse.json({ error: `保存失败: ${upErr.message}` }, { status: 500 });
