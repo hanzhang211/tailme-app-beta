@@ -81,6 +81,26 @@ export default function ChatRoom({ user, pet, pets = [] }) {
     getMyJoinedRooms(user.id).then(setJoinedRooms).catch(() => {});
   }, [user?.id]);
 
+  /* 未读：localStorage 记每群上次查看时间，进群即清零（真实计算，非 mock） */
+  const SEEN_KEY = "tailme_room_seen";
+  const [seenMap, setSeenMap] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "{}"); } catch { return {}; }
+  });
+  const markRoomSeen = (roomId) => {
+    if (!roomId) return;
+    setSeenMap((prev) => {
+      const next = { ...prev, [roomId]: new Date().toISOString() };
+      try { localStorage.setItem(SEEN_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+  const unreadOf = (roomId, recent) => {
+    if (!roomId || !recent?.length || !user?.id) return 0;
+    const seen = seenMap[roomId];
+    const seenT = seen ? new Date(seen).getTime() : 0;
+    return recent.filter((m) => m.user_id !== user.id && new Date(m.created_at).getTime() > seenT).length;
+  };
+
   /* ── 拉房间列表 ────────────────────────────────── */
   useEffect(() => {
     (async () => {
@@ -148,6 +168,7 @@ export default function ChatRoom({ user, pet, pets = [] }) {
   }, [msgs, view]);
 
   const enterRoom = (roomId) => {
+    markRoomSeen(roomId);   // 进群即清零未读
     setActiveRoomId(roomId);
     setView("room");
   };
@@ -233,11 +254,13 @@ export default function ChatRoom({ user, pet, pets = [] }) {
             <SectionLabel>🚀 我的专属群</SectionLabel>
             {myBreeds.map(({ breed, pet_type }) => {
               const s = groupStats.statByBreed[breed];
+              const jr = joinedRooms.find((j) => j.breed === breed);
               return (
                 <ExclusiveCard key={breed}
                   icon={avatarForBreed(breed, pet_type)} title={`${breed}群`}
                   desc={`一起分享${breed}的日常生活`}
                   members={s?.members} online={s?.online}
+                  unread={jr ? unreadOf(jr.id, jr.recent) : 0}
                   onClick={() => enterBreedRoom({ breed, pet_type })} />
               );
             })}
@@ -258,6 +281,7 @@ export default function ChatRoom({ user, pet, pets = [] }) {
               <JoinedRow key={r.id}
                 icon={avatarForBreed(r.breed, r.pet_type)} title={roomDisplay(r)}
                 lastMsg={r.lastMsg} members={s?.members} online={s?.online}
+                unread={unreadOf(r.id, r.recent)}
                 onClick={() => enterRoom(r.id)} />
             );
           })
@@ -465,6 +489,16 @@ function SubHeader({ title, onBack }) {
   );
 }
 
+function UnreadDot({ count }) {
+  return (
+    <span style={{ position:"absolute", top:-4, right:-4, minWidth:18, height:18, padding:"0 5px",
+                   borderRadius:999, background:"#F2453D", color:"#fff", fontSize:10, fontWeight:800,
+                   lineHeight:"18px", textAlign:"center", border:"2px solid #fff", boxSizing:"border-box" }}>
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 function SectionLabel({ children }) {
   return (
     <div style={{ fontSize:13, fontWeight:800, color:C.text, margin:"16px 0 10px" }}>
@@ -474,16 +508,17 @@ function SectionLabel({ children }) {
 }
 
 /* 我的专属群（皇冠卡） */
-function ExclusiveCard({ icon, title, desc, members, online, onClick }) {
+function ExclusiveCard({ icon, title, desc, members, online, unread = 0, onClick }) {
   return (
     <button onClick={onClick}
       style={{ width:"100%", display:"flex", alignItems:"center", gap:13,
                background:"white", border:`1px solid ${C.border}`, borderRadius:18,
                padding:"15px 16px", marginBottom:10, cursor:"pointer", textAlign:"left",
                boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-      <span style={{ width:50, height:50, borderRadius:"50%", background:C.tint, flexShrink:0,
+      <span style={{ position:"relative", width:50, height:50, borderRadius:"50%", background:C.tint, flexShrink:0,
                      display:"flex", alignItems:"center", justifyContent:"center", fontSize:26 }}>
         {icon}
+        {unread > 0 && <UnreadDot count={unread} />}
       </span>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
@@ -505,16 +540,17 @@ function ExclusiveCard({ icon, title, desc, members, online, onClick }) {
 }
 
 /* 我加入的群聊（带最近消息） */
-function JoinedRow({ icon, title, lastMsg, members, online, onClick }) {
+function JoinedRow({ icon, title, lastMsg, members, online, unread = 0, onClick }) {
   return (
     <button onClick={onClick}
       style={{ width:"100%", display:"flex", alignItems:"center", gap:12,
                background:"white", border:`1px solid ${C.border}`, borderRadius:16,
                padding:"13px 14px", marginBottom:8, cursor:"pointer", textAlign:"left",
                boxShadow:"0 1px 6px rgba(0,0,0,0.04)" }}>
-      <span style={{ width:44, height:44, borderRadius:"50%", background:C.tint, flexShrink:0,
+      <span style={{ position:"relative", width:44, height:44, borderRadius:"50%", background:C.tint, flexShrink:0,
                      display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>
         {icon}
+        {unread > 0 && <UnreadDot count={unread} />}
       </span>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>

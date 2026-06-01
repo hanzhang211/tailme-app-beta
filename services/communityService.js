@@ -349,23 +349,27 @@ export async function getMyJoinedRooms(userId, { limit = 20 } = {}) {
   const roomById = {};
   (rooms || []).forEach((r) => { roomById[r.id] = r; });
 
-  // 这些房间最近的消息（一次拉，挑每房第一条）
+  // 这些房间最近的消息（一次拉，挑每房第一条 + 每房近期时间线用于算未读）
   const { data: recent } = await sb.from("messages")
-    .select("room_id, content, created_at, user:users!user_id ( username )")
+    .select("room_id, content, created_at, user_id, user:users!user_id ( username )")
     .in("room_id", roomIds).eq("status", "visible")
-    .order("created_at", { ascending: false }).limit(400);
+    .order("created_at", { ascending: false }).limit(600);
   const lastByRoom = {};
+  const recentByRoom = {};
   (recent || []).forEach((m) => {
     if (!lastByRoom[m.room_id]) {
       lastByRoom[m.room_id] = { content: m.content, created_at: m.created_at, username: m.user?.username || "" };
     }
+    const arr = (recentByRoom[m.room_id] = recentByRoom[m.room_id] || []);
+    if (arr.length < 60) arr.push({ created_at: m.created_at, user_id: m.user_id });
   });
 
   return roomIds
     .map((id) => {
       const r = roomById[id];
       if (!r) return null;
-      return { id, name: r.name, breed: r.breed, pet_type: r.pet_type || "dog", lastMsg: lastByRoom[id] || null };
+      return { id, name: r.name, breed: r.breed, pet_type: r.pet_type || "dog",
+               lastMsg: lastByRoom[id] || null, recent: recentByRoom[id] || [] };
     })
     .filter(Boolean)
     .sort((a, b) => (b.lastMsg?.created_at || "").localeCompare(a.lastMsg?.created_at || ""));
