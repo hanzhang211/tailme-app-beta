@@ -14,9 +14,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  listPosts, listPostsByTag, getHotTopics, getRecommendedPosts, listFollowingPosts,
+  listPosts, listPostsByTag, getHotTopics, getRecommendedPosts, listFollowingPosts, listCityPosts,
   likePost, unlikePost, getMyLikedPostIds,
 } from "@/services/communityService";
+import { getMyLocation, reverseGeoCity } from "@/services/amapService";
+import { updateUserCity } from "@/services/supabaseService";
 import PetAvatar  from "@/components/PetAvatar";
 import PostCompose from "./PostCompose";
 import PostDetail  from "./PostDetail";
@@ -72,7 +74,7 @@ function imageCoverRatio(post) {
   return Math.max(0.55, Math.min(1.6, r));   // 限幅防极端
 }
 
-export default function PostFeed({ user, pet }) {
+export default function PostFeed({ user, pet, onUserUpdated }) {
   const [posts,    setPosts]    = useState([]);
   const [likedSet, setLikedSet] = useState(new Set());
   const [loading,  setLoading]  = useState(true);
@@ -92,6 +94,11 @@ export default function PostFeed({ user, pet }) {
   const [followPosts,   setFollowPosts]   = useState([]);
   const [followLoading, setFollowLoading] = useState(false);
   const [followLoaded,  setFollowLoaded]  = useState(false);
+
+  // 同城
+  const [cityPosts,   setCityPosts]   = useState([]);
+  const [cityLoading, setCityLoading] = useState(false);
+  const [locating,    setLocating]    = useState(false);
 
   const [toastMsg, setToastMsg] = useState(null);
   const toastTimerRef = useRef();
@@ -210,6 +217,48 @@ export default function PostFeed({ user, pet }) {
     return () => { alive = false; };
   }, [feedTab, followLoaded, user?.id]); // eslint-disable-line
   const [followL, followR] = useMemo(() => splitTwoCols(followPosts), [followPosts]);
+
+  /* ── 「同城」流：有城市则加载同城帖 ── */
+  useEffect(() => {
+    if (feedTab !== "city" || !user?.city) return;
+    let alive = true;
+    setCityLoading(true);
+    listCityPosts(user.city)
+      .then(async (list) => {
+        if (!alive) return;
+        setCityPosts(list);
+        if (user?.id && list.length) {
+          const liked = await getMyLikedPostIds(user.id, list.map((p) => p.id));
+          if (alive) setLikedSet((prev) => { const n = new Set(prev); liked.forEach((id) => n.add(id)); return n; });
+        }
+      })
+      .catch((e) => { if (alive) toast(e.message, "error"); })
+      .finally(() => { if (alive) setCityLoading(false); });
+    return () => { alive = false; };
+  }, [feedTab, user?.city]); // eslint-disable-line
+  const [cityL, cityR] = useMemo(() => splitTwoCols(cityPosts), [cityPosts]);
+
+  /* 用定位设置城市（高德 regeo），失败回退手动输入 */
+  const handleLocateCity = async () => {
+    if (locating || !user?.id) return;
+    setLocating(true);
+    try {
+      const loc = await getMyLocation();
+      let city = await reverseGeoCity(loc.lat, loc.lng);
+      if (!city && typeof window !== "undefined") {
+        city = window.prompt("没能自动定位到城市，手动输入（如：上海市）") || "";
+      }
+      city = (city || "").trim();
+      if (!city) return;
+      const updated = await updateUserCity(user.id, city);
+      onUserUpdated?.(updated);
+      toast(`已设置城市：${city}`, "success");
+    } catch (e) {
+      toast(e.message || "定位失败，请重试", "error");
+    } finally {
+      setLocating(false);
+    }
+  };
 
   /* ── 点赞同步 ────────────────────────────────────── */
   const handleLikeChange = (postId, isLikedNow, likeDelta) => {
@@ -401,12 +450,54 @@ export default function PostFeed({ user, pet }) {
         )
       )}
 
-      {/* 同城流：暂未开放（需用户城市，按设计先占位，不用 mock） */}
+      {/* 同城流：定位设城市 → 同城用户的帖子（真实，无 mock） */}
       {feedTab === "city" && (
-        <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"60px 24px", lineHeight:1.8 }}>
-          📍 同城功能即将开放<br/>
-          <span style={{ fontSize:12 }}>设置所在城市后，就能看到同城毛孩子的动态啦</span>
-        </div>
+        !user?.city ? (
+          <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"56px 24px", lineHeight:1.9 }}>
+            📍 看看同城的毛孩子<br/>
+            <span style={{ fontSize:12 }}>设置所在城市后，就能刷到同城的动态啦</span>
+            <div style={{ marginTop:18 }}>
+              <button onClick={handleLocateCity} disabled={locating}
+                style={{ background:C.pri, color:"white", border:"none", borderRadius:999,
+                         padding:"11px 26px", fontSize:14, fontWeight:700,
+                         cursor: locating ? "default" : "pointer" }}>
+                {locating ? "定位中…" : "📍 用定位设置城市"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+                          padding:"12px 16px 0" }}>
+              <span style={{ fontSize:13, fontWeight:700, color:C.text }}>📍 {user.city}</span>
+              <button onClick={handleLocateCity} disabled={locating}
+                style={{ background:"transparent", border:"none", color:C.pri, fontSize:12,
+                         fontWeight:600, cursor:"pointer" }}>
+                {locating ? "定位中…" : "切换城市"}
+              </button>
+            </div>
+            {cityLoading ? (
+              <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>加载中…</div>
+            ) : cityPosts.length === 0 ? (
+              <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"50px 24px", lineHeight:1.8 }}>
+                {user.city} 还没有同城动态 🐾<br/>
+                <span style={{ fontSize:12 }}>来发第一条，让同城毛孩子家长看到你</span>
+              </div>
+            ) : (
+              <div style={{ display:"flex", gap:8, padding:"10px 12px 90px" }}>
+                {[cityL, cityR].map((col, ci) => (
+                  <div key={ci} style={{ flex:1, display:"flex", flexDirection:"column", gap:8, minWidth:0 }}>
+                    {col.map((p) => (
+                      <PostCard key={p.id} post={p} isLiked={likedSet.has(p.id)}
+                        onOpen={() => openDetail(p)} onToggleLike={(e) => handleCardLike(p, e)}
+                        onOpenTopic={openTopic} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )
       )}
 
       {(feedTab === "recommend" || feedTab === "latest") && (<>

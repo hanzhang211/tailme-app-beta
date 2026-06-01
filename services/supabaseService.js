@@ -238,6 +238,20 @@ export async function updatePetAiGrowth(petId, aiExp, aiLevel) {
   return data;
 }
 
+/* ── 更新用户城市（users.city，用于社区同城）──────────────────── */
+export async function updateUserCity(userId, city) {
+  const sb = requireSupabase();
+  if (!userId) throw new Error("updateUserCity: userId 不能为空");
+  const { data, error } = await sb
+    .from("users")
+    .update({ city: city || null })
+    .eq("id", userId)
+    .select()
+    .single();
+  if (error) throw new Error(`更新城市失败: ${error.message}`);
+  return data;
+}
+
 /* ── 读取宠物喂食计划（所有顿，按 feeding_order 升序）─────────── */
 export async function getFeedingPlan(petId) {
   if (!petId) return [];

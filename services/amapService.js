@@ -37,6 +37,30 @@ export function getMyLocation() {
   });
 }
 
+/**
+ * 逆地理编码：经纬度 → 城市名（市级）。用 Web 服务 Key（与 POI 同一个）。
+ * 直辖市时 city 可能为空，回退 province。失败返回 ""。
+ */
+export async function reverseGeoCity(lat, lng) {
+  const key = process.env.NEXT_PUBLIC_AMAP_WEB_KEY;
+  if (!key || lat == null || lng == null) return "";
+  try {
+    const url = `https://restapi.amap.com/v3/geocode/regeo?key=${key}&location=${lng},${lat}&extensions=base`;
+    const res = await fetch(url);
+    if (!res.ok) return "";
+    const data = await res.json();
+    if (data.status !== "1") return "";
+    const comp = data.regeocode?.addressComponent;
+    if (!comp) return "";
+    let city = comp.city;
+    if (Array.isArray(city)) city = city[0];
+    if (!city) { let p = comp.province; city = Array.isArray(p) ? "" : p; }
+    return city || "";
+  } catch {
+    return "";
+  }
+}
+
 /* ══════════════════════════════════════════════════════════
    2. 地图 SDK 加载（可选，失败不影响 POI）
       使用 script onload + 轮询 window.AMap

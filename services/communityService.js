@@ -267,6 +267,32 @@ export async function listFollowingPosts(userId, { limit = 30 } = {}) {
   return data || [];
 }
 
+/**
+ * 「同城」流：同城用户发的帖子（users.city === city，真实数据）。
+ */
+export async function listCityPosts(city, { limit = 30 } = {}) {
+  if (!city) return [];
+  const sb = requireSupabase();
+  const { data: cityUsers } = await sb.from("users").select("id").eq("city", city).limit(500);
+  const ids = (cityUsers || []).map((u) => u.id);
+  if (!ids.length) return [];
+  const { data, error } = await sb.from("posts")
+    .select(`
+      id, title, content, post_type, text_bg_color,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls,
+      like_count, comment_count, created_at, hashtags,
+      user_id, pet_id,
+      user:users!posts_user_id_fkey ( username, avatar_url ),
+      pet:pets!posts_pet_id_fkey ( name, breed, ai_avatar_url )
+    `)
+    .eq("status", "visible")
+    .in("user_id", ids)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`获取同城帖子失败: ${error.message}`);
+  return data || [];
+}
+
 /* ══════════════════════════════════════════════════════════
    轻量内存缓存（5 分钟）—— 避免热门/推荐每次刷新全表扫
 ══════════════════════════════════════════════════════════ */
