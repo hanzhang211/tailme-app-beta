@@ -691,12 +691,11 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   const [monthExpense, setMonthExpense] = useState(null);
   const [todayRecipe,  setTodayRecipe]  = useState(null);
   const [latestNews,   setLatestNews]   = useState(null);
-  const [avatarOpen,       setAvatarOpen]       = useState(false);
-  const [avatarBroken,     setAvatarBroken]     = useState(false);
-  const [avatarLoaded,     setAvatarLoaded]     = useState(false);
-  const [avatarImgKey,     setAvatarImgKey]     = useState(0); // 改变 key 强制 img 重新挂载，跳过缓存
+  const [avatarOpen,   setAvatarOpen]   = useState(false);
+  const [avatarBroken, setAvatarBroken] = useState(false);
+  const [avatarLoaded, setAvatarLoaded] = useState(false);
   const avatarSrc = pet.pet_avatar_thumb_url || pet.ai_avatar_url || null;
-  useEffect(() => { setAvatarBroken(false); setAvatarLoaded(false); }, [pet?.id, avatarSrc, avatarImgKey]);
+  useEffect(() => { setAvatarBroken(false); setAvatarLoaded(false); }, [pet?.id, avatarSrc]);
 
   // 多宠物 carousel
   const petIdx      = pets.findIndex((p) => p.id === pet?.id);
@@ -1087,7 +1086,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           user={user}
           pet={pet}
           onClose={() => setAvatarOpen(false)}
-          onSaved={(updated) => { setAvatarOpen(false); onPetUpdate?.(updated); setAvatarImgKey(k => k + 1); }}
+          onSaved={(updated) => { setAvatarOpen(false); onPetUpdate?.(updated); }}
         />
       )}
       <div style={{ background:H_BG, padding:"52px 20px 6px",
@@ -1174,7 +1173,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
               {/* 主头像 */}
               <div style={{ position:"relative", padding:"4px 10px", flexShrink:0 }}>
                 {avatarSrc && !avatarBroken ? (
-                  <img key={avatarImgKey} src={avatarSrc} alt={pet.name}
+                  <img src={avatarSrc} alt={pet.name}
                     fetchPriority="high"
                     onLoad={() => setAvatarLoaded(true)}
                     onError={() => setAvatarBroken(true)}
@@ -1182,9 +1181,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                              opacity: avatarLoaded ? 1 : 0,
                              transition:"opacity 0.45s ease",
                              animation:"float 3s ease-in-out infinite",
-                             mixBlendMode:"multiply",
-                             WebkitMaskImage:"radial-gradient(ellipse 78% 82% at 50% 47%, black 52%, transparent 100%)",
-                             maskImage:"radial-gradient(ellipse 78% 82% at 50% 47%, black 52%, transparent 100%)" }} />
+                             mixBlendMode:"multiply" }} />
                 ) : (
                   <div style={{ fontSize:120, lineHeight:1,
                                 animation:"float 3s ease-in-out infinite" }}>
