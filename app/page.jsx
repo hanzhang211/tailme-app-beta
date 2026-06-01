@@ -31,6 +31,7 @@ import ExpensePage from "@/components/home/ExpensePage";
 import RecipePage  from "@/components/home/RecipePage";
 import HealthPage  from "@/components/home/HealthPage";
 import NewsPage, { NewsCover } from "@/components/home/NewsPage";
+import PetChatPage from "@/components/home/PetChatPage";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
 import PetAvatar from "@/components/PetAvatar";
 import MapIcon from "@/components/MapIcon";
@@ -1070,6 +1071,9 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   if (subPage === "health") {
     return <HealthPage user={user} pet={pet} pets={pets} onPetUpdate={onPetUpdate} onBack={() => setSubPage(null)} />;
   }
+  if (subPage === "petchat") {
+    return <PetChatPage pet={pet} onBack={() => setSubPage(null)} />;
+  }
   if (subPage === "news") {
     return <NewsPage onBack={() => setSubPage(null)} />;
   }
@@ -1172,8 +1176,9 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                 </div>
               )}
 
-              {/* 主头像 */}
-              <div style={{ position:"relative", padding:"4px 10px", flexShrink:0 }}>
+              {/* 主头像（点击进入 AI 宠物聊天占位页） */}
+              <div onClick={() => setSubPage("petchat")}
+                   style={{ position:"relative", padding:"4px 10px", flexShrink:0, cursor:"pointer" }}>
                 {avatarSrc && !avatarBroken ? (
                   <img src={avatarSrc} alt={pet.name}
                     fetchPriority="high"
@@ -1224,6 +1229,28 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
               )}
             </div>
           </div>
+
+          {/* 「点我聊聊～」说话气泡：浮在宠物头部右上方，点击进入 AI 宠物聊天占位页 */}
+          <button onClick={() => setSubPage("petchat")}
+            aria-label="和宠物聊聊"
+            style={{ position:"absolute", right:"10%", top:6, zIndex:6,
+                     display:"flex", alignItems:"center", gap:5,
+                     padding:"7px 13px",
+                     background:"#FFFDF8",
+                     border:`1.5px solid ${C.pri}`, borderRadius:"16px 16px 16px 4px",
+                     boxShadow:"0 4px 12px rgba(230,134,69,0.18)",
+                     color:C.pri, fontSize:12.5, fontWeight:800, whiteSpace:"nowrap",
+                     cursor:"pointer",
+                     animation:"chatBubbleBreath 2.8s ease-in-out infinite" }}>
+            💬 点我聊聊～
+            {/* 气泡小尾巴：指向宠物 */}
+            <span style={{ position:"absolute", left:14, bottom:-7, width:0, height:0,
+                           borderLeft:"7px solid transparent", borderRight:"7px solid transparent",
+                           borderTop:`8px solid ${C.pri}` }} />
+            <span style={{ position:"absolute", left:15, bottom:-5, width:0, height:0,
+                           borderLeft:"6px solid transparent", borderRight:"6px solid transparent",
+                           borderTop:"7px solid #FFFDF8" }} />
+          </button>
 
           {/* AI 入口卡片：浮在宠物图右下角（手势 div 的兄弟节点，点击触发原 setAvatarOpen 逻辑） */}
           <button onClick={() => setAvatarOpen(true)}
@@ -1639,6 +1666,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
         @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
         @keyframes spin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.45} }
+        @keyframes chatBubbleBreath { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-4px) scale(1.04)} }
       `}</style>
     </div>
   );
