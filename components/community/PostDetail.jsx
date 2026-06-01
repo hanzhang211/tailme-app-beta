@@ -236,7 +236,7 @@ export default function PostDetail({
                      cursor:"pointer", padding:"4px 6px" }}>
             ←
           </button>
-          <PetAvatar pet={post?.pet} size={32} bg={C.tint} />
+          <PetAvatar pet={post?.pet} overrideUrl={post?.user?.avatar_url} size={32} bg={C.tint} />
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{display}</div>
             <div style={{ fontSize:10, color:C.sub }}>{post ? fmtRelTime(post.created_at) : ""}</div>
@@ -480,7 +480,7 @@ function CommentRow({ c, user, isLiked, onToggleLike, onDelete, onReply, replyHi
   return (
     <div style={{ display:"flex", gap:8, alignItems:"flex-start",
                   paddingLeft: indent ? 38 : 0, marginBottom:8 }}>
-      <PetAvatar pet={c.pet} size={indent ? 26 : 32} bg={C.tint} />
+      <PetAvatar pet={c.pet} overrideUrl={c.user?.avatar_url} size={indent ? 26 : 32} bg={C.tint} />
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ fontSize:11, color:C.sub }}>
           <span style={{ fontWeight:700, color:C.text }}>{c.user?.username || "未命名宠物"}</span>

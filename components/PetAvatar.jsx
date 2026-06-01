@@ -14,8 +14,9 @@
 import { useEffect, useState } from "react";
 import { avatarForBreed } from "@/services/breedAvatar";
 
-export default function PetAvatar({ pet, size = 34, bg = "#F2E5DA", blendMode }) {
-  const url = pet?.pet_avatar_thumb_url || pet?.ai_avatar_url;
+export default function PetAvatar({ pet, size = 34, bg = "#F2E5DA", blendMode, overrideUrl }) {
+  // overrideUrl 优先（用户自定义头像）；否则走宠物头像逻辑
+  const url = overrideUrl || pet?.pet_avatar_thumb_url || pet?.ai_avatar_url;
   const [broken, setBroken] = useState(false);
   useEffect(() => { setBroken(false); }, [url]);
 

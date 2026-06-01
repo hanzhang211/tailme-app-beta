@@ -173,6 +173,20 @@ export async function setUsername(userId, username) {
   return data;
 }
 
+/* ── 更新用户头像（users.avatar_url）──────────────────────────── */
+export async function updateUserAvatar(userId, avatarUrl) {
+  const sb = requireSupabase();
+  if (!userId) throw new Error("updateUserAvatar: userId 不能为空");
+  const { data, error } = await sb
+    .from("users")
+    .update({ avatar_url: avatarUrl })
+    .eq("id", userId)
+    .select()
+    .single();
+  if (error) throw new Error(`更新头像失败: ${error.message}`);
+  return data;
+}
+
 /* ── 读取宠物喂食计划（所有顿，按 feeding_order 升序）─────────── */
 export async function getFeedingPlan(petId) {
   if (!petId) return [];

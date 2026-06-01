@@ -1943,7 +1943,7 @@ export default function AppRoot() {
         {tab === 1 && <MapTab />}
         {tab === 2 && <HomeTab user={user} pet={pet} pets={pets} onPetUpdate={handlePetDataUpdated} onSwitchPet={setActivePet} />}
         {tab === 3 && <CommunityTab user={user} pet={pet} pets={pets} />}
-        {tab === 4 && <ProfileTab user={user} pet={pet} onSetActivePet={setActivePet} onPetUpdated={handlePetDataUpdated} onLogout={handleLogout} />}
+        {tab === 4 && <ProfileTab user={user} pet={pet} onSetActivePet={setActivePet} onPetUpdated={handlePetDataUpdated} onUserUpdated={setUser} onLogout={handleLogout} />}
       </div>
       <div style={{ position:"absolute", bottom:0, left:0, right:0, height:60,
                     background:"white", display:"flex", zIndex:100 }}>

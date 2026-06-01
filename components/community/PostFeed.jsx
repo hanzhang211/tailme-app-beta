@@ -313,7 +313,7 @@ function PostCard({ post, isLiked, onOpen, onToggleLike }) {
       )}
 
       <div style={{ padding:"8px 10px", display:"flex", alignItems:"center", gap:6 }}>
-        <PetAvatar pet={post.pet} size={22} bg={C.tint} />
+        <PetAvatar pet={post.pet} overrideUrl={post.user?.avatar_url} size={22} bg={C.tint} />
         <div style={{ flex:1, fontSize:11, color:C.sub,
                       overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
           {display}

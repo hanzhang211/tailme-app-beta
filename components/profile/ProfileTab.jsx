@@ -12,12 +12,14 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getUserPets, deletePet } from "@/services/supabaseService";
+import { getUserPets, deletePet, updateUserAvatar } from "@/services/supabaseService";
+import { uploadUserAvatar } from "@/services/petAvatarService";
 import {
   listMyPosts, listLikedPosts, getUserStats,
   deleteOwnContent,
 } from "@/services/communityService";
 import { formatPetAge, formatBirthday } from "@/services/petAge";
+import { avatarForBreed } from "@/services/breedAvatar";
 
 import PostDetail      from "@/components/community/PostDetail";
 import PetAvatar       from "@/components/PetAvatar";
@@ -39,7 +41,7 @@ function maskPhone(phone) {
   return s.slice(0, 3) + "****" + s.slice(-4);
 }
 
-export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, onLogout }) {
+export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, onUserUpdated, onLogout }) {
   const [pets,        setPets]        = useState([]);
   const [stats,       setStats]       = useState({ totalLikes: 0, postCount: 0, likedCount: 0 });
   const [myPosts,     setMyPosts]     = useState([]);
@@ -50,6 +52,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   const [editorPet,    setEditorPet]    = useState(undefined); // undefined=closed, null=add, obj=edit
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [avatarPet,    setAvatarPet]    = useState(null); // 当前生成头像的宠物，null=关闭
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false); // 用户头像选择弹窗
 
   const [toastMsg, setToastMsg] = useState(null);
   const toastTimerRef = useRef();
@@ -131,6 +134,16 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
     setAvatarPet(null);
   };
 
+  /* ── 设置用户头像（社群/帖子/群聊同步显示）────────── */
+  const handleSelectUserAvatar = async (url) => {
+    try {
+      const updated = await updateUserAvatar(user.id, url);
+      onUserUpdated?.(updated);
+      toast(url ? "头像已更新 ✨" : "已恢复默认头像", "success");
+      setAvatarPickerOpen(false);
+    } catch (e) { toast(e.message, "error"); }
+  };
+
   /* ── 删除自己的帖子（从卡片小按钮） ─────────────── */
   const handleDeletePost = async (post, e) => {
     e.stopPropagation();
@@ -178,7 +191,15 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
       <div style={{ background:"white", padding:"52px 18px 18px",
                     borderBottom:`1px solid ${C.border}` }}>
         <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-          <PetAvatar pet={headerPet} size={60} bg={C.tint} />
+          {/* 用户头像（可点击换头像）；优先 user.avatar_url，否则宠物头像/emoji 兜底 */}
+          <div onClick={() => setAvatarPickerOpen(true)}
+            style={{ position:"relative", cursor:"pointer", flexShrink:0 }}>
+            <PetAvatar pet={headerPet} overrideUrl={user?.avatar_url} size={60} bg={C.tint} />
+            <div style={{ position:"absolute", bottom:-2, right:-2, width:22, height:22,
+                          borderRadius:"50%", background:C.pri, border:"2px solid white",
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          fontSize:11, color:"white" }}>✎</div>
+          </div>
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontSize:18, fontWeight:800, color:C.text }}>
               {user?.username || "未命名"}
@@ -243,7 +264,6 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
                 style={{ flex:"0 0 80%", maxWidth:300, scrollSnapAlign:"start" }}>
                 <PetCard pet={p}
                   isActive={pet?.id === p.id}
-                  onSelect={() => onSetActivePet?.(p)}
                   onAvatar={() => setAvatarPet(p)}
                   onEdit={() => setEditorPet(p)}
                 />
@@ -356,21 +376,111 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
         />
       )}
 
+      {avatarPickerOpen && (
+        <AvatarPickerModal
+          user={user} pets={pets}
+          onClose={() => setAvatarPickerOpen(false)}
+          onSelect={handleSelectUserAvatar}
+          toast={toast}
+        />
+      )}
+
       {toastMsg && <Toast msg={toastMsg.msg} level={toastMsg.level} />}
     </div>
   );
 }
 
 /* ────────────────────────────────────────────────────── */
-function PetCard({ pet, isActive, onSelect, onAvatar, onEdit }) {
+function AvatarPickerModal({ user, pets, onClose, onSelect, toast }) {
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef();
+  const petAvatars = pets.filter((p) => p.ai_avatar_url || p.pet_avatar_thumb_url);
+  const defaultEmoji = avatarForBreed(pets[0]?.breed, pets[0]?.pet_type);
+
+  const handleUpload = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    setUploading(true);
+    try {
+      const url = await uploadUserAvatar(f, user.id);
+      await onSelect(url);
+    } catch (err) {
+      toast?.(err.message, "error");
+    } finally { setUploading(false); }
+  };
+
+  return (
+    <div onClick={(e) => e.target === e.currentTarget && onClose()}
+      style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.45)",
+               display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div style={{ width:"100%", maxWidth:430, background:C.bg,
+                    borderRadius:"22px 22px 0 0", padding:"18px 18px 28px",
+                    maxHeight:"82vh", overflowY:"auto" }}>
+        <div style={{ width:40, height:4, borderRadius:4, background:C.light, margin:"0 auto 16px" }}/>
+        <div style={{ fontSize:17, fontWeight:800, color:C.text, marginBottom:4 }}>选择头像</div>
+        <div style={{ fontSize:12, color:C.sub, marginBottom:18 }}>
+          用作你在社群、帖子、群聊里的头像
+        </div>
+
+        {/* 已有虚拟宠物头像 */}
+        {petAvatars.length > 0 && (
+          <>
+            <div style={{ fontSize:12, fontWeight:700, color:C.sub, marginBottom:10 }}>我的虚拟宠物形象</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
+              {petAvatars.map((p) => {
+                const url = p.pet_avatar_thumb_url || p.ai_avatar_url;
+                const selected = user?.avatar_url === url;
+                return (
+                  <button key={p.id} onClick={() => onSelect(url)}
+                    style={{ background:"transparent", border:"none", cursor:"pointer", padding:0,
+                             display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+                    <div style={{ width:60, height:60, borderRadius:"50%", overflow:"hidden",
+                                  border: selected ? `3px solid ${C.pri}` : `2px solid ${C.border}`,
+                                  background:C.tint }}>
+                      <img src={url} alt={p.name}
+                        style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
+                    </div>
+                    <span style={{ fontSize:10, color:C.sub, maxWidth:60, overflow:"hidden",
+                                   textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* 上传图片 */}
+        <button onClick={() => fileRef.current?.click()} disabled={uploading}
+          style={{ width:"100%", padding:"13px 0", borderRadius:14, fontSize:14, fontWeight:700,
+                   background:C.pri, color:"white", border:"none",
+                   cursor: uploading ? "default" : "pointer", marginBottom:10 }}>
+          {uploading ? "上传中…" : "📷 上传自定义图片"}
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" onChange={handleUpload} style={{ display:"none" }}/>
+
+        {/* 恢复默认 emoji */}
+        <button onClick={() => onSelect(null)}
+          style={{ width:"100%", padding:"13px 0", borderRadius:14, fontSize:14, fontWeight:600,
+                   background:"white", color:C.text, border:`1px solid ${C.border}`, cursor:"pointer",
+                   display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+          <span style={{ fontSize:20 }}>{defaultEmoji}</span> 使用默认头像
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────── */
+function PetCard({ pet, isActive, onAvatar, onEdit }) {
   const age = formatPetAge(pet.birthday) || (pet.age != null ? `${pet.age}岁` : "");
   return (
-    <div onClick={onSelect}
+    <div
       style={{ background:"white",
                 border: isActive ? `2px solid ${C.pri}` : `1px solid ${C.border}`,
                 borderRadius:14, padding:"12px 12px",
                 boxShadow: isActive ? `0 0 0 3px ${C.tint}` : "0 1px 4px rgba(0,0,0,0.04)",
-                position:"relative", cursor: isActive ? "default" : "pointer",
+                position:"relative",
                 transition:"border 0.2s, box-shadow 0.2s" }}>
 
       {/* 当前展示标签 */}

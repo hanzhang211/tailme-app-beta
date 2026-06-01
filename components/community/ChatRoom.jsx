@@ -332,7 +332,7 @@ export default function ChatRoom({ user, pet, pets = [] }) {
           return (
             <div key={m.id} style={{ display:"flex", gap:10, marginBottom:14,
                                      flexDirection: own ? "row-reverse" : "row" }}>
-              <PetAvatar pet={m.pet} size={34} bg={C.tint} />
+              <PetAvatar pet={m.pet} overrideUrl={m.user?.avatar_url} size={34} bg={C.tint} />
               <div style={{ maxWidth:"72%", display:"flex", flexDirection:"column",
                             alignItems: own ? "flex-end" : "flex-start" }}>
                 {!own && <div style={{ fontSize:11, color:C.sub, marginBottom:3, paddingLeft:4 }}>{display}</div>}

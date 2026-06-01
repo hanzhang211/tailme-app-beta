@@ -41,6 +41,28 @@ export async function uploadOriginalPhoto(file, userId, petId) {
 }
 
 /**
+ * 上传用户自定义头像（不绑定具体宠物），返回 public URL。
+ */
+export async function uploadUserAvatar(file, userId) {
+  if (!file || !userId) throw new Error("缺少 file / userId");
+  if (file.size > 10 * 1024 * 1024) throw new Error("图片不能超过 10MB");
+
+  const ext = (file.name?.split(".").pop() || "jpg")
+    .toLowerCase().replace(/[^a-z0-9]/g, "");
+  const safeExt = ext.length > 0 && ext.length <= 5 ? ext : "jpg";
+  const path = `${userId}/user-avatar-${Date.now()}.${safeExt}`;
+
+  const { error } = await sb().storage
+    .from("pet-avatars")
+    .upload(path, file, { cacheControl: "86400", upsert: false });
+  if (error) throw new Error(`上传失败: ${error.message}`);
+
+  const { data: pub } = sb().storage.from("pet-avatars").getPublicUrl(path);
+  if (!pub?.publicUrl) throw new Error("获取图片 URL 失败");
+  return pub.publicUrl;
+}
+
+/**
  * 调用后端 API 生成 AI 头像。
  * @param signal AbortSignal（用户取消时中止）
  * @returns { aiUrl }

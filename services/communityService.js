@@ -61,7 +61,7 @@ export async function listMessages(roomId, limit = 50) {
     .from("messages")
     .select(`
       id, content, status, created_at, user_id, pet_id,
-      user:users!user_id ( username ),
+      user:users!user_id ( username, avatar_url ),
       pet:pets!pet_id ( name, breed, ai_avatar_url )
     `)
     .eq("room_id", roomId)
@@ -86,7 +86,7 @@ export async function sendMessage({ roomId, userId, petId, content }) {
     })
     .select(`
       id, content, status, created_at, user_id, pet_id,
-      user:users!user_id ( username ),
+      user:users!user_id ( username, avatar_url ),
       pet:pets!pet_id ( name, breed, ai_avatar_url )
     `)
     .single();
@@ -124,7 +124,7 @@ export function subscribeRoom(roomId, onInsert) {
           .from("messages")
           .select(`
             id, content, status, created_at, user_id, pet_id,
-            user:users!user_id ( username ),
+            user:users!user_id ( username, avatar_url ),
             pet:pets!pet_id ( name, breed, ai_avatar_url )
           `)
           .eq("id", id)
@@ -161,7 +161,7 @@ export function subscribeComments(postId, { onInsert, onDelete } = {}) {
           .select(`
             id, content, status, created_at, user_id, pet_id,
             parent_id, like_count,
-            user:users!user_id ( username ),
+            user:users!user_id ( username, avatar_url ),
             pet:pets!pet_id ( name, breed, ai_avatar_url )
           `)
           .eq("id", id)
@@ -205,7 +205,7 @@ export async function listPosts({ limit = 20, before } = {}) {
       cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
       like_count, comment_count, created_at,
       user_id, pet_id,
-      user:users!posts_user_id_fkey ( username ),
+      user:users!posts_user_id_fkey ( username, avatar_url ),
       pet:pets!posts_pet_id_fkey ( breed, ai_avatar_url )
     `)
     .eq("status", "visible")
@@ -236,7 +236,7 @@ export async function listMyPosts(userId, { limit = 50, before } = {}) {
       cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
       like_count, comment_count, created_at,
       user_id, pet_id,
-      user:users!posts_user_id_fkey ( username ),
+      user:users!posts_user_id_fkey ( username, avatar_url ),
       pet:pets!posts_pet_id_fkey ( breed, ai_avatar_url )
     `)
     .eq("user_id", userId)
@@ -269,7 +269,7 @@ export async function listLikedPosts(userId, { limit = 50 } = {}) {
       cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
       like_count, comment_count, created_at,
       user_id, pet_id,
-      user:users!posts_user_id_fkey ( username ),
+      user:users!posts_user_id_fkey ( username, avatar_url ),
       pet:pets!posts_pet_id_fkey ( breed, ai_avatar_url )
     `)
     .in("id", ids)
@@ -307,7 +307,7 @@ export async function getPostById(id) {
       cover_image_url, cover_thumbnail_url, cover_aspect_ratio,
       status, like_count, comment_count, created_at,
       user_id, pet_id,
-      user:users!posts_user_id_fkey ( username ),
+      user:users!posts_user_id_fkey ( username, avatar_url ),
       pet:pets!posts_pet_id_fkey ( name, breed, ai_avatar_url )
     `)
     .eq("id", id)
@@ -356,7 +356,7 @@ export async function createPost({
       cover_image_url, cover_thumbnail_url, cover_aspect_ratio,
       status, like_count, comment_count, created_at,
       user_id, pet_id,
-      user:users!posts_user_id_fkey ( username ),
+      user:users!posts_user_id_fkey ( username, avatar_url ),
       pet:pets!posts_pet_id_fkey ( name, breed, ai_avatar_url )
     `)
     .single();
@@ -452,7 +452,7 @@ export async function listComments(postId) {
     .select(`
       id, content, status, created_at, user_id, pet_id,
       parent_id, like_count,
-      user:users!user_id ( username ),
+      user:users!user_id ( username, avatar_url ),
       pet:pets!pet_id ( name, breed, ai_avatar_url )
     `)
     .eq("post_id", postId)
@@ -478,7 +478,7 @@ export async function createComment({ postId, userId, petId, content, parentId }
     .select(`
       id, content, status, created_at, user_id, pet_id,
       parent_id, like_count,
-      user:users!user_id ( username ),
+      user:users!user_id ( username, avatar_url ),
       pet:pets!pet_id ( name, breed, ai_avatar_url )
     `)
     .single();
