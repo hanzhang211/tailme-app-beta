@@ -125,7 +125,7 @@ async function searchOneREST(lat, lng, keyword, radius) {
     "&radius="   + radius +
     "&offset=25" +
     "&page=1"    +
-    "&extensions=base";
+    "&extensions=all";   // all：返回 photos / biz_ext.rating 等（base 不返回）
 
   try {
     const res  = await fetch(url);

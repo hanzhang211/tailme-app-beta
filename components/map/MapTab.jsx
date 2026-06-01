@@ -222,34 +222,53 @@ export default function MapTab() {
         </div>
       </div>
 
-      {/* 分类筛选 */}
-      <div style={{ background:"#fff", borderBottom:`1px solid ${C.border}`,
-                    padding:"8px 14px", display:"flex", gap:8,
+      {/* 分类筛选（Apple Maps 风胶囊 · 毛玻璃 · 横向滚动） */}
+      <div style={{ background:"rgba(255,255,255,0.72)",
+                    backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)",
+                    borderBottom:`1px solid ${C.border}`,
+                    padding:"10px 14px", display:"flex", gap:9,
                     overflowX:"auto", scrollbarWidth:"none", flexShrink:0 }}>
         {CATEGORIES.map((cat) => {
           const on = activeCat.id === cat.id;
           return (
             <button key={cat.id}
               onClick={() => { setActiveCat(cat); setSelPoi(null); }}
-              style={{ flexShrink:0, padding:"7px 15px", borderRadius:20, fontSize:12,
-                       fontWeight:600, cursor:"pointer", whiteSpace:"nowrap",
+              style={{ flexShrink:0, padding:"8px 16px", borderRadius:999, fontSize:13,
+                       fontWeight:700, cursor:"pointer", whiteSpace:"nowrap",
                        transition:"all .18s",
-                       background: on ? C.grad : C.light,
-                       color:      on ? "#fff" : "#3B4252",
-                       border:     `1.5px solid ${on ? "transparent" : C.border}` }}>
+                       background: on ? C.grad : "rgba(255,255,255,0.7)",
+                       color:      on ? "#fff" : C.text,
+                       boxShadow:  on ? "0 4px 12px rgba(230,134,69,0.28)" : "0 1px 4px rgba(0,0,0,0.05)",
+                       border:     `1px solid ${on ? "transparent" : "rgba(214,213,216,0.8)"}` }}>
               {cat.icon} {cat.label}
             </button>
           );
         })}
       </div>
 
-      {/* 地图区域（高度固定 256px，失败时显示占位）
+      {/* 地图区域（高度固定 256px，失败时显示占位）· 四角圆角提升高级感
           ⚠ 必须是明确像素高度，AMap 初始化时需要非零尺寸  */}
       <div style={{ position:"relative", flexShrink:0, height:256,
+                    margin:"10px 14px 4px", borderRadius:22, overflow:"hidden",
+                    boxShadow:"0 6px 20px rgba(0,0,0,0.08)",
                     background: mapPhase === "error" ? C.err : "#e8ede8" }}>
 
         {/* AMap 挂载 div */}
         <div ref={divRef} style={{ width:"100%", height:"100%" }} />
+
+        {/* 当前定位 chip（毛玻璃，轻字重） */}
+        {mapPhase === "ready" && (
+          <div style={{ position:"absolute", top:10, left:10, zIndex:6,
+                        background:"rgba(255,255,255,0.82)",
+                        backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
+                        borderRadius:999, padding:"5px 12px",
+                        fontSize:11.5, fontWeight:500, color:C.text,
+                        boxShadow:"0 2px 10px rgba(0,0,0,0.08)",
+                        display:"flex", alignItems:"center", gap:4 }}>
+            📍 {locating ? "定位中…" : (location?.source === "gps" ? "当前定位" : "上海市中心")}
+            {location?.city ? ` · ${location.city}` : ""}
+          </div>
+        )}
 
         {/* 地图加载中 */}
         {mapPhase === "loading" && (
@@ -310,7 +329,7 @@ export default function MapTab() {
           ) : pois !== null ? (
             <><span style={{ color:C.accent }}>●</span>
               {activeCat.id === "all"
-                ? `共 ${pois.length} 个宠物相关地点`
+                ? `共发现 ${pois.length} 个宠物相关地点`
                 : `${activeCat.label}：${pois.length} 个地点`}</>
           ) : null}
         </div>
@@ -379,46 +398,69 @@ function PoiCard({ poi, icon, selected, onSelect }) {
   const addr = poi.address
     || [poi.pname, poi.cityname, poi.adname].filter(Boolean).join("")
     || "地址未知";
+  // 商家封面图：优先高德 photos（需 extensions=all 才会返回）；无图则降级爪印占位
+  const photo  = poi.photos?.[0]?.url || null;
+  // 高德对无评分 POI 会返回 "[]" / 空串，需过滤，避免显示「⭐ []」
+  const ratingRaw = poi.biz_ext?.rating ?? poi.rating;
+  const rating = ratingRaw && ratingRaw !== "[]" && ratingRaw !== "" ? ratingRaw : null;
+  const [imgOk, setImgOk] = useState(!!photo);
 
   return (
     <div onClick={onSelect}
-      style={{ background: selected ? C.tint : "#fff", borderRadius:18, padding:"13px 14px",
-               marginBottom:10, boxShadow:"0 2px 12px rgba(0,0,0,0.06)",
-               cursor:"pointer", display:"flex", gap:12, alignItems:"flex-start",
+      style={{ background: selected ? C.tint : "#fff", borderRadius:20, padding:14,
+               marginBottom:12, boxShadow:"0 4px 16px rgba(0,0,0,0.06)",
+               cursor:"pointer", display:"flex", gap:13, alignItems:"stretch",
                border:`1.5px solid ${selected ? C.pri : "transparent"}`,
                transition:"all .15s" }}>
 
-      <div style={{ width:44, height:44, borderRadius:13, flexShrink:0,
-                    background: selected ? C.tint : C.light,
-                    display:"flex", alignItems:"center",
-                    justifyContent:"center", fontSize:20 }}>
-        {icon}
-      </div>
-
-      <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontSize:14, fontWeight:700, color:C.text, marginBottom:3,
-                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-          {poi.name}
-        </div>
-        <div style={{ fontSize:11, color:C.sub,
-                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-          📍 {addr}
-        </div>
-        {type && (
-          <div style={{ marginTop:6 }}>
-            <span style={{ fontSize:10, background:C.tint, color:C.accent,
-                           padding:"2px 8px", borderRadius:20, fontWeight:500 }}>
-              {type}
-            </span>
-          </div>
+      {/* 封面图 / 爪印占位（72×72，圆角 16，cover） */}
+      <div style={{ width:72, height:72, borderRadius:16, flexShrink:0, overflow:"hidden",
+                    background:C.tint, display:"flex", alignItems:"center", justifyContent:"center" }}>
+        {photo && imgOk ? (
+          <img src={photo} alt={poi.name} loading="lazy" onError={() => setImgOk(false)}
+            style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+        ) : (
+          <span style={{ fontSize:30 }}>{icon}</span>
         )}
       </div>
 
-      {dist && (
-        <div style={{ flexShrink:0, paddingTop:2 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:C.accent }}>{dist}</div>
+      {/* 信息区 */}
+      <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column" }}>
+        <div style={{ fontSize:15, fontWeight:800, color:C.text, marginBottom:2,
+                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+          {poi.name}
         </div>
-      )}
+        {rating && (
+          <div style={{ fontSize:12, fontWeight:700, color:"#F0A030", marginBottom:2 }}>
+            ⭐ {rating}
+          </div>
+        )}
+        <div style={{ fontSize:11.5, color:C.sub, marginBottom:6,
+                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+          📍 {addr}
+        </div>
+
+        {/* 标签 + 距离 + 导航 */}
+        <div style={{ marginTop:"auto", display:"flex", alignItems:"center", gap:8 }}>
+          {type && (
+            <span style={{ fontSize:10, background:C.tint, color:C.accent,
+                           padding:"3px 9px", borderRadius:999, fontWeight:600,
+                           flexShrink:0, maxWidth:96, overflow:"hidden",
+                           textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+              {type}
+            </span>
+          )}
+          <span style={{ flex:1 }} />
+          {dist && <span style={{ fontSize:12, fontWeight:700, color:C.sub, flexShrink:0 }}>{dist}</span>}
+          <button onClick={(e) => { e.stopPropagation(); openNavigation(poi); }}
+            style={{ flexShrink:0, fontSize:12, fontWeight:800, color:"#fff",
+                     background:C.grad, border:"none", borderRadius:999,
+                     padding:"5px 12px", cursor:"pointer",
+                     boxShadow:"0 3px 10px rgba(230,134,69,0.3)" }}>
+            导航 →
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
