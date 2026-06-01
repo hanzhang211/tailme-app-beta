@@ -805,7 +805,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     ? isHungry(feedings[0].time, feedings[feedings.length - 1].time)
     : false;
 
-  const addFeed    = () => { if (feedings.length < 3) setFeedings(p => [...p, { ...DEFAULT_FEEDING, time:"18:00" }]); };
+  const addFeed    = () => { setFeedings(p => [...p, { ...DEFAULT_FEEDING, time:"18:00" }]); };
   const removeFeed = (i) => setFeedings(p => p.filter((_, idx) => idx !== i));
   const updFeed    = (i, k, v) => setFeedings(p => p.map((f, idx) => idx === i ? { ...f, [k]: v } : f));
 
@@ -996,18 +996,12 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           })}
 
           {/* 添加喂食 */}
-          {feedings.length < 3 ? (
-            <button onClick={() => { addFeed(); setExpandedMeal(feedings.length); }}
-              style={{ width:"100%", height:52, background:"rgba(255,255,255,0.55)",
-                       border:"1.5px dashed rgba(230,134,69,0.4)", borderRadius:18,
-                       fontSize:15, fontWeight:700, color:C.pri, cursor:"pointer" }}>
-              + 添加喂食
-            </button>
-          ) : (
-            <div style={{ textAlign:"center", fontSize:13, color:H_SUB, padding:"6px 0" }}>
-              一天最多记录 3 次喂食哦
-            </div>
-          )}
+          <button onClick={() => { addFeed(); setExpandedMeal(feedings.length); }}
+            style={{ width:"100%", height:52, background:"rgba(255,255,255,0.55)",
+                     border:"1.5px dashed rgba(230,134,69,0.4)", borderRadius:18,
+                     fontSize:15, fontWeight:700, color:C.pri, cursor:"pointer" }}>
+            + 添加喂食
+          </button>
 
           {/* 橙色大保存按钮 */}
           <button onClick={doSaveAndBack}
@@ -1385,16 +1379,14 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                     <div style={{ fontSize:12, color:H_SUB, marginTop:1 }}>科学喂养，健康成长每一天</div>
                   </div>
                 </div>
-                {(hasFeedRecord || editFeed) && (
-                  <button onClick={handleSaveFeed}
-                    style={{ height:40, padding:"0 16px", borderRadius:999, cursor:"pointer",
-                             display:"flex", alignItems:"center", gap:6, fontWeight:700,
-                             border:"1.5px solid rgba(230,134,69,0.35)",
-                             background:"rgba(255,255,255,0.55)", color:"#E68645", fontSize:13 }}>
-                    <Settings size={16} strokeWidth={2}/>
-                    {editFeed ? "完成" : "设置"}
-                  </button>
-                )}
+                <button onClick={() => setSubPage("feeding")}
+                  style={{ height:40, padding:"0 16px", borderRadius:999, cursor:"pointer",
+                           display:"flex", alignItems:"center", gap:6, fontWeight:700,
+                           border:"1.5px solid rgba(230,134,69,0.35)",
+                           background:"rgba(255,255,255,0.55)", color:"#E68645", fontSize:13 }}>
+                  <Settings size={16} strokeWidth={2}/>
+                  设置
+                </button>
               </div>
 
               {feedLoading ? (
@@ -1466,17 +1458,11 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                       </div>
                     </div>
                   ))}
-                  {feedings.length < 3 ? (
-                    <button onClick={addFeed}
-                      style={{ width:"100%", background:"transparent", border:`1.5px dashed ${H_BORDER}`,
-                               borderRadius:14, padding:"10px 0", fontSize:13, color:H_SUB, cursor:"pointer", marginBottom:4 }}>
-                      + 添加一顿
-                    </button>
-                  ) : (
-                    <div style={{ textAlign:"center", fontSize:11, color:H_SUB, padding:"4px 0 8px" }}>
-                      一天最多记录 3 次喂食哦 🐾
-                    </div>
-                  )}
+                  <button onClick={addFeed}
+                    style={{ width:"100%", background:"transparent", border:`1.5px dashed ${H_BORDER}`,
+                             borderRadius:14, padding:"10px 0", fontSize:13, color:H_SUB, cursor:"pointer", marginBottom:4 }}>
+                    + 添加一顿
+                  </button>
                 </>
 
               ) : (
