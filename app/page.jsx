@@ -1488,15 +1488,15 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                                border:"1px solid rgba(230,134,69,0.14)", borderRadius:22,
                                padding:16, cursor:"pointer", textAlign:"left",
                                display:"flex", alignItems:"center", gap:14 }}>
-                      <div style={{ width:58, height:58, borderRadius:16, flexShrink:0,
+                      <div style={{ width:46, height:46, borderRadius:14, flexShrink:0,
                                     background:cfg.grad, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        <MIcon size={28} color={cfg.ic} strokeWidth={1.8}/>
+                        <MIcon size={22} color={cfg.ic} strokeWidth={1.8}/>
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontSize:12, color:"#8A7B6A", fontWeight:700, marginBottom:3 }}>
                           下一顿 · {FEED_LABELS[nextIdx]}
                         </div>
-                        <div style={{ fontSize:22, fontWeight:800, color:"#111", lineHeight:1.1 }}>
+                        <div style={{ fontSize:17, fontWeight:800, color:"#111", lineHeight:1.2 }}>
                           今天 {formatFeedingTime(f.time)}
                           {f.amount && <span style={{ fontSize:15, fontWeight:800, color:"#E68645", marginLeft:5 }}>· {f.amount}{f.unit}</span>}
                         </div>
