@@ -831,9 +831,35 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     return () => { alive = false; };
   }, [pet?.id]);
 
-  const hungry = hasFeedRecord && feedings.length >= 2
-    ? isHungry(feedings[0].time, feedings[feedings.length - 1].time)
-    : false;
+  // 每分钟 tick 一次，让基于时间的饿了提醒能随时间自动更新（无需手动刷新）
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setNowTick((n) => n + 1), 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  // 饿了提醒：绑定【当前 activePet】的喂食时间 + 完成状态（doneMeals，localStorage 每日重置、按宠物隔离）
+  //   - "soon"   距某顿未完成喂食 ≤30 分钟  → 我快饿啦
+  //   - "hungry" 已过某顿喂食时间且未完成    → 我有点饿啦
+  //   - 该顿被标记「已完成」后立即不再提醒（doneMeals 变化触发重算）
+  const feedReminder = (() => {
+    if (!hasFeedRecord || !feedings.length) return null;
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const meals = feedings.map((f, i) => {
+      const [h, m] = (f.time || "").split(":").map(Number);
+      return { min: (h || 0) * 60 + (m || 0), done: !!doneMeals[i] };
+    });
+    // 1) 已过点且未完成 → 饿了（取过去时间里离现在最近的一顿）
+    const overdue = meals.filter((x) => !x.done && x.min <= nowMin)
+                         .sort((a, b) => b.min - a.min)[0];
+    if (overdue) return "hungry";
+    // 2) 30 分钟内即将到点且未完成 → 快饿了
+    const soon = meals.filter((x) => !x.done && x.min > nowMin && x.min - nowMin <= 30)
+                      .sort((a, b) => a.min - b.min)[0];
+    if (soon) return "soon";
+    return null;
+  })();
 
   const addFeed    = () => { setFeedings(p => [...p, { ...DEFAULT_FEEDING, time:"18:00" }]); };
   const removeFeed = (i) => setFeedings(p => p.filter((_, idx) => idx !== i));
@@ -1223,11 +1249,11 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                     🐶
                   </div>
                 )}
-                {hungry && (
+                {feedReminder && (
                   <div style={{ position:"absolute", top:0, right:-4, background:C.accent, borderRadius:20,
                                 padding:"3px 9px", fontSize:10, fontWeight:700, color:"white",
                                 boxShadow:"0 2px 10px rgba(230,134,69,0.35)" }}>
-                    😋 饿了
+                    {feedReminder === "soon" ? "⏰ 快饿啦" : "😋 饿了"}
                   </div>
                 )}
               </div>
@@ -1366,10 +1392,10 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
             </div>
           )}
 
-          {hungry && (
+          {feedReminder && (
             <div style={{ marginTop:12, background:H_SURFACE, border:`1px solid ${H_BORDER}`,
                           borderRadius:20, padding:"8px 18px", fontSize:13, color:C.accent, fontWeight:600 }}>
-              🍖 我有点饿啦，记得喂我哦！
+              {feedReminder === "soon" ? "🍖 我快饿啦，记得喂我哦！" : "🍖 我有点饿啦，记得喂我哦！"}
             </div>
           )}
         </div>
