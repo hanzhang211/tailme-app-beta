@@ -691,10 +691,14 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   const [monthExpense, setMonthExpense] = useState(null);
   const [todayRecipe,  setTodayRecipe]  = useState(null);
   const [latestNews,   setLatestNews]   = useState(null);
-  const [avatarOpen,   setAvatarOpen]   = useState(false);
-  const [avatarBroken, setAvatarBroken] = useState(false);
-  const [avatarLoaded, setAvatarLoaded] = useState(false);
-  const avatarSrc = pet.pet_avatar_thumb_url || pet.ai_avatar_url || null;
+  const [avatarOpen,       setAvatarOpen]   = useState(false);
+  const [avatarBroken,     setAvatarBroken] = useState(false);
+  const [avatarLoaded,     setAvatarLoaded] = useState(false);
+  // freshAvatarUrl: 新头像保存后临时带 t=timestamp 的 URL，绕过浏览器缓存
+  // 换宠物时自动重置
+  const [freshAvatarUrl, setFreshAvatarUrl] = useState(null);
+  useEffect(() => { setFreshAvatarUrl(null); }, [pet?.id]);
+  const avatarSrc = freshAvatarUrl || pet.pet_avatar_thumb_url || pet.ai_avatar_url || null;
   useEffect(() => { setAvatarBroken(false); setAvatarLoaded(false); }, [pet?.id, avatarSrc]);
 
   // 多宠物 carousel
@@ -1086,7 +1090,15 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           user={user}
           pet={pet}
           onClose={() => setAvatarOpen(false)}
-          onSaved={(updated) => { setAvatarOpen(false); onPetUpdate?.(updated); }}
+          onSaved={(updated) => {
+            setAvatarOpen(false);
+            onPetUpdate?.(updated);
+            // 新头像 URL 稳定路径不变，用 t=timestamp 绕过浏览器缓存立即显示新图
+            const base = updated?.pet_avatar_thumb_url || updated?.ai_avatar_url;
+            if (base) {
+              setFreshAvatarUrl(`${base}${base.includes("?") ? "&" : "?"}t=${Date.now()}`);
+            }
+          }}
         />
       )}
       <div style={{ background:H_BG, padding:"52px 20px 6px",
