@@ -19,6 +19,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const maxDuration = 60;
 
@@ -173,6 +174,36 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "消息太长啦" }, { status: 400 });
   }
 
+  const userId = body?.userId ? String(body.userId) : null;
+  const petId  = body?.petId  ? String(body.petId)  : null;
+
+  // ── 长期记忆：服务端用 service_role 读取（绕过 RLS），并校验宠物归属 ──
+  // 安全：pet_ai_memories 表保持 RLS 开 + 零 policy，anon 无法直连，
+  //       只有此服务端通道可访问，且必须 userId 拥有该 petId 才放行。
+  let petOwnerId: string | null = null;
+  let ownershipOk = false;
+  let memories: { memory_type: string; content: string }[] = [];
+
+  if (petId && supabaseAdmin) {
+    const { data: petRow } = await supabaseAdmin
+      .from("pets").select("user_id").eq("id", petId).maybeSingle();
+    petOwnerId = petRow?.user_id ?? null;
+    // 只有前端传的 userId 确实是该宠物的主人，才允许读写记忆
+    ownershipOk = !!petOwnerId && !!userId && petOwnerId === userId;
+
+    if (ownershipOk) {
+      const { data: mems } = await supabaseAdmin
+        .from("pet_ai_memories")
+        .select("memory_type, content")
+        .eq("pet_id", petId)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      memories = mems || [];
+    }
+  }
+  // 把服务端读到的记忆注入 prompt（不再信任前端传来的 memories）
+  body.memories = memories;
+
   const systemPrompt = buildSystemPrompt(body);
 
   // 组装上下文（最多取最近 10 条）
@@ -221,7 +252,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "AI 没有返回内容" }, { status: 502 });
   }
 
+  // ── 长期记忆：识别到长期信息 + 通过归属校验，才用 service_role 写入 ──
+  // user_id 用服务端校验过的 petOwnerId（不信任前端传值），避免越权写他人记忆。
+  let savedMemory: { memory_type: string; content: string } | null = null;
   const newMemory = detectMemory(message);
+  if (newMemory && ownershipOk && petId && petOwnerId && supabaseAdmin) {
+    const dup = memories.some(
+      (m) => (m.content || "").trim() === newMemory.content.trim()
+    );
+    if (!dup) {
+      const { error: insErr } = await supabaseAdmin
+        .from("pet_ai_memories")
+        .insert({
+          user_id: petOwnerId,
+          pet_id: petId,
+          memory_type: newMemory.memory_type,
+          content: newMemory.content,
+        });
+      if (!insErr) savedMemory = newMemory;
+      else console.error("保存 AI 记忆失败:", insErr.message);
+    }
+  }
 
-  return NextResponse.json({ reply, newMemory });
+  return NextResponse.json({ reply, savedMemory });
 }

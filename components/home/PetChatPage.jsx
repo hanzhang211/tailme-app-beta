@@ -8,9 +8,7 @@ import {
   sendPetChat, buildOpeningMessage,
   levelFromExp, aiLevelTitle,
 } from "@/services/petAiChat";
-import {
-  getPetAiMemories, savePetAiMemory, updatePetAiGrowth,
-} from "@/services/supabaseService";
+import { updatePetAiGrowth } from "@/services/supabaseService";
 
 /* 颜色：保持 TailMe 米白 + 橙色 */
 const C = {
@@ -46,27 +44,15 @@ export default function PetChatPage({ user, pet, onBack, onPetUpdate }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const memoriesRef = useRef([]);     // 该宠物最近记忆
   const scrollRef = useRef(null);
   const lastChatKey = pet?.id ? `tailme_petchat_last_${pet.id}` : null;
 
-  // 进入页面：读取记忆 + 生成开场问候
+  // 进入页面：生成开场问候（记忆改由服务端读写，前端不再直连）
   useEffect(() => {
-    let cancelled = false;
-    setMessages([]);
     setLiveExp(pet?.ai_exp || 0);
-
-    (async () => {
-      if (pet?.id) {
-        const mems = await getPetAiMemories(pet.id, 5).catch(() => []);
-        if (!cancelled) memoriesRef.current = mems || [];
-      }
-      const lastChatAt = lastChatKey ? localStorage.getItem(lastChatKey) : null;
-      const opening = buildOpeningMessage(pet, { now: new Date(), lastChatAt });
-      if (!cancelled) setMessages([{ role: "pet", text: opening }]);
-    })();
-
-    return () => { cancelled = true; };
+    const lastChatAt = lastChatKey ? localStorage.getItem(lastChatKey) : null;
+    const opening = buildOpeningMessage(pet, { now: new Date(), lastChatAt });
+    setMessages([{ role: "pet", text: opening }]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pet?.id]);
 
@@ -88,8 +74,10 @@ export default function PetChatPage({ user, pet, onBack, onPetUpdate }) {
 
     const now = new Date();
     try {
-      const { reply, newMemory } = await sendPetChat({
+      const { reply } = await sendPetChat({
         message: text,
+        userId: user?.id,
+        petId: pet?.id,
         pet: {
           name: pet?.name,
           pet_type: pet?.pet_type,
@@ -100,7 +88,6 @@ export default function PetChatPage({ user, pet, onBack, onPetUpdate }) {
           personality: pet?.personality,
         },
         recentMessages: history.slice(-10),
-        memories: memoriesRef.current,
         growthLevel: liveLevel,
         clientHour: now.getHours(),
         clientMinute: now.getMinutes(),
@@ -119,19 +106,7 @@ export default function PetChatPage({ user, pet, onBack, onPetUpdate }) {
         const updated = await updatePetAiGrowth(pet.id, nextExp, nextLevel).catch(() => null);
         if (updated) onPetUpdate?.(updated);
       }
-
-      // 长期记忆：识别到且不重复才存
-      if (newMemory && user?.id && pet?.id) {
-        const exists = memoriesRef.current.some(
-          (m) => (m.content || "").trim() === newMemory.content.trim()
-        );
-        if (!exists) {
-          const saved = await savePetAiMemory(
-            user.id, pet.id, newMemory.memory_type, newMemory.content
-          ).catch(() => null);
-          if (saved) memoriesRef.current = [saved, ...memoriesRef.current].slice(0, 5);
-        }
-      }
+      // 长期记忆已由服务端(/api/pet-ai-chat)用 service_role 读写，前端无需处理
     } catch (e) {
       setMessages((prev) => [
         ...prev,
