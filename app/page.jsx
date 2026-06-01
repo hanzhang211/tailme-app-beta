@@ -691,11 +691,16 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   const [monthExpense, setMonthExpense] = useState(null);
   const [todayRecipe,  setTodayRecipe]  = useState(null);
   const [latestNews,   setLatestNews]   = useState(null);
-  const [avatarOpen,   setAvatarOpen]   = useState(false);
-  const [avatarBroken, setAvatarBroken] = useState(false);
-  const [avatarLoaded, setAvatarLoaded] = useState(false);
-  const avatarSrc = pet.pet_avatar_thumb_url || pet.ai_avatar_url || null;
-  useEffect(() => { setAvatarBroken(false); setAvatarLoaded(false); }, [pet?.id, avatarSrc]);
+  const [avatarOpen,       setAvatarOpen]       = useState(false);
+  const [avatarBroken,     setAvatarBroken]     = useState(false);
+  const [avatarLoaded,     setAvatarLoaded]     = useState(false);
+  const [avatarCacheBust,  setAvatarCacheBust]  = useState(0);
+  const _avatarBase = pet.pet_avatar_thumb_url || pet.ai_avatar_url || null;
+  // 每次 cacheBust 变化都会给 URL 加新参数，强制浏览器跳过缓存
+  const avatarSrc = _avatarBase
+    ? `${_avatarBase}${_avatarBase.includes("?") ? "&" : "?"}_cb=${avatarCacheBust}`
+    : null;
+  useEffect(() => { setAvatarBroken(false); setAvatarLoaded(false); }, [pet?.id, _avatarBase, avatarCacheBust]);
 
   // 多宠物 carousel
   const petIdx      = pets.findIndex((p) => p.id === pet?.id);
@@ -1086,7 +1091,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           user={user}
           pet={pet}
           onClose={() => setAvatarOpen(false)}
-          onSaved={(updated) => { setAvatarOpen(false); onPetUpdate?.(updated); }}
+          onSaved={(updated) => { setAvatarOpen(false); onPetUpdate?.(updated); setAvatarCacheBust(Date.now()); }}
         />
       )}
       <div style={{ background:H_BG, padding:"52px 20px 6px",
