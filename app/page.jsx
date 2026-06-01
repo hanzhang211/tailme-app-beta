@@ -45,6 +45,7 @@ import { DOG_BREEDS, CAT_BREEDS } from "@/services/breedAvatar";
 import { getMonthlyTotal } from "@/services/petExpenseService";
 import { getTodayRecipe }  from "@/services/petRecipeService";
 import { getLatestNews }   from "@/services/petNewsService";
+import { listDiseaseRecords, isMedDoneToday } from "@/services/petHealthService";
 
 /* ══════════════════════════════════════════════════════════════
    AI Stub（社群已迁至 components/community/CommunityTab.jsx 真实数据）
@@ -861,6 +862,42 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     return null;
   })();
 
+  // ── 健康联动：加载【当前 activePet】的生病记录（按 pet_id 过滤，宠物间独立）──
+  // healthRefresh 在离开健康页时 +1，确保康复/新增/用药改动后首页提醒立即重算
+  const [diseases, setDiseases] = useState([]);
+  const [healthRefresh, setHealthRefresh] = useState(0);
+  useEffect(() => {
+    if (!pet?.id) { setDiseases([]); return; }
+    let alive = true;
+    listDiseaseRecords(pet.id)
+      .then((rows) => { if (alive) setDiseases(rows || []); })
+      .catch(() => { if (alive) setDiseases([]); });
+    return () => { alive = false; };
+  }, [pet?.id, healthRefresh]);
+
+  // 当前是否生病中：存在任一 status !== "recovered" 的疾病记录
+  const activeDisease = diseases.find((d) => d.status !== "recovered") || null;
+  const sick = !!activeDisease;
+
+  // 用药提醒（仅生病中）：依据 activeDisease 的 medicine_reminder_time + 今日是否已用药
+  //   - "soon"    距用药时间 ≤30 分钟      → 快到用药时间啦
+  //   - "overdue" 已过用药时间且今日未完成 → 该吃药啦
+  //   - 今日已用药 / 用药周期外 / 未设提醒 → null
+  const medReminder = (() => {
+    if (!sick) return null;
+    const d = activeDisease;
+    if (!d.medicine_reminder_enabled || !d.medicine_reminder_time) return null;
+    if (d.medicine_start_date && today < d.medicine_start_date) return null;
+    if (d.medicine_end_date   && today > d.medicine_end_date)   return null;
+    if (isMedDoneToday(d.id)) return null;
+    const [h, m] = String(d.medicine_reminder_time).split(":").map(Number);
+    const medMin = (h || 0) * 60 + (m || 0);
+    const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+    if (medMin <= nowMin) return "overdue";
+    if (medMin - nowMin <= 30) return "soon";
+    return null;
+  })();
+
   const addFeed    = () => { setFeedings(p => [...p, { ...DEFAULT_FEEDING, time:"18:00" }]); };
   const removeFeed = (i) => setFeedings(p => p.filter((_, idx) => idx !== i));
   const updFeed    = (i, k, v) => setFeedings(p => p.map((f, idx) => idx === i ? { ...f, [k]: v } : f));
@@ -1122,7 +1159,8 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     return <RecipePage onBack={() => setSubPage(null)} />;
   }
   if (subPage === "health") {
-    return <HealthPage user={user} pet={pet} pets={pets} onPetUpdate={onPetUpdate} onBack={() => setSubPage(null)} />;
+    return <HealthPage user={user} pet={pet} pets={pets} onPetUpdate={onPetUpdate}
+                       onBack={() => { setSubPage(null); setHealthRefresh((n) => n + 1); }} />;
   }
   if (subPage === "petchat") {
     return <PetChatPage user={user} pet={pet} onPetUpdate={onPetUpdate}
@@ -1249,7 +1287,14 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                     🐶
                   </div>
                 )}
-                {feedReminder && (
+                {/* 位置 A：右上角小状态标签。生病中 > 饿了 */}
+                {sick ? (
+                  <div style={{ position:"absolute", top:0, right:-4, background:"#5FA766", borderRadius:20,
+                                padding:"3px 9px", fontSize:10, fontWeight:700, color:"white",
+                                boxShadow:"0 2px 10px rgba(95,167,102,0.35)" }}>
+                    🤒 生病中
+                  </div>
+                ) : feedReminder && (
                   <div style={{ position:"absolute", top:0, right:-4, background:C.accent, borderRadius:20,
                                 padding:"3px 9px", fontSize:10, fontWeight:700, color:"white",
                                 boxShadow:"0 2px 10px rgba(230,134,69,0.35)" }}>
@@ -1392,7 +1437,17 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
             </div>
           )}
 
-          {feedReminder && (
+          {/* 位置 B：长条提醒。生病中→用药提醒（无则隐藏，不显示喂食）；未生病→喂食提醒 */}
+          {sick ? (
+            medReminder && (
+              <div style={{ marginTop:12, background:"rgba(95,167,102,0.1)", border:"1px solid rgba(95,167,102,0.25)",
+                            borderRadius:20, padding:"8px 18px", fontSize:13, color:"#4E8C56", fontWeight:600 }}>
+                {medReminder === "soon"
+                  ? "💊 快到用药时间啦，记得照顾我哦"
+                  : "💊 该吃药啦，记得帮我用药哦"}
+              </div>
+            )
+          ) : feedReminder && (
             <div style={{ marginTop:12, background:H_SURFACE, border:`1px solid ${H_BORDER}`,
                           borderRadius:20, padding:"8px 18px", fontSize:13, color:C.accent, fontWeight:600 }}>
               {feedReminder === "soon" ? "🍖 我快饿啦，记得喂我哦！" : "🍖 我有点饿啦，记得喂我哦！"}

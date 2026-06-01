@@ -10,6 +10,7 @@ import {
   listHealthRecords, addHealthRecord, deleteHealthRecord,
   updatePetHealth, RECORD_TYPES,
   listDiseaseRecords, addDiseaseRecord, deleteDiseaseRecord, updateDiseaseRecord,
+  isMedDoneToday, setMedDoneToday,
 } from "@/services/petHealthService";
 import { HealthIcon } from "@/components/icons/HomeModuleIcons";
 import {
@@ -121,6 +122,13 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
     if (!confirm("删除这条疾病记录？")) return;
     try { await deleteDiseaseRecord(d.id, user.id); reload(); }
     catch (e) { alert(e.message); }
+  };
+
+  // 今日已用药（localStorage，每日重置）。medDoneTick 仅用于触发重渲染
+  const [medDoneTick, setMedDoneTick] = useState(0);
+  const toggleMedDone = (d) => {
+    setMedDoneToday(d.id, !isMedDoneToday(d.id));
+    setMedDoneTick((n) => n + 1);
   };
 
   const markRecovered = async (d) => {
@@ -252,6 +260,9 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
                   const hasMed      = !!d.medicine_name;
                   const isRecovered = false; // filtered out above, always false here
                   const menuOpen    = menuOpenId === d.id;
+                  // 今日是否已用药（medDoneTick 仅用于触发重渲染）
+                  const medDone     = medDoneTick >= 0 && isMedDoneToday(d.id);
+                  const hasMedTime  = !!d.medicine_reminder_time;
 
                   const nextTimeLabel = (() => {
                     if (!d.medicine_reminder_time) return null;
@@ -279,6 +290,17 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
                           {dPet?.name || ""}
                         </div>
                         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                          {hasMedTime && (
+                            <button onClick={() => toggleMedDone(d)}
+                              style={{ height:34, padding:"0 13px", borderRadius:999,
+                                       border: medDone ? "none" : "1px solid rgba(95,167,102,0.35)",
+                                       color: medDone ? "white" : GREEN,
+                                       background: medDone ? GREEN : "rgba(255,255,255,0.55)",
+                                       fontSize:13, fontWeight:700, cursor:"pointer",
+                                       whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:4 }}>
+                              {medDone ? <><Check size={14} strokeWidth={2.6}/>今日已用药</> : "今日已用药"}
+                            </button>
+                          )}
                           <button onClick={() => markRecovered(d)}
                             style={{ height:34, padding:"0 13px", borderRadius:999,
                                      border:"1px solid rgba(95,167,102,0.35)",

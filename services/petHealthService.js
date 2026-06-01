@@ -157,6 +157,24 @@ export async function deleteMedicationReminder(id, userId) {
   if (error) throw new Error(`删除失败: ${error.message}`);
 }
 
+/* ══ 今日已用药（localStorage，按 日期+疾病记录id，每日重置、每条独立）══
+   说明：health_records 表没有「每日是否已用药」字段，第一版用 localStorage 记录，
+   与喂食「今日已完成」一致：跨天自动失效、按宠物/记录隔离、无需后端。 */
+export function medDoneKey(recordId, date = new Date().toISOString().slice(0, 10)) {
+  return `tailme_med_done_${date}_${recordId}`;
+}
+export function isMedDoneToday(recordId) {
+  if (!recordId) return false;
+  try { return localStorage.getItem(medDoneKey(recordId)) === "1"; } catch { return false; }
+}
+export function setMedDoneToday(recordId, done) {
+  if (!recordId) return;
+  try {
+    if (done) localStorage.setItem(medDoneKey(recordId), "1");
+    else      localStorage.removeItem(medDoneKey(recordId));
+  } catch {}
+}
+
 /** 更新宠物的 neutered / vaccinated 状态（pets 表） */
 export async function updatePetHealth(petId, userId, { neutered, vaccinated }) {
   if (!petId || !userId) throw new Error("updatePetHealth: 缺少参数");
