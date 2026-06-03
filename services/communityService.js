@@ -236,19 +236,14 @@ export async function listPosts({ limit = 20, before } = {}) {
 }
 
 /**
- * 「关注」流：我赞过/互动过的人发的帖子（按时间倒序，真实数据）。
- * 逻辑：取我点赞过的帖子 → 这些帖子的作者 → 这些作者的全部可见帖子。
+ * 「关注」流：我真正关注的人（follows 表）发的帖子，按时间倒序。
  */
 export async function listFollowingPosts(userId, { limit = 30 } = {}) {
   if (!userId) return [];
   const sb = requireSupabase();
-  const { data: likes } = await sb.from("post_likes")
-    .select("post_id").eq("user_id", userId).limit(300);
-  const likedIds = (likes || []).map((l) => l.post_id);
-  if (!likedIds.length) return [];
-  const { data: likedPosts } = await sb.from("posts")
-    .select("user_id").in("id", likedIds);
-  const authorIds = [...new Set((likedPosts || []).map((p) => p.user_id).filter(Boolean))];
+  const { data: rows } = await sb.from("follows")
+    .select("following_id").eq("follower_id", userId).limit(1000);
+  const authorIds = [...new Set((rows || []).map((r) => r.following_id).filter(Boolean))];
   if (!authorIds.length) return [];
   const { data, error } = await sb.from("posts")
     .select(`

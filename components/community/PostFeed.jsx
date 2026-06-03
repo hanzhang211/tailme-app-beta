@@ -93,7 +93,6 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
   const [feedTab, setFeedTab] = useState("recommend");
   const [followPosts,   setFollowPosts]   = useState([]);
   const [followLoading, setFollowLoading] = useState(false);
-  const [followLoaded,  setFollowLoaded]  = useState(false);
 
   // 同城
   const [cityPosts,   setCityPosts]   = useState([]);
@@ -197,16 +196,15 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
   };
   const [topicL, topicR] = useMemo(() => splitTwoCols(topicPosts), [topicPosts]);
 
-  /* ── 「关注」流：首次切到该 tab 时加载（我赞过的人发的帖） ── */
+  /* ── 「关注」流：每次进入该 tab 都重新加载（我真正关注的人发的帖） ── */
   useEffect(() => {
-    if (feedTab !== "follow" || followLoaded || !user?.id) return;
+    if (feedTab !== "follow" || !user?.id) return;
     let alive = true;
     setFollowLoading(true);
     listFollowingPosts(user.id)
       .then(async (list) => {
         if (!alive) return;
         setFollowPosts(list);
-        setFollowLoaded(true);
         if (list.length) {
           const liked = await getMyLikedPostIds(user.id, list.map((p) => p.id));
           if (alive) setLikedSet((prev) => { const n = new Set(prev); liked.forEach((id) => n.add(id)); return n; });
@@ -215,7 +213,7 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
       .catch((e) => { if (alive) toast(e.message, "error"); })
       .finally(() => { if (alive) setFollowLoading(false); });
     return () => { alive = false; };
-  }, [feedTab, followLoaded, user?.id]); // eslint-disable-line
+  }, [feedTab, user?.id]); // eslint-disable-line
   const [followL, followR] = useMemo(() => splitTwoCols(followPosts), [followPosts]);
 
   /* ── 「同城」流：有城市则加载同城帖 ── */
