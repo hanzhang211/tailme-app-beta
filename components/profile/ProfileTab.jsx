@@ -42,6 +42,35 @@ function maskPhone(phone) {
   return s.slice(0, 3) + "****" + s.slice(-4);
 }
 
+/* 统计区橙色小图标（纯装饰 SVG） */
+function HeartStatIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill={C.pri} aria-hidden="true">
+      <path d="M12 21s-7-4.4-9.5-9C1 9 2.6 5.5 6 5.5c2 0 3.2 1.2 4 2.4.8-1.2 2-2.4 4-2.4 3.4 0 5 3.5 3.5 6.5C19 16.6 12 21 12 21z"/>
+    </svg>
+  );
+}
+function UsersStatIcon() {
+  return (
+    <svg width="24" height="20" viewBox="0 0 24 24" fill={C.pri} aria-hidden="true">
+      <circle cx="9" cy="8" r="3.4"/>
+      <path d="M3 19c0-3.4 2.7-5.3 6-5.3s6 1.9 6 5.3z"/>
+      <circle cx="17.5" cy="8.5" r="2.6" opacity=".7"/>
+      <path d="M15 13.9c.8-.2 1.7-.3 2.5-.3 3 0 4.5 1.7 4.5 4.4h-3.2" opacity=".7"/>
+    </svg>
+  );
+}
+function FansStatIcon() {
+  return (
+    <svg width="24" height="20" viewBox="0 0 24 24" fill={C.pri} aria-hidden="true">
+      <circle cx="9" cy="8" r="3.4"/>
+      <path d="M3 19c0-3.4 2.7-5.3 6-5.3s6 1.9 6 5.3z"/>
+      <rect x="15.6" y="11.4" width="6" height="1.8" rx="0.9"/>
+      <rect x="17.7" y="9.3" width="1.8" height="6" rx="0.9"/>
+    </svg>
+  );
+}
+
 export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, onPetDeleted, onUserUpdated, onOpenProfile, onLogout }) {
   const [pets,        setPets]        = useState([]);
   const [stats,       setStats]       = useState({ totalLikes: 0, postCount: 0, likedCount: 0 });
@@ -270,46 +299,94 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
       {/* ════ 我的 主页（头部 + 统计 + 菜单）════ */}
       {subView === null && (
         <>
-          {/* 顶部：头像（可点换头像）/ 用户名 / 设置 */}
-          <div style={{ background:"white", padding:"52px 18px 18px", borderBottom:`1px solid ${C.border}` }}>
-            <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+          {/* 顶部用户信息区（米白背景 + 右上淡爪印装饰） */}
+          <div style={{ position:"relative", padding:"54px 18px 16px", overflow:"hidden" }}>
+            {/* 右上角淡爪印 */}
+            <svg width="150" height="120" viewBox="0 0 150 120" aria-hidden="true"
+              style={{ position:"absolute", top:18, right:-14, opacity:0.5, pointerEvents:"none" }}>
+              <g fill="#E4D8C8">
+                <ellipse cx="92" cy="40" rx="11" ry="14"/>
+                <ellipse cx="116" cy="28" rx="11" ry="14"/>
+                <ellipse cx="140" cy="34" rx="10" ry="13"/>
+                <path d="M86 66 q-10 20 11 26 q22 6 39 -2 q15 -9 6 -23 q-11 -13 -29 -13 q-19 0 -27 12Z"/>
+              </g>
+            </svg>
+
+            <div style={{ position:"relative", display:"flex", alignItems:"flex-start", gap:16 }}>
+              {/* 头像（白圈 + 阴影，可点换头像） */}
               <div onClick={() => setAvatarPickerOpen(true)}
                 style={{ position:"relative", cursor:"pointer", flexShrink:0 }}>
-                <PetAvatar pet={headerPet} overrideUrl={user?.avatar_url} size={60} bg={C.tint} />
-                <div style={{ position:"absolute", bottom:-2, right:-2, width:22, height:22,
-                              borderRadius:"50%", background:C.pri, border:"2px solid white",
+                <div style={{ width:96, height:96, borderRadius:"50%", background:"white", padding:4,
+                              boxSizing:"border-box", boxShadow:"0 4px 16px rgba(0,0,0,0.10)" }}>
+                  <PetAvatar pet={headerPet} overrideUrl={user?.avatar_url} size={88} bg={C.tint} />
+                </div>
+                <div style={{ position:"absolute", bottom:2, right:2, width:26, height:26,
+                              borderRadius:"50%", background:C.pri, border:"3px solid white",
                               display:"flex", alignItems:"center", justifyContent:"center",
-                              fontSize:11, color:"white" }}>✎</div>
+                              fontSize:13, fontWeight:700, color:"white", lineHeight:1 }}>⌄</div>
               </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:18, fontWeight:800, color:C.text }}>{user?.username || "未命名"}</div>
-                <div style={{ fontSize:11, color:C.sub, marginTop:2 }}>手机号 {maskPhone(user?.phone)}</div>
-              </div>
-              <button onClick={() => setSettingsOpen(true)}
-                style={{ width:38, height:38, borderRadius:"50%", background:C.tint, border:`1px solid ${C.border}`,
-                         display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, cursor:"pointer" }}>⚙</button>
-            </div>
 
-            {/* 统计：获赞 ｜ 关注 ｜ 粉丝 */}
-            <div style={{ display:"flex", marginTop:18 }}>
+              {/* 用户名 + 手机号 */}
+              <div style={{ flex:1, minWidth:0, paddingTop:12 }}>
+                <div style={{ fontSize:23, fontWeight:800, color:C.text,
+                              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {user?.username || "未命名"}
+                </div>
+                <div style={{ fontSize:13, color:C.sub, marginTop:6 }}>手机号 {maskPhone(user?.phone)}</div>
+              </div>
+
+              {/* 右侧：编辑按钮（圆形橙色铅笔）+ 个人主页 胶囊 */}
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:12, flexShrink:0 }}>
+                <button onClick={() => setSettingsOpen(true)}
+                  style={{ width:44, height:44, borderRadius:"50%", background:"white", border:"none",
+                           boxShadow:"0 2px 10px rgba(0,0,0,0.10)", cursor:"pointer",
+                           display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M14.5 4.5l5 5L8 21l-5 1 1-5L14.5 4.5z" stroke={C.pri} strokeWidth="1.8"
+                          strokeLinejoin="round"/>
+                    <path d="M13 6l5 5" stroke={C.pri} strokeWidth="1.8" strokeLinecap="round"/>
+                  </svg>
+                </button>
+                <button onClick={() => onOpenProfile?.(user?.id)}
+                  style={{ display:"flex", alignItems:"center", gap:6, background:"white", color:C.pri,
+                           border:"1px solid #F0C9A8", borderRadius:999, padding:"8px 14px",
+                           fontSize:13, fontWeight:700, cursor:"pointer",
+                           boxShadow:"0 2px 8px rgba(0,0,0,0.05)", whiteSpace:"nowrap" }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="4" y="3" width="16" height="18" rx="2.5" stroke={C.pri} strokeWidth="1.8"/>
+                    <path d="M8 8h8M8 12h8M8 16h5" stroke={C.pri} strokeWidth="1.8" strokeLinecap="round"/>
+                  </svg>
+                  个人主页 ›
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 统计卡片：获赞 ｜ 关注 ｜ 粉丝 */}
+          <div style={{ padding:"0 14px" }}>
+            <div style={{ display:"flex", background:"white", borderRadius:24, padding:"18px 0",
+                          boxShadow:"0 2px 14px rgba(0,0,0,0.05)" }}>
               {[
-                { label:"获赞", val: stats.totalLikes,        onClick: null },
-                { label:"关注", val: followCounts.following,  onClick: () => setFollowView("following") },
-                { label:"粉丝", val: followCounts.followers,  onClick: () => setFollowView("followers") },
-              ].map((s) => (
+                { label:"获赞", val: stats.totalLikes,        icon:<HeartStatIcon />, onClick: null },
+                { label:"关注", val: followCounts.following,  icon:<UsersStatIcon />, onClick: () => setFollowView("following") },
+                { label:"粉丝", val: followCounts.followers,  icon:<FansStatIcon />,  onClick: () => setFollowView("followers") },
+              ].map((s, i) => (
                 <div key={s.label} onClick={s.onClick || undefined}
-                  style={{ flex:1, textAlign:"center", cursor: s.onClick ? "pointer" : "default" }}>
-                  <div style={{ fontSize:20, fontWeight:800, color:C.text }}>{s.val}</div>
-                  <div style={{ fontSize:11, color:C.sub, marginTop:2 }}>{s.label}</div>
+                  style={{ flex:1, textAlign:"center", cursor: s.onClick ? "pointer" : "default",
+                           borderLeft: i > 0 ? `1px solid ${C.border}` : "none" }}>
+                  <div style={{ fontSize:24, fontWeight:800, color:C.text, lineHeight:1.1 }}>{s.val}</div>
+                  <div style={{ display:"flex", justifyContent:"center", margin:"7px 0 5px", height:20 }}>{s.icon}</div>
+                  <div style={{ fontSize:12, color:C.sub }}>{s.label}</div>
                 </div>
               ))}
             </div>
           </div>
 
           {/* 菜单列表 */}
-          <div style={{ padding:"14px 14px 90px", display:"flex", flexDirection:"column", gap:10 }}>
+          <div style={{ padding:"16px 14px 90px", display:"flex", flexDirection:"column", gap:12 }}>
             <MenuRow icon="📝" label="我的帖子" hint={`${stats.postCount} 篇`} onClick={() => setSubView("posts")} />
             <MenuRow icon="🐾" label="我的宠物" hint={`${pets.length} 只`} onClick={() => setSubView("pets")} />
+            <MenuRow icon="❤️" label="关注" sub="查看你关注的毛孩子和主人" onClick={() => setFollowView("following")} />
             <MenuRow icon="⚙️" label="设置" onClick={() => setSettingsOpen(true)} />
           </div>
         </>
@@ -405,18 +482,24 @@ function SubBack({ title, onBack, right }) {
 }
 
 /* 主页菜单行 */
-function MenuRow({ icon, label, hint, onClick }) {
+function MenuRow({ icon, label, sub, hint, onClick }) {
   return (
     <button onClick={onClick}
-      style={{ width:"100%", display:"flex", alignItems:"center", gap:12,
-               background:"white", border:`1px solid ${C.border}`, borderRadius:16,
-               padding:"15px 16px", cursor:"pointer", textAlign:"left",
-               boxShadow:"0 1px 6px rgba(0,0,0,0.04)" }}>
-      <span style={{ width:34, height:34, borderRadius:10, background:C.tint, flexShrink:0,
-                     display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>{icon}</span>
-      <span style={{ flex:1, fontSize:15, fontWeight:700, color:C.text }}>{label}</span>
-      {hint && <span style={{ fontSize:12, color:C.sub }}>{hint}</span>}
-      <span style={{ fontSize:16, color:"#C5B9B0", marginLeft:6 }}>›</span>
+      style={{ width:"100%", display:"flex", alignItems:"center", gap:14,
+               background:"white", border:"none", borderRadius:22,
+               padding:"18px 16px", cursor:"pointer", textAlign:"left",
+               boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+      <span style={{ width:46, height:46, borderRadius:14, background:C.tint, flexShrink:0,
+                     display:"flex", alignItems:"center", justifyContent:"center", fontSize:24 }}>{icon}</span>
+      <span style={{ flex:1, minWidth:0 }}>
+        <span style={{ display:"block", fontSize:16, fontWeight:800, color:C.text }}>{label}</span>
+        {sub && (
+          <span style={{ display:"block", fontSize:12, color:C.sub, marginTop:3,
+                         overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sub}</span>
+        )}
+      </span>
+      {hint && <span style={{ fontSize:13, color:C.sub, marginRight:4, flexShrink:0 }}>{hint}</span>}
+      <span style={{ fontSize:18, color:"#C5B9B0", flexShrink:0 }}>›</span>
     </button>
   );
 }
