@@ -24,6 +24,8 @@ import { avatarForBreed } from "@/services/breedAvatar";
 
 import PostDetail      from "@/components/community/PostDetail";
 import PetAvatar       from "@/components/PetAvatar";
+import PawLikeIcon     from "@/components/icons/PawLikeIcon";
+import PetTrashIcon    from "@/components/icons/PetTrashIcon";
 import PetEditor       from "./PetEditor";
 import SettingsModal   from "./SettingsModal";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
@@ -803,12 +805,16 @@ function MiniPostCard({ post, onOpen, onDelete }) {
 
       <div style={{ padding:"6px 9px 9px", display:"flex", alignItems:"center",
                     fontSize:11, color:C.sub }}>
-        <span>❤️ {post.like_count || 0}</span>
+        <span style={{ display:"flex", alignItems:"center", gap:4 }}>
+          <PawLikeIcon size={14} /> {post.like_count || 0}
+        </span>
         <div style={{ flex:1 }} />
         {onDelete && (
           <button onClick={onDelete}
             style={{ background:"transparent", border:"none", cursor:"pointer",
-                     color:C.sub, fontSize:13, padding:"2px 4px" }}>🗑</button>
+                     color:C.sub, padding:"2px 4px", display:"flex", alignItems:"center" }}>
+            <PetTrashIcon size={15} />
+          </button>
         )}
       </div>
     </div>

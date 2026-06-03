@@ -20,6 +20,7 @@ import {
 import { getMyLocation, reverseGeoCity } from "@/services/amapService";
 import { updateUserCity } from "@/services/supabaseService";
 import PetAvatar  from "@/components/PetAvatar";
+import PawLikeIcon from "@/components/icons/PawLikeIcon";
 import PostCompose from "./PostCompose";
 import PostDetail  from "./PostDetail";
 
@@ -667,10 +668,14 @@ export function PostCard({ post, isLiked, onOpen, onToggleLike, onOpenTopic, onO
         </div>
         <button onClick={onToggleLike}
           style={{ background:"transparent", border:"none", cursor:"pointer",
-                   display:"flex", alignItems:"center", gap:3, flexShrink:0,
-                   color: isLiked ? C.pri : C.sub,
+                   display:"flex", alignItems:"center", gap:4, flexShrink:0,
+                   color: isLiked ? "#E85D5D" : C.sub,
                    fontSize:11, fontWeight: isLiked ? 700 : 500, padding:0 }}>
-          {isLiked ? "❤️" : "🤍"} {post.like_count || 0}
+          <span key={isLiked ? "on" : "off"}
+            style={{ display:"inline-flex", animation: isLiked ? "pawpop .2s ease" : "none" }}>
+            <PawLikeIcon filled={isLiked} size={16} />
+          </span>
+          {post.like_count || 0}
         </button>
       </div>
     </div>

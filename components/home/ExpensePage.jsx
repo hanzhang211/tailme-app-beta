@@ -12,6 +12,7 @@ import {
   EXPENSE_CATEGORIES,
 } from "@/services/petExpenseService";
 import { AccountingIcon } from "@/components/icons/HomeModuleIcons";
+import PetTrashIcon from "@/components/icons/PetTrashIcon";
 import {
   PawPrint, Calendar, ChevronLeft, ChevronRight,
   Syringe, ShieldCheck, Stethoscope, BriefcaseMedical,
@@ -210,7 +211,9 @@ export default function ExpensePage({ user, pets, onBack, onAmountChanged }) {
               <div style={{ fontSize:16, fontWeight:800, color:PRI }}>{fmtMoney(it.amount)}</div>
               <button onClick={() => handleDelete(it)}
                 style={{ background:"transparent", border:"none", cursor:"pointer",
-                         color:"#C5B9B0", fontSize:16, padding:"2px 4px" }}>🗑</button>
+                         padding:"2px 4px", display:"flex", alignItems:"center" }}>
+                <PetTrashIcon size={18} />
+              </button>
             </div>
           ))}
         </div>

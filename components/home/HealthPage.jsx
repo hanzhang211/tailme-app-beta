@@ -13,6 +13,7 @@ import {
   isMedDoneToday, setMedDoneToday,
 } from "@/services/petHealthService";
 import { HealthIcon } from "@/components/icons/HomeModuleIcons";
+import PetTrashIcon from "@/components/icons/PetTrashIcon";
 import {
   ChevronLeft, ChevronRight, Dog, Pill, Bell, Clock,
   CircleCheck, ClipboardList, HeartPulse, Syringe, ShieldCheck,
@@ -325,7 +326,7 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
                                   onClick={() => { setMenuOpenId(null); setEditMedDisease(d); }}/>
                                 <div style={{ height:1, background:"rgba(0,0,0,0.06)", margin:"4px 10px" }}/>
                                 <MenuItem label="删除记录" color="#D94040"
-                                  icon={<span style={{ fontSize:13 }}>🗑</span>}
+                                  icon={<PetTrashIcon size={15} active />}
                                   onClick={() => { setMenuOpenId(null); handleDeleteDisease(d); }}/>
                               </div>
                             )}
@@ -505,7 +506,9 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
                       </div>
                       <button onClick={() => handleDeleteRecord(r)}
                         style={{ background:"transparent", border:"none", cursor:"pointer",
-                                 color:"#C5B9B0", fontSize:14, padding:"2px 4px" }}>🗑</button>
+                                 padding:"2px 4px", display:"flex", alignItems:"center" }}>
+                        <PetTrashIcon size={15} />
+                      </button>
                     </div>
                   );
                 })}
@@ -1061,7 +1064,7 @@ function DiseaseDetailSheet({ disease: initD, pets, user, onClose, onDelete, onU
                            background:"transparent", border:"none", cursor:"pointer",
                            fontSize:14, fontWeight:600, color:"#D94040",
                            display:"flex", alignItems:"center", gap:8 }}>
-                  🗑 删除
+                  <PetTrashIcon size={15} active /> 删除
                 </button>
               </div>
             )}

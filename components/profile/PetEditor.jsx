@@ -12,6 +12,7 @@ import { useState } from "react";
 import { savePetProfile, updatePet, deletePet } from "@/services/supabaseService";
 import { PERSONALITIES, todayISO } from "@/services/petAge";
 import { DOG_BREEDS, CAT_BREEDS } from "@/services/breedAvatar";
+import PetTrashIcon from "@/components/icons/PetTrashIcon";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
@@ -219,8 +220,9 @@ export default function PetEditor({ pet, userId, onClose, onSaved, onDeleted, to
               style={{ width:"100%", marginTop:22, padding:"13px 0", borderRadius:14,
                        background:"transparent", border:"1.5px solid #E2B4B4",
                        color:"#D94040", fontSize:14, fontWeight:700,
-                       cursor: (saving || deleting) ? "default" : "pointer" }}>
-              🗑 删除这只毛孩子
+                       cursor: (saving || deleting) ? "default" : "pointer",
+                       display:"flex", alignItems:"center", justifyContent:"center", gap:7 }}>
+              <PetTrashIcon size={16} active /> 删除这只毛孩子
             </button>
           )}
         </div>
