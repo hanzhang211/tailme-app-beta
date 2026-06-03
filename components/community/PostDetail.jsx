@@ -22,6 +22,7 @@ import {
 import PetAvatar from "@/components/PetAvatar";
 import PawLikeIcon from "@/components/icons/PawLikeIcon";
 import PetTrashIcon from "@/components/icons/PetTrashIcon";
+import BreedIcon from "@/components/icons/BreedIcon";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
@@ -398,12 +399,7 @@ export default function PostDetail({
               评论 · {topLevels.length}
             </div>
             {loadingC && <div style={{ fontSize:12, color:C.sub }}>加载中…</div>}
-            {!loadingC && topLevels.length === 0 && (
-              <div style={{ textAlign:"center", padding:"34px 0" }}>
-                <div style={{ fontSize:52, lineHeight:1, marginBottom:10 }}>🐕</div>
-                <div style={{ fontSize:13, color:C.sub }}>还没人评论，来抢沙发 🛋️</div>
-              </div>
-            )}
+            {!loadingC && topLevels.length === 0 && <CommentEmpty />}
 
             {topLevels.map((c) => (
               <CommentBlock
@@ -432,16 +428,28 @@ export default function PostDetail({
                          color:C.sub, fontSize:11, cursor:"pointer" }}>取消</button>
             </div>
           )}
-          <div style={{ display:"flex", gap:8 }}>
+          <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+            {/* 左侧：帖子点赞（复用现有逻辑，与上方互动栏同步）*/}
+            <button onClick={togglePostLike}
+              title={isLiked ? "取消点赞" : "点赞"}
+              style={{ width:44, height:44, borderRadius:999, flexShrink:0,
+                       background:C.tint, border:"none", cursor:"pointer",
+                       display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <span key={isLiked ? "on" : "off"}
+                style={{ display:"inline-flex", animation: isLiked ? "pawpop .2s ease" : "none" }}>
+                <PawLikeIcon filled={isLiked} size={24} />
+              </span>
+            </button>
             <input value={draft} onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submitComment()}
-              placeholder={replyTo ? "回复…" : "写评论…"}
+              placeholder={replyTo ? "回复…" : "写评论..."}
               maxLength={1000} disabled={posting}
-              style={{ flex:1, borderRadius:18, padding:"10px 14px", fontSize:13,
-                       border:`1.5px solid ${C.border}`, background:C.bg,
-                       color:C.text, outline:"none" }} />
+              style={{ flex:1, height:44, borderRadius:999, padding:"0 18px", fontSize:14, minWidth:0,
+                       border:`1px solid ${C.border}`, background:C.bg,
+                       color:C.text, outline:"none", boxSizing:"border-box" }} />
             <button onClick={submitComment} disabled={!draft.trim() || posting}
-              style={{ padding:"0 16px", borderRadius:18, fontSize:13, fontWeight:700,
+              style={{ height:44, padding:"0 22px", borderRadius:999, fontSize:14, fontWeight:700,
+                       flexShrink:0,
                        background: draft.trim() && !posting ? C.pri : C.light,
                        color:"white", border:"none",
                        cursor: draft.trim() && !posting ? "pointer" : "default" }}>
@@ -463,6 +471,32 @@ export default function PostDetail({
         </>)}
       </div>
       <style>{`@keyframes detail-up { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
+    </div>
+  );
+}
+
+/* ── 空评论状态：一猫一狗依偎在小窝上 ───────────────── */
+function CommentEmpty() {
+  return (
+    <div style={{ textAlign:"center", padding:"30px 0 26px" }}>
+      <div style={{ position:"relative", width:180, height:104, margin:"0 auto 14px" }}>
+        {/* 浅色点缀 */}
+        <span style={{ position:"absolute", left:20, top:4, fontSize:12, opacity:0.5 }}>🐾</span>
+        <span style={{ position:"absolute", right:26, top:0, fontSize:13, opacity:0.55 }}>💛</span>
+        <span style={{ position:"absolute", right:14, top:40, fontSize:11, opacity:0.4 }}>🐾</span>
+        {/* 小窝（垫子）*/}
+        <div style={{ position:"absolute", left:"50%", bottom:0, transform:"translateX(-50%)",
+                      width:156, height:30, borderRadius:"50%", background:C.tint }} />
+        <div style={{ position:"absolute", left:"50%", bottom:6, transform:"translateX(-50%)",
+                      width:120, height:18, borderRadius:"50%", background:"#EADFCB" }} />
+        {/* 狗 + 猫 依偎 */}
+        <div style={{ position:"absolute", left:"50%", bottom:14, transform:"translateX(-50%)",
+                      display:"flex", alignItems:"flex-end" }}>
+          <BreedIcon breed="柴犬" petType="dog" size={62} />
+          <BreedIcon breed="美短" petType="cat" size={52} style={{ marginLeft:-10 }} />
+        </div>
+      </div>
+      <div style={{ fontSize:14, fontWeight:600, color:C.text }}>这里还空着，快来抢个小窝吧</div>
     </div>
   );
 }
