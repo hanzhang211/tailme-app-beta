@@ -88,6 +88,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false); // 用户头像选择弹窗
   const [editNameOpen, setEditNameOpen] = useState(false);          // 编辑用户名弹窗
   const [bgUploading, setBgUploading]   = useState(false);          // 背景图上传中
+  const [contactOpen, setContactOpen]   = useState(false);          // 联系我们
   const bgFileRef = useRef();
 
   // 关注/粉丝
@@ -454,7 +455,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
           <div style={{ padding:"16px 14px 90px", display:"flex", flexDirection:"column", gap:12 }}>
             <MenuRow icon="📝" label="我的帖子" hint={`${stats.postCount} 篇`} onClick={() => setSubView("posts")} />
             <MenuRow icon="🐾" label="我的宠物" hint={`${pets.length} 只`} onClick={() => setSubView("pets")} />
-            <MenuRow icon="❤️" label="关注" sub="查看你关注的毛孩子和主人" onClick={() => setFollowView("following")} />
+            <MenuRow icon="📞" label="联系我们" sub="客服 · 合作 · 建议反馈" onClick={() => setContactOpen(true)} />
             <MenuRow icon="⚙️" label="设置" onClick={() => setSettingsOpen(true)} />
           </div>
         </>
@@ -540,6 +541,10 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
           onOpenProfile={(uid) => { setFollowView(null); onOpenProfile?.(uid); }}
         />
       )}
+
+      {contactOpen && (
+        <ContactView onBack={() => setContactOpen(false)} toast={toast} />
+      )}
     </div>
   );
 }
@@ -578,6 +583,70 @@ function MenuRow({ icon, label, sub, hint, onClick }) {
       {hint && <span style={{ fontSize:13, color:C.sub, marginRight:4, flexShrink:0 }}>{hint}</span>}
       <span style={{ fontSize:18, color:"#C5B9B0", flexShrink:0 }}>›</span>
     </button>
+  );
+}
+
+/* ──────────────────────────────────────────────────────
+   联系我们（浮层）
+   ────────────────────────────────────────────────────── */
+function ContactView({ onBack, toast }) {
+  const PHONE  = "13817104769";
+  const WECHAT = "ARROWhehe";
+
+  const copy = async (text, label) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast?.(`已复制${label}`, "success");
+    } catch {
+      toast?.("复制失败，请手动复制", "error");
+    }
+  };
+
+  const Row = ({ icon, label, value, onCopy, href }) => (
+    <div style={{ display:"flex", alignItems:"center", gap:14, background:"white",
+                  border:`1px solid ${C.border}`, borderRadius:18, padding:"16px 16px", marginBottom:12 }}>
+      <span style={{ width:44, height:44, borderRadius:14, background:C.tint, flexShrink:0,
+                     display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>{icon}</span>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontSize:12, color:C.sub }}>{label}</div>
+        <div style={{ fontSize:16, fontWeight:800, color:C.text, marginTop:2,
+                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{value}</div>
+      </div>
+      {href && (
+        <a href={href}
+          style={{ flexShrink:0, fontSize:13, fontWeight:700, color:"white", background:C.pri,
+                   borderRadius:999, padding:"7px 14px", textDecoration:"none" }}>拨打</a>
+      )}
+      <button onClick={onCopy}
+        style={{ flexShrink:0, fontSize:13, fontWeight:700, color:C.pri, background:"white",
+                 border:`1px solid #F0C9A8`, borderRadius:999, padding:"7px 14px", cursor:"pointer" }}>复制</button>
+    </div>
+  );
+
+  return (
+    <div style={{ position:"absolute", inset:0, zIndex:120, background:C.bg, display:"flex", flexDirection:"column" }}>
+      {/* 顶栏 */}
+      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"52px 16px 12px",
+                    background:"white", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+        <button onClick={onBack}
+          style={{ width:34, height:34, borderRadius:999, background:C.bg, border:`1px solid ${C.border}`,
+                   cursor:"pointer", fontSize:18, color:C.text }}>‹</button>
+        <div style={{ fontSize:16, fontWeight:800, color:C.text }}>联系我们</div>
+      </div>
+
+      <div style={{ flex:1, overflowY:"auto", padding:"18px 14px 40px" }}>
+        <div style={{ fontSize:13, color:C.sub, lineHeight:1.7, marginBottom:16 }}>
+          有任何问题、建议或合作意向，欢迎随时联系我们 🐾
+        </div>
+        <Row icon="📱" label="手机号" value={PHONE}
+          onCopy={() => copy(PHONE, "手机号")} href={`tel:${PHONE}`} />
+        <Row icon="💬" label="微信号" value={WECHAT}
+          onCopy={() => copy(WECHAT, "微信号")} />
+        <div style={{ fontSize:11, color:C.sub, textAlign:"center", marginTop:8, lineHeight:1.7 }}>
+          添加微信请备注「爪爪日记」
+        </div>
+      </div>
+    </div>
   );
 }
 
