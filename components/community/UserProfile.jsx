@@ -270,6 +270,7 @@ export default function UserProfile({ viewerId, userId, onClose }) {
       {detailId && (
         <PostDetail postId={detailId} user={{ id: viewerId }}
           initialLiked={likedSet.has(detailId)}
+          initialIsVideo={posts.find((x) => x.id === detailId)?.media_items?.[0]?.type === "video"}
           onLikeChange={(id, liked, delta) => {
             setLikedSet((prev) => { const n = new Set(prev); liked ? n.add(id) : n.delete(id); return n; });
             setPosts((prev) => prev.map((p) => p.id === id ? { ...p, like_count: (p.like_count || 0) + delta } : p));

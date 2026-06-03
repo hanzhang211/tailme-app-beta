@@ -499,6 +499,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
         <PostDetail
           postId={detailId} user={user} pet={pet}
           initialLiked={activeTab === "liked"}
+          initialIsVideo={[...myPosts, ...likedPosts].find((x) => x.id === detailId)?.media_items?.[0]?.type === "video"}
           onLikeChange={(postId, isLikedNow, delta) => {
             setMyPosts((prev) => prev.map((p) =>
               p.id === postId ? { ...p, like_count: (p.like_count || 0) + delta } : p));

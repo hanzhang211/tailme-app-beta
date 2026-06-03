@@ -530,6 +530,7 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
           postId={detailId}
           user={user} pet={pet}
           initialLiked={likedSet.has(detailId)}
+          initialIsVideo={(() => { const p = posts.find((x) => x.id === detailId); return p?.media_items?.[0]?.type === "video"; })()}
           onLikeChange={handleLikeChange}
           onDeleted={(id) => setPosts((prev) => prev.filter((p) => p.id !== id))}
           onClose={() => setDetailId(null)}

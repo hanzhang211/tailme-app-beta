@@ -68,6 +68,10 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
       if (media.length >= MAX_IMAGES) { toast?.(`最多 ${MAX_IMAGES} 个媒体`, "warn"); break; }
       const isVideo = (f.type || "").startsWith("video/");
       if (isVideo) {
+        if (media.some((m) => m.kind === "video")) {
+          toast?.("一个视频帖子只能上传一个视频哦", "warn");
+          continue;
+        }
         if (f.size > MAX_VIDEO_MB * 1024 * 1024) {
           toast?.(`视频太大啦，请上传 ${MAX_VIDEO_MB}MB 以内的视频`, "error");
           continue;

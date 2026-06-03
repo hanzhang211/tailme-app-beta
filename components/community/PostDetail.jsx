@@ -18,11 +18,13 @@ import {
   likePost, unlikePost,
   deleteOwnContent, reportContent,
   subscribeComments, unsubscribeChannel,
+  isFollowing, followUser, unfollowUser,
 } from "@/services/communityService";
 import PetAvatar from "@/components/PetAvatar";
 import PawLikeIcon from "@/components/icons/PawLikeIcon";
 import PetTrashIcon from "@/components/icons/PetTrashIcon";
 import BreedIcon from "@/components/icons/BreedIcon";
+import { fmtDuration } from "@/services/videoThumb";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
@@ -41,7 +43,7 @@ function fmtRelTime(iso) {
 }
 
 export default function PostDetail({
-  postId, user, pet, initialLiked,
+  postId, user, pet, initialLiked, initialIsVideo,
   onLikeChange, onDeleted, onClose, toast, onOpenProfile, onOpenTopic,
 }) {
   const [post,     setPost]     = useState(null);
@@ -58,9 +60,26 @@ export default function PostDetail({
 
   const [viewerIdx, setViewerIdx] = useState(null);
   const [viewerSrc, setViewerSrc] = useState(null);
+  const [following, setFollowing] = useState(false);
 
   const display = post?.user?.username || "未命名宠物";
   const own     = post?.user_id === user?.id;
+
+  // 关注（仅视频沉浸页用到；非本人时加载关注态）
+  useEffect(() => {
+    if (!post?.user_id || own || !user?.id) return;
+    let alive = true;
+    isFollowing(user.id, post.user_id).then((f) => { if (alive) setFollowing(f); }).catch(() => {});
+    return () => { alive = false; };
+  }, [post?.user_id, own, user?.id]);
+
+  const toggleFollow = async () => {
+    if (!user?.id || own || !post?.user_id) return;
+    const next = !following;
+    setFollowing(next);
+    try { next ? await followUser(user.id, post.user_id) : await unfollowUser(user.id, post.user_id); }
+    catch { setFollowing(!next); }
+  };
 
   // 详情图：优先 display_image_urls（1600px 压缩），老帖回退 image_urls
   const images = (Array.isArray(post?.display_image_urls) && post.display_image_urls.length)
@@ -223,6 +242,30 @@ export default function PostDetail({
     if (c.parent_id) (map[c.parent_id] ||= []).push(c);
     return map;
   }, {});
+
+  /* ── 视频帖 → 全屏沉浸式（图片/文字帖走下面原布局）── */
+  const videoMedia = media.find((m) => m.type === "video");
+  const isVideoPost = post ? (media[0]?.type === "video") : !!initialIsVideo;
+  if (isVideoPost) {
+    return (
+      <ImmersiveVideo
+        loadingPost={loadingPost}
+        videoUrl={videoMedia?.url || null}
+        posterUrl={videoMedia?.thumbnail_url || post?.cover_thumbnail_url || null}
+        pet={post?.pet} avatarOverride={post?.user?.avatar_url}
+        display={display} own={own} hashtags={post?.hashtags}
+        title={post?.title} content={post?.content}
+        isLiked={isLiked} likeCount={likeCount} onToggleLike={togglePostLike}
+        commentCount={comments.length}
+        draft={draft} setDraft={setDraft} submitComment={submitComment} posting={posting}
+        following={following} onToggleFollow={toggleFollow}
+        onClose={onClose}
+        onOpenProfile={() => { if (onOpenProfile && post?.user_id) { onOpenProfile(post.user_id); onClose?.(); } }}
+        onOpenTopic={onOpenTopic ? (tag) => { onOpenTopic(tag); onClose?.(); } : null}
+        onMore={own ? handleDeletePost : handleReport}
+      />
+    );
+  }
 
   /* ── render ───────────────────────────────────────── */
   return (
@@ -527,6 +570,259 @@ function CommentBlock({ c, user, replies, isLiked, likedReplies, onToggleLike, o
 }
 
 /* ── 详情页单张图片：模糊缩略图占位 → 高清图渐显 ─────────── */
+/* ────────────────────────────────────────────────────────────
+   全屏沉浸式视频详情（仅视频帖）
+   ──────────────────────────────────────────────────────────── */
+function ImmersiveVideo({
+  loadingPost, videoUrl, posterUrl, pet, avatarOverride, display, own, hashtags, title, content,
+  isLiked, likeCount, onToggleLike, commentCount, draft, setDraft, submitComment, posting,
+  following, onToggleFollow, onClose, onOpenProfile, onOpenTopic, onMore,
+}) {
+  const vRef = useRef(null);
+  const barRef = useRef(null);
+  const inputRef = useRef(null);
+  const [muted, setMuted]   = useState(true);
+  const [paused, setPaused] = useState(false);
+  const [cur, setCur]       = useState(0);
+  const [dur, setDur]       = useState(0);
+  const [state, setState]   = useState("loading"); // loading | ready | error
+
+  useEffect(() => {
+    if (loadingPost) return;
+    if (!videoUrl) { setState("error"); return; }
+    const v = vRef.current; if (!v) return;
+    v.muted = true;
+    const t = setTimeout(() => v.play?.().catch(() => {}), 0);
+    return () => clearTimeout(t);
+  }, [videoUrl, loadingPost]);
+
+  const tags = Array.isArray(hashtags) ? hashtags : [];
+
+  const togglePlay = () => {
+    const v = vRef.current; if (!v) return;
+    if (v.paused) { v.play?.().catch(() => {}); setPaused(false); }
+    else { v.pause?.(); setPaused(true); }
+  };
+  const toggleMute = (e) => {
+    e.stopPropagation();
+    const v = vRef.current; if (!v) return;
+    const n = !muted; setMuted(n); v.muted = n;
+    if (!n) v.play?.().catch(() => {});
+  };
+  const seekFromX = (clientX) => {
+    const v = vRef.current, bar = barRef.current;
+    if (!v || !bar || !v.duration) return;
+    const rect = bar.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    v.currentTime = ratio * v.duration;
+    setCur(v.currentTime);
+  };
+  const onBarDown = (e) => {
+    e.stopPropagation();
+    seekFromX(e.clientX);
+    const move = (ev) => seekFromX(ev.clientX);
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  const noop = (e) => { e.stopPropagation(); /* 转发：暂未接功能 */ };
+  const focusInput = () => inputRef.current?.focus();
+
+  const prog = dur ? cur / dur : 0;
+  const TopBtn = ({ onClick, children }) => (
+    <button onClick={onClick}
+      style={{ width:38, height:38, borderRadius:"50%", border:"none", cursor:"pointer",
+               background:"rgba(0,0,0,0.35)", color:"white", fontSize:16,
+               display:"flex", alignItems:"center", justifyContent:"center",
+               backdropFilter:"blur(4px)", WebkitBackdropFilter:"blur(4px)" }}>
+      {children}
+    </button>
+  );
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:150, background:"#000",
+                  display:"flex", justifyContent:"center" }}>
+      <div style={{ position:"relative", width:"100%", maxWidth:430, height:"100%",
+                    background:"#000", overflow:"hidden" }}>
+
+        {/* 视频 */}
+        {state !== "error" ? (
+          <video ref={vRef} src={videoUrl || undefined} poster={posterUrl || undefined}
+            autoPlay muted loop playsInline preload="auto"
+            onClick={togglePlay}
+            onLoadedData={() => setState("ready")}
+            onCanPlay={() => setState("ready")}
+            onTimeUpdate={(e) => { setCur(e.target.currentTime); setDur(e.target.duration || 0); }}
+            onError={() => setState("error")}
+            style={{ position:"absolute", inset:0, width:"100%", height:"100%",
+                     objectFit:"cover", background:"#000" }} />
+        ) : (
+          <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center",
+                        justifyContent:"center", color:"#bbb", fontSize:14 }}>
+            视频加载失败，请稍后再试
+          </div>
+        )}
+
+        {/* 加载中 */}
+        {state === "loading" && (
+          <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center",
+                        justifyContent:"center", pointerEvents:"none" }}>
+            <span style={{ width:34, height:34, borderRadius:"50%",
+                           border:"3px solid rgba(255,255,255,0.35)", borderTopColor:"#fff",
+                           animation:"vspin .8s linear infinite" }} />
+          </div>
+        )}
+
+        {/* 暂停时中央播放按钮 */}
+        {paused && state !== "error" && (
+          <div onClick={togglePlay}
+            style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <span style={{ width:72, height:72, borderRadius:"50%", background:"rgba(0,0,0,0.4)",
+                           display:"flex", alignItems:"center", justifyContent:"center",
+                           backdropFilter:"blur(2px)", WebkitBackdropFilter:"blur(2px)" }}>
+              <span style={{ borderLeft:"24px solid white", borderTop:"15px solid transparent",
+                             borderBottom:"15px solid transparent", marginLeft:6 }} />
+            </span>
+          </div>
+        )}
+
+        {/* 顶部栏 */}
+        <div style={{ position:"absolute", top:46, left:14, right:14, zIndex:5,
+                      display:"flex", alignItems:"flex-start", justifyContent:"space-between" }}>
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            <TopBtn onClick={onClose}>‹</TopBtn>
+            <div style={{ display:"flex", alignItems:"center", gap:5, alignSelf:"flex-start",
+                          background:"rgba(0,0,0,0.35)", color:"white", fontSize:12, fontWeight:700,
+                          padding:"5px 11px", borderRadius:999,
+                          backdropFilter:"blur(4px)", WebkitBackdropFilter:"blur(4px)" }}>
+              <span style={{ width:7, height:7, borderRadius:"50%", background:"#E68645" }} />视频
+            </div>
+          </div>
+          <div style={{ display:"flex", gap:10 }}>
+            <TopBtn onClick={noop}>🔍</TopBtn>
+            <TopBtn onClick={noop}>↗</TopBtn>
+            <TopBtn onClick={onMore}>⋯</TopBtn>
+          </div>
+        </div>
+
+        {/* 声音按钮 */}
+        {state !== "error" && (
+          <button onClick={toggleMute}
+            style={{ position:"absolute", right:14, top:"46%", zIndex:5, width:40, height:40,
+                     borderRadius:"50%", border:"none", cursor:"pointer", color:"white", fontSize:17,
+                     background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center",
+                     backdropFilter:"blur(4px)", WebkitBackdropFilter:"blur(4px)" }}>
+            {muted ? "🔇" : "🔊"}
+          </button>
+        )}
+
+        {/* 底部渐变 + 作者/文案/进度/输入 */}
+        <div style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:5, padding:"60px 16px 18px",
+                      background:"linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0.35) 55%, transparent)" }}>
+          {/* 作者 */}
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+            <div onClick={onOpenProfile} style={{ cursor:"pointer", flexShrink:0,
+                  width:40, height:40, borderRadius:"50%", overflow:"hidden", border:"2px solid rgba(255,255,255,0.85)" }}>
+              <PetAvatar pet={pet} overrideUrl={avatarOverride} size={36} bg="#F2E5DA" />
+            </div>
+            <div onClick={onOpenProfile} style={{ cursor:"pointer", fontSize:15, fontWeight:800, color:"white",
+                  textShadow:"0 1px 3px rgba(0,0,0,0.5)" }}>{display}</div>
+            {!own && (
+              <button onClick={onToggleFollow}
+                style={{ marginLeft:2, padding:"5px 14px", borderRadius:999, fontSize:12.5, fontWeight:700,
+                         border: following ? "1px solid rgba(255,255,255,0.7)" : "none",
+                         background: following ? "transparent" : "#E68645",
+                         color:"white", cursor:"pointer" }}>
+                {following ? "已关注" : "关注"}
+              </button>
+            )}
+          </div>
+
+          {/* 标题 / 正文 */}
+          {title && (
+            <div style={{ fontSize:16, fontWeight:800, color:"white", marginBottom:5,
+                          textShadow:"0 1px 3px rgba(0,0,0,0.5)", wordBreak:"break-word" }}>{title}</div>
+          )}
+          {content?.trim() && (
+            <div style={{ fontSize:13.5, lineHeight:1.55, color:"rgba(255,255,255,0.95)", marginBottom:6,
+                          textShadow:"0 1px 3px rgba(0,0,0,0.5)", whiteSpace:"pre-wrap", wordBreak:"break-word" }}>
+              {content}
+            </div>
+          )}
+          {tags.length > 0 && (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:10 }}>
+              {tags.map((t) => (
+                <span key={t} onClick={() => onOpenTopic?.(t)}
+                  style={{ fontSize:13, fontWeight:600, color:"#FFD9B8", cursor: onOpenTopic ? "pointer" : "default",
+                           textShadow:"0 1px 3px rgba(0,0,0,0.5)" }}>#{t}</span>
+              ))}
+            </div>
+          )}
+
+          {/* 进度条 */}
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+            <div ref={barRef} onPointerDown={onBarDown}
+              style={{ position:"relative", flex:1, height:14, display:"flex", alignItems:"center", cursor:"pointer" }}>
+              <div style={{ position:"absolute", left:0, right:0, height:3, borderRadius:999,
+                            background:"rgba(255,255,255,0.35)" }} />
+              <div style={{ position:"absolute", left:0, height:3, borderRadius:999,
+                            width:`${Math.round(prog * 100)}%`, background:"#E68645" }} />
+              <div style={{ position:"absolute", left:`${Math.round(prog * 100)}%`, width:11, height:11,
+                            borderRadius:"50%", background:"#fff", transform:"translateX(-50%)",
+                            boxShadow:"0 1px 4px rgba(0,0,0,0.4)" }} />
+            </div>
+            <span style={{ fontSize:11, color:"rgba(255,255,255,0.9)", flexShrink:0,
+                           textShadow:"0 1px 3px rgba(0,0,0,0.5)" }}>
+              {fmtDuration(cur)} / {fmtDuration(dur)}
+            </span>
+          </div>
+
+          {/* 评论输入 + 点赞/评论/转发 */}
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{ flex:1, display:"flex", alignItems:"center", gap:8,
+                          background:"rgba(255,255,255,0.16)", borderRadius:999, padding:"9px 14px" }}>
+              <PawLikeIcon size={16} color="rgba(255,255,255,0.8)" />
+              <input ref={inputRef} value={draft} onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && draft.trim() && !posting && submitComment()}
+                placeholder="说点什么..." maxLength={1000} disabled={posting}
+                style={{ flex:1, border:"none", outline:"none", background:"transparent",
+                         color:"white", fontSize:13.5, minWidth:0 }} />
+            </div>
+
+            <button onClick={(e) => { e.stopPropagation(); onToggleLike(); }}
+              style={{ background:"transparent", border:"none", cursor:"pointer", color:"white",
+                       display:"flex", flexDirection:"column", alignItems:"center", gap:2, flexShrink:0 }}>
+              <span key={isLiked ? "on" : "off"} style={{ display:"inline-flex",
+                    animation: isLiked ? "pawpop .2s ease" : "none" }}>
+                <PawLikeIcon filled={isLiked} color={isLiked ? "#E85D5D" : "#fff"} size={26} />
+              </span>
+              <span style={{ fontSize:11, textShadow:"0 1px 3px rgba(0,0,0,0.5)" }}>{likeCount}</span>
+            </button>
+
+            <button onClick={focusInput}
+              style={{ background:"transparent", border:"none", cursor:"pointer", color:"white",
+                       display:"flex", flexDirection:"column", alignItems:"center", gap:2, flexShrink:0, fontSize:24, lineHeight:1 }}>
+              💬<span style={{ fontSize:11, textShadow:"0 1px 3px rgba(0,0,0,0.5)" }}>{commentCount}</span>
+            </button>
+
+            <button onClick={noop}
+              style={{ background:"transparent", border:"none", cursor:"pointer", color:"white",
+                       display:"flex", flexDirection:"column", alignItems:"center", gap:2, flexShrink:0 }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" stroke="#fff" strokeWidth="1.8" strokeLinecap="round"/>
+                <path d="M12 3v12M12 3l-4 4M12 3l4 4" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span style={{ fontSize:11, textShadow:"0 1px 3px rgba(0,0,0,0.5)" }}>0</span>
+            </button>
+          </div>
+        </div>
+
+        <style>{`@keyframes vspin { to { transform: rotate(360deg); } } @keyframes pawpop { 0%{transform:scale(1)} 50%{transform:scale(1.18)} 100%{transform:scale(1)} }`}</style>
+      </div>
+    </div>
+  );
+}
+
 /* TikTok 式视频：进入即静音自动循环播放 + 声音开关 + 点击暂停/播放 */
 function DetailVideo({ src, poster }) {
   const ref = useRef(null);
