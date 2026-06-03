@@ -455,7 +455,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
           <div style={{ padding:"16px 14px 90px", display:"flex", flexDirection:"column", gap:12 }}>
             <MenuRow icon="📝" label="我的帖子" hint={`${stats.postCount} 篇`} onClick={() => setSubView("posts")} />
             <MenuRow icon="🐾" label="我的宠物" hint={`${pets.length} 只`} onClick={() => setSubView("pets")} />
-            <MenuRow icon={<img src="/logo.png" alt="" style={{ width:26, height:"auto", filter:"brightness(0)" }} />}
+            <MenuRow icon={<img src="/logo.png" alt="" style={{ width:42, height:42, objectFit:"contain", filter:"brightness(0)" }} />}
               label="联系我们" sub="客服 · 合作 · 建议反馈" onClick={() => setContactOpen(true)} />
             <MenuRow icon="⚙️" label="设置" onClick={() => setSettingsOpen(true)} />
           </div>
