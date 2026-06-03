@@ -187,6 +187,20 @@ export async function updateUserAvatar(userId, avatarUrl) {
   return data;
 }
 
+/* ── 更新用户个人主页背景图（users.profile_background_url）──────── */
+export async function updateUserBackground(userId, url) {
+  const sb = requireSupabase();
+  if (!userId) throw new Error("updateUserBackground: userId 不能为空");
+  const { data, error } = await sb
+    .from("users")
+    .update({ profile_background_url: url })
+    .eq("id", userId)
+    .select()
+    .single();
+  if (error) throw new Error(`更新背景失败: ${error.message}`);
+  return data;
+}
+
 /* ── AI 宠物聊天：长期记忆 ───────────────────────────────────── */
 // 读取某宠物最近 N 条记忆（默认 5），按时间倒序
 export async function getPetAiMemories(petId, limit = 5) {

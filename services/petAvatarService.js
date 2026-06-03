@@ -11,10 +11,29 @@
  */
 
 import { supabase } from "@/lib/supabase";
+import { compressImage } from "@/services/imageCompress";
 
 function sb() {
   if (!supabase) throw new Error("Supabase 未初始化");
   return supabase;
+}
+
+/**
+ * 上传个人主页背景图到 profile-backgrounds bucket（压缩后），返回 public URL。
+ */
+export async function uploadProfileBackground(file, userId) {
+  if (!file || !userId) throw new Error("缺少 file / userId");
+  if (!file.type?.startsWith("image/")) throw new Error("请选择图片文件");
+  if (file.size > 5 * 1024 * 1024) throw new Error("背景图不能超过 5MB");
+  const compressed = await compressImage(file, { maxDim: 1600, quality: 0.82 });
+  const path = `${userId}/background-${Date.now()}.jpg`;
+  const { error } = await sb().storage
+    .from("profile-backgrounds")
+    .upload(path, compressed, { cacheControl: "86400", upsert: false });
+  if (error) throw new Error(`上传失败: ${error.message}`);
+  const { data: pub } = sb().storage.from("profile-backgrounds").getPublicUrl(path);
+  if (!pub?.publicUrl) throw new Error("获取图片 URL 失败");
+  return pub.publicUrl;
 }
 
 /**

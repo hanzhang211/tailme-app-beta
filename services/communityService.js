@@ -636,6 +636,45 @@ export async function listLikedPosts(userId, { limit = 50 } = {}) {
   return ids.map((id) => map.get(id)).filter(Boolean);
 }
 
+/**
+ * 谁赞了我：赞过「我帖子」的人（含点赞用户资料 + 被赞帖子简要 + 时间），
+ * 按点赞时间倒序。排除自赞。用于「我的」页点击获赞查看。
+ */
+export async function listMyPostLikers(meId, { limit = 100 } = {}) {
+  if (!meId) return [];
+  const sb = requireSupabase();
+  const { data: myPosts } = await sb
+    .from("posts")
+    .select("id, title, content, cover_thumbnail_url, cover_image_url")
+    .eq("user_id", meId)
+    .eq("status", "visible");
+  const postIds = (myPosts || []).map((p) => p.id);
+  if (!postIds.length) return [];
+  const postMap = {};
+  (myPosts || []).forEach((p) => { postMap[p.id] = p; });
+
+  const { data: likes } = await sb
+    .from("post_likes")
+    .select("post_id, user_id, created_at")
+    .in("post_id", postIds)
+    .neq("user_id", meId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (!likes || !likes.length) return [];
+
+  const likerIds = [...new Set(likes.map((l) => l.user_id))];
+  const { data: users } = await sb
+    .from("users")
+    .select("id, username, avatar_url")
+    .in("id", likerIds);
+  const userMap = {};
+  (users || []).forEach((u) => { userMap[u.id] = u; });
+
+  return likes
+    .map((l) => ({ user: userMap[l.user_id], post: postMap[l.post_id], created_at: l.created_at }))
+    .filter((x) => x.user && x.post);
+}
+
 /** 个人主页统计：获赞总数 / 作品数 / 赞过数 */
 export async function getUserStats(userId) {
   if (!userId) return { totalLikes: 0, postCount: 0, likedCount: 0 };

@@ -12,9 +12,9 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getUserPets, deletePet, updateUserAvatar, getPetCountByUsers, setUsername, isUsernameTaken } from "@/services/supabaseService";
+import { getUserPets, deletePet, updateUserAvatar, getPetCountByUsers, setUsername, isUsernameTaken, updateUserBackground } from "@/services/supabaseService";
 import { checkUsername } from "@/services/contentFilter";
-import { uploadUserAvatar } from "@/services/petAvatarService";
+import { uploadUserAvatar, uploadProfileBackground } from "@/services/petAvatarService";
 import {
   listMyPosts, listLikedPosts, getUserStats,
   deleteOwnContent,
@@ -87,6 +87,8 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   const [avatarPet,    setAvatarPet]    = useState(null); // 当前生成头像的宠物，null=关闭
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false); // 用户头像选择弹窗
   const [editNameOpen, setEditNameOpen] = useState(false);          // 编辑用户名弹窗
+  const [bgUploading, setBgUploading]   = useState(false);          // 背景图上传中
+  const bgFileRef = useRef();
 
   // 关注/粉丝
   const [followCounts, setFollowCounts] = useState({ following: 0, followers: 0 });
@@ -192,6 +194,24 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
       toast(url ? "头像已更新 ✨" : "已恢复默认头像", "success");
       setAvatarPickerOpen(false);
     } catch (e) { toast(e.message, "error"); }
+  };
+
+  /* ── 上传个人主页背景图 ─────────────────────────── */
+  const handleBackgroundUpload = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f || bgUploading || !user?.id) return;
+    setBgUploading(true);
+    try {
+      const url = await uploadProfileBackground(f, user.id);
+      const updated = await updateUserBackground(user.id, url);
+      onUserUpdated?.(updated);
+      toast("背景已更新 ✨", "success");
+    } catch (err) {
+      toast(err.message || "背景上传失败，请重试", "error");
+    } finally {
+      setBgUploading(false);
+    }
   };
 
   /* ── 删除自己的帖子（从卡片小按钮） ─────────────── */
@@ -303,71 +323,115 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
       {/* ════ 我的 主页（头部 + 统计 + 菜单）════ */}
       {subView === null && (
         <>
-          {/* 顶部用户信息区（米白背景 + 右上淡爪印装饰） */}
-          <div style={{ position:"relative", padding:"54px 18px 16px", overflow:"hidden" }}>
-            {/* 右上角淡爪印 */}
-            <svg width="150" height="120" viewBox="0 0 150 120" aria-hidden="true"
-              style={{ position:"absolute", top:18, right:-14, opacity:0.5, pointerEvents:"none" }}>
-              <g fill="#E4D8C8">
-                <ellipse cx="92" cy="40" rx="11" ry="14"/>
-                <ellipse cx="116" cy="28" rx="11" ry="14"/>
-                <ellipse cx="140" cy="34" rx="10" ry="13"/>
-                <path d="M86 66 q-10 20 11 26 q22 6 39 -2 q15 -9 6 -23 q-11 -13 -29 -13 q-19 0 -27 12Z"/>
-              </g>
-            </svg>
+          {/* 顶部背景图（可上传）+ 更换背景 / 编辑资料 */}
+          <div style={{ position:"relative", width:"100%", height:200, overflow:"hidden" }}>
+            {user?.profile_background_url ? (
+              <img src={user.profile_background_url} alt="" loading="lazy"
+                style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />
+            ) : (
+              <>
+                <div style={{ position:"absolute", inset:0,
+                              background:"linear-gradient(135deg, #F4E7DA 0%, #EEE6DB 55%, #EEE9E1 100%)" }} />
+                <svg width="200" height="150" viewBox="0 0 200 150" aria-hidden="true"
+                  style={{ position:"absolute", top:24, right:-10, opacity:0.45, pointerEvents:"none" }}>
+                  <g fill="#E4D6C4">
+                    <ellipse cx="120" cy="44" rx="13" ry="17"/>
+                    <ellipse cx="148" cy="30" rx="13" ry="17"/>
+                    <ellipse cx="176" cy="36" rx="12" ry="16"/>
+                    <path d="M112 74 q-12 24 13 31 q26 7 47 -2 q18 -11 7 -28 q-13 -16 -35 -16 q-23 0 -32 15Z"/>
+                  </g>
+                  <g fill="#E8DBCB" opacity="0.7">
+                    <ellipse cx="30" cy="104" rx="8" ry="10"/>
+                    <ellipse cx="48" cy="96" rx="8" ry="10"/>
+                    <ellipse cx="66" cy="100" rx="7" ry="9"/>
+                    <path d="M26 120 q-7 14 8 18 q15 4 27 -1 q11 -6 4 -16 q-8 -9 -21 -9 q-13 0 -18 8Z"/>
+                  </g>
+                </svg>
+              </>
+            )}
+            {/* 底部渐变遮罩 → 米白，保证衔接与文字可读 */}
+            <div style={{ position:"absolute", inset:0, pointerEvents:"none",
+                          background:"linear-gradient(to bottom, rgba(0,0,0,0.06) 0%, rgba(238,233,225,0) 30%, rgba(238,233,225,0.5) 80%, #EEE9E1 100%)" }} />
 
-            <div style={{ position:"relative", display:"flex", alignItems:"flex-start", gap:16 }}>
-              {/* 头像（白圈 + 阴影，可点换头像） */}
+            {/* 右上角按钮：更换背景 / 编辑资料 */}
+            <div style={{ position:"absolute", top:50, right:14, display:"flex", flexDirection:"column",
+                          alignItems:"flex-end", gap:10, zIndex:2 }}>
+              <button onClick={() => !bgUploading && bgFileRef.current?.click()} disabled={bgUploading}
+                style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:999,
+                         background:"rgba(255,255,255,0.85)", color:C.text, border:"none",
+                         backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)",
+                         boxShadow:"0 2px 8px rgba(0,0,0,0.12)", fontSize:13, fontWeight:700,
+                         cursor: bgUploading ? "default" : "pointer", whiteSpace:"nowrap" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="16" rx="3" stroke={C.text} strokeWidth="1.8"/>
+                  <circle cx="8.5" cy="9.5" r="1.6" fill={C.text}/>
+                  <path d="M5 18l5-5 4 4 2-2 3 3" stroke={C.text} strokeWidth="1.8" fill="none"
+                        strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {bgUploading ? "上传中…" : "更换背景"}
+              </button>
+              <button onClick={() => setEditNameOpen(true)}
+                style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:999,
+                         background:"rgba(255,255,255,0.85)", color:C.pri, border:"none",
+                         backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)",
+                         boxShadow:"0 2px 8px rgba(0,0,0,0.12)", fontSize:13, fontWeight:700,
+                         cursor:"pointer", whiteSpace:"nowrap" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M14.5 4.5l5 5L8 21l-5 1 1-5L14.5 4.5z" stroke={C.pri} strokeWidth="1.8" strokeLinejoin="round"/>
+                  <path d="M13 6l5 5" stroke={C.pri} strokeWidth="1.8" strokeLinecap="round"/>
+                </svg>
+                编辑资料
+              </button>
+            </div>
+            <input ref={bgFileRef} type="file" accept="image/*" onChange={handleBackgroundUpload} style={{ display:"none" }} />
+          </div>
+
+          {/* 用户卡：头像叠在背景下方 */}
+          <div style={{ position:"relative", zIndex:2, margin:"-50px 14px 0",
+                        background:"white", borderRadius:24, padding:"14px 16px 18px",
+                        boxShadow:"0 4px 20px rgba(0,0,0,0.06)" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+              {/* 头像（白圈，可点换头像）*/}
               <div onClick={() => setAvatarPickerOpen(true)}
-                style={{ position:"relative", cursor:"pointer", flexShrink:0 }}>
-                <div style={{ width:96, height:96, borderRadius:"50%", background:"white", padding:4,
-                              boxSizing:"border-box", boxShadow:"0 4px 16px rgba(0,0,0,0.10)" }}>
-                  <PetAvatar pet={headerPet} overrideUrl={user?.avatar_url} size={88} bg={C.tint} />
+                style={{ position:"relative", cursor:"pointer", flexShrink:0, marginTop:-46 }}>
+                <div style={{ width:92, height:92, borderRadius:"50%", background:"white", padding:4,
+                              boxSizing:"border-box", boxShadow:"0 4px 14px rgba(0,0,0,0.12)" }}>
+                  <PetAvatar pet={headerPet} overrideUrl={user?.avatar_url} size={84} bg={C.tint} />
                 </div>
-                <div style={{ position:"absolute", bottom:2, right:2, width:26, height:26,
+                <div style={{ position:"absolute", bottom:4, right:4, width:24, height:24,
                               borderRadius:"50%", background:C.pri, border:"3px solid white",
                               display:"flex", alignItems:"center", justifyContent:"center",
-                              fontSize:13, fontWeight:700, color:"white", lineHeight:1 }}>⌄</div>
+                              fontSize:12, fontWeight:700, color:"white", lineHeight:1 }}>⌄</div>
               </div>
 
-              {/* 用户名 + 手机号 */}
-              <div style={{ flex:1, minWidth:0, paddingTop:12 }}>
-                <div style={{ fontSize:23, fontWeight:800, color:C.text,
+              {/* 用户名 + 用户号 */}
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:22, fontWeight:800, color:C.text,
                               overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                   {user?.username || "未命名"}
                 </div>
-                <div style={{ fontSize:13, color:C.sub, marginTop:6 }}>用户号 {user?.user_no || maskPhone(user?.phone)}</div>
+                <div style={{ fontSize:13, color:C.sub, marginTop:5 }}>
+                  用户号 {user?.user_no || maskPhone(user?.phone)}
+                </div>
               </div>
 
-              {/* 右侧：编辑按钮（圆形橙色铅笔）+ 个人主页 胶囊 */}
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:12, flexShrink:0 }}>
-                <button onClick={() => setEditNameOpen(true)}
-                  style={{ width:44, height:44, borderRadius:"50%", background:"white", border:"none",
-                           boxShadow:"0 2px 10px rgba(0,0,0,0.10)", cursor:"pointer",
-                           display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M14.5 4.5l5 5L8 21l-5 1 1-5L14.5 4.5z" stroke={C.pri} strokeWidth="1.8"
-                          strokeLinejoin="round"/>
-                    <path d="M13 6l5 5" stroke={C.pri} strokeWidth="1.8" strokeLinecap="round"/>
-                  </svg>
-                </button>
-                <button onClick={() => onOpenProfile?.(user?.id)}
-                  style={{ display:"flex", alignItems:"center", gap:6, background:"white", color:C.pri,
-                           border:"1px solid #F0C9A8", borderRadius:999, padding:"8px 14px",
-                           fontSize:13, fontWeight:700, cursor:"pointer",
-                           boxShadow:"0 2px 8px rgba(0,0,0,0.05)", whiteSpace:"nowrap" }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <rect x="4" y="3" width="16" height="18" rx="2.5" stroke={C.pri} strokeWidth="1.8"/>
-                    <path d="M8 8h8M8 12h8M8 16h5" stroke={C.pri} strokeWidth="1.8" strokeLinecap="round"/>
-                  </svg>
-                  个人主页 ›
-                </button>
-              </div>
+              {/* 个人主页 */}
+              <button onClick={() => onOpenProfile?.(user?.id)}
+                style={{ flexShrink:0, display:"flex", alignItems:"center", gap:6, background:"white", color:C.pri,
+                         border:"1px solid #F0C9A8", borderRadius:999, padding:"8px 13px",
+                         fontSize:13, fontWeight:700, cursor:"pointer",
+                         boxShadow:"0 2px 8px rgba(0,0,0,0.05)", whiteSpace:"nowrap" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="4" y="3" width="16" height="18" rx="2.5" stroke={C.pri} strokeWidth="1.8"/>
+                  <path d="M8 8h8M8 12h8M8 16h5" stroke={C.pri} strokeWidth="1.8" strokeLinecap="round"/>
+                </svg>
+                个人主页 ›
+              </button>
             </div>
           </div>
 
           {/* 统计卡片：获赞 ｜ 关注 ｜ 粉丝 */}
-          <div style={{ padding:"0 14px" }}>
+          <div style={{ padding:"12px 14px 0" }}>
             <div style={{ display:"flex", background:"white", borderRadius:24, padding:"18px 0",
                           boxShadow:"0 2px 14px rgba(0,0,0,0.05)" }}>
               {[
