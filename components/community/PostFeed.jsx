@@ -87,7 +87,7 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
 
   // 🔥 今日热门话题 + ✨ 今日推荐（真实数据，5分钟缓存）
   const [hotTopics, setHotTopics] = useState([]);
-  const [recommend, setRecommend] = useState([]);
+  const [recommend, setRecommend] = useState({ dog: null, cat: null, post: null });
 
   // 顶部分区：推荐 / 关注 / 同城 / 最新
   const [feedTab, setFeedTab] = useState("recommend");
@@ -370,39 +370,19 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
         </div>
       )}
 
-      {/* ✨ 今日推荐（likes*2 + comments*3 · 近48h · 真实封面）—— 仅「推荐」 */}
-      {feedTab === "recommend" && recommend.length > 0 && (
+      {/* ✨ 今日推荐：最受欢迎狗狗 / 猫咪（→作者主页）+ 今日最佳帖子（→帖子）—— 仅「推荐」 */}
+      {feedTab === "recommend" && (recommend.dog || recommend.cat || recommend.post) && (
         <div style={{ padding:"16px 14px 0" }}>
           <div style={{ fontSize:13, fontWeight:800, color:C.text, marginBottom:8 }}>✨ 今日推荐</div>
           <div style={{ display:"flex", gap:8 }}>
-            {recommend.map((p, i) => {
-              const label = ["最受欢迎狗狗", "最可爱猫咪", "今日最佳照片"][i] || "热门推荐";
-              const cover = p.cover_thumbnail_url || p.cover_image_url || null;
-              return (
-                <div key={p.id} onClick={() => openDetail(p)}
-                  style={{ flex:"0 0 calc((100% - 16px) / 3)", minWidth:0, background:"white", borderRadius:14,
-                           overflow:"hidden", cursor:"pointer",
-                           boxShadow:"0 2px 10px rgba(0,0,0,0.06)" }}>
-                  <div style={{ width:"100%", aspectRatio:"1 / 1", background:C.tint,
-                                display:"flex", alignItems:"center", justifyContent:"center",
-                                overflow:"hidden" }}>
-                    {cover
-                      ? <img src={cover} alt="" loading="lazy"
-                          style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
-                      : <span style={{ fontSize:26 }}>🐾</span>}
-                  </div>
-                  <div style={{ padding:"7px 8px 8px" }}>
-                    <div style={{ fontSize:11, fontWeight:800, color:C.text,
-                                  overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                      {label}
-                    </div>
-                    <div style={{ fontSize:10, color:C.pri, fontWeight:600, marginTop:2 }}>
-                      {p.like_count || 0} 个点赞
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {[
+              { key:"dog",  label:"最受欢迎狗狗", post: recommend.dog,  toProfile:true },
+              { key:"cat",  label:"最受欢迎猫咪", post: recommend.cat,  toProfile:true },
+              { key:"post", label:"今日最佳帖子", post: recommend.post, toProfile:false },
+            ].map(({ key, label, post, toProfile }) => (
+              <RecommendCard key={key} label={label} post={post} toProfile={toProfile}
+                onOpenProfile={onOpenProfile} onOpenPost={openDetail} />
+            ))}
           </div>
         </div>
       )}
@@ -555,6 +535,41 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
 /* ──────────────────────────────────────────────────────
    单张 Feed 卡片：只显示 thumbnail
    ────────────────────────────────────────────────────── */
+/* 今日推荐小卡：狗狗/猫咪→作者主页，最佳帖子→帖子详情 */
+function RecommendCard({ label, post, toProfile, onOpenProfile, onOpenPost }) {
+  const cover = post
+    ? (post.cover_thumbnail_url || post.cover_image_url ||
+       (Array.isArray(post.image_urls) && post.image_urls[0]) || null)
+    : null;
+  const clickable = !!post;
+  const handle = () => {
+    if (!post) return;
+    if (toProfile) onOpenProfile?.(post.user_id);
+    else onOpenPost?.(post);
+  };
+  return (
+    <div onClick={clickable ? handle : undefined}
+      style={{ flex:"0 0 calc((100% - 16px) / 3)", minWidth:0, background:"white", borderRadius:14,
+               overflow:"hidden", cursor: clickable ? "pointer" : "default",
+               opacity: clickable ? 1 : 0.6, boxShadow:"0 2px 10px rgba(0,0,0,0.06)" }}>
+      <div style={{ width:"100%", aspectRatio:"1 / 1", background:C.tint,
+                    display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+        {cover
+          ? <img src={cover} alt="" loading="lazy"
+              style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+          : <span style={{ fontSize:26 }}>🐾</span>}
+      </div>
+      <div style={{ padding:"7px 8px 8px" }}>
+        <div style={{ fontSize:11, fontWeight:800, color:C.text,
+                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{label}</div>
+        <div style={{ fontSize:10, color:C.pri, fontWeight:600, marginTop:2 }}>
+          {post ? `${post.like_count || 0} 个点赞` : "暂无"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PostCard({ post, isLiked, onOpen, onToggleLike, onOpenTopic, onOpenProfile }) {
   const primaryName = post.pet?.name || post.user?.username || "未命名宠物";
   const breed = post.pet?.breed || "";

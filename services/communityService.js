@@ -15,6 +15,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { checkContent } from "@/services/contentFilter";
+import { CAT_BREEDS } from "@/services/breedAvatar";
 
 function requireSupabase() {
   if (!supabase) throw new Error("Supabase 未初始化");
@@ -405,27 +406,29 @@ export async function getHotTopics({ days = 7, top = 5 } = {}) {
 /**
  * ✨ 今日推荐：近 hours 小时内，按 likes*2 + comments*3 排序，取前 top（真实帖子封面）。
  */
-export async function getRecommendedPosts({ hours = 48, top = 3 } = {}) {
-  return cached(`recommend_${hours}_${top}`, FIVE_MIN, async () => {
+export async function getRecommendedPosts() {
+  return cached("recommendV2", FIVE_MIN, async () => {
     const sb = requireSupabase();
-    const since = new Date(Date.now() - hours * 3600000).toISOString();
     const { data, error } = await sb.from("posts")
       .select(`
         id, title, content, post_type, text_bg_color,
-        cover_thumbnail_url, cover_image_url, cover_aspect_ratio,
+        cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls,
         like_count, comment_count, created_at, hashtags,
         user_id, pet_id,
         user:users!posts_user_id_fkey ( username, avatar_url ),
         pet:pets!posts_pet_id_fkey ( name, breed, ai_avatar_url )
       `)
       .eq("status", "visible")
-      .gte("created_at", since)
+      .order("like_count", { ascending: false })
       .limit(100);
     if (error) throw new Error(`获取推荐失败: ${error.message}`);
-    return (data || [])
-      .map((p) => ({ ...p, _score: (p.like_count || 0) * 2 + (p.comment_count || 0) * 3 }))
-      .sort((a, b) => b._score - a._score)
-      .slice(0, top);
+    const posts = data || [];
+    // pets 表无 pet_type，用品种判断猫/狗；按获赞从高到低各取第一
+    const catSet = new Set(CAT_BREEDS);
+    const cat  = posts.find((p) => p.pet && catSet.has(p.pet.breed)) || null;
+    const dog  = posts.find((p) => p.pet && !catSet.has(p.pet.breed)) || null;
+    const post = posts[0] || null;
+    return { dog, cat, post };
   });
 }
 
