@@ -13,7 +13,7 @@
  */
 
 import { useRef, useState, useEffect } from "react";
-import { uploadPostImage, uploadPostVideo, createPost, cleanupUploadedImages } from "@/services/communityService";
+import { uploadPostImage, uploadPostVideoProgress, createPost, cleanupUploadedImages } from "@/services/communityService";
 import { makeImageVariants } from "@/services/imageCompress";
 import { captureVideoThumbnail, fmtDuration } from "@/services/videoThumb";
 
@@ -34,19 +34,21 @@ const TEXT_BG_COLORS = [
 ];
 
 export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
-  const [type, setType]         = useState("image");  // image | text
-  // 统一有序媒体：{ id, kind:'image'|'video', file, preview, thumbFile?, duration?, w?, h? }
+  const [type, setType]         = useState("image");  // image | video | text
+  // 有序媒体：图片帖=多张图片；视频帖=单个视频。{ id, kind, file, preview, thumbFile?, duration?, w?, h? }
   const [media, setMedia]       = useState([]);
   const [bgColor, setBgColor]   = useState(TEXT_BG_COLORS[0].color);
   const [title, setTitle]       = useState("");
   const [body, setBody]         = useState("");
 
-  const [phase, setPhase]       = useState("idle"); // idle | compressing | uploading | saving
+  const [phase, setPhase]       = useState("idle"); // idle | uploading | saving
   const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [videoPct, setVideoPct] = useState(0);      // 视频上传进度 0~100
 
   const abortRef    = useRef({ current: false });
   const uploadedRef = useRef([]); // [{url, path}]
   const fileInputRef = useRef(null);
+  const videoInputRef = useRef(null);
 
   /* 卸载时如果有未提交的上传，清掉 storage 里的孤儿文件 */
   useEffect(() => {
@@ -58,41 +60,47 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
     };
   }, []);
 
-  /* ── 图片 / 视频选择 ──────────────────────────────── */
+  /* 切换帖子类型时清空已选媒体 */
+  const changeType = (t) => {
+    if (isPublishing || t === type) return;
+    setMedia((prev) => { prev.forEach((m) => m.preview && URL.revokeObjectURL(m.preview)); return []; });
+    setVideoPct(0);
+    setType(t);
+  };
+
+  /* ── 选择媒体（按 type 区分图片帖 / 视频帖）─────────── */
   const handlePick = async (e) => {
     const files = Array.from(e.target.files || []);
     e.target.value = "";
     if (!files.length) return;
 
-    for (const f of files) {
-      if (media.length >= MAX_IMAGES) { toast?.(`最多 ${MAX_IMAGES} 个媒体`, "warn"); break; }
-      const isVideo = (f.type || "").startsWith("video/");
-      if (isVideo) {
-        if (media.some((m) => m.kind === "video")) {
-          toast?.("一个视频帖子只能上传一个视频哦", "warn");
-          continue;
-        }
-        if (f.size > MAX_VIDEO_MB * 1024 * 1024) {
-          toast?.(`视频太大啦，请上传 ${MAX_VIDEO_MB}MB 以内的视频`, "error");
-          continue;
-        }
-        const id = Math.random().toString(36).slice(2);
-        // 先占位，缩略图异步生成
-        setMedia((prev) => [...prev, { id, kind: "video", file: f, preview: null, thumbFile: null, duration: 0 }]);
-        try {
-          const { thumbFile, duration, width, height } = await captureVideoThumbnail(f);
-          const preview = URL.createObjectURL(thumbFile);
-          setMedia((prev) => prev.map((m) => m.id === id
-            ? { ...m, preview, thumbFile, duration, w: width, h: height } : m));
-        } catch {
-          // 抽帧失败 → 用默认封面（preview 仍为 null，UI 显示爪印占位）
-          setMedia((prev) => prev.map((m) => m.id === id ? { ...m, preview: null, duration: 0 } : m));
-        }
-      } else if ((f.type || "").startsWith("image/")) {
-        const id = Math.random().toString(36).slice(2);
-        const preview = URL.createObjectURL(f);
-        setMedia((prev) => [...prev, { id, kind: "image", file: f, preview }]);
+    if (type === "video") {
+      const f = files[0];
+      if (!(f.type || "").startsWith("video/")) { toast?.("请选择视频文件", "warn"); return; }
+      if (f.size > MAX_VIDEO_MB * 1024 * 1024) {
+        toast?.(`视频太大啦，请上传 ${MAX_VIDEO_MB}MB 以内的视频`, "error"); return;
       }
+      // 只允许一段视频：替换
+      setMedia((prev) => { prev.forEach((m) => m.preview && URL.revokeObjectURL(m.preview)); return []; });
+      const id = Math.random().toString(36).slice(2);
+      setMedia([{ id, kind: "video", file: f, preview: null, thumbFile: null, duration: 0 }]);
+      try {
+        const { thumbFile, duration, width, height } = await captureVideoThumbnail(f);
+        const preview = URL.createObjectURL(thumbFile);
+        setMedia((prev) => prev.map((m) => m.id === id ? { ...m, preview, thumbFile, duration, w: width, h: height } : m));
+      } catch {
+        setMedia((prev) => prev.map((m) => m.id === id ? { ...m, duration: 0 } : m));
+      }
+      return;
+    }
+
+    // 图片帖：多张图片
+    for (const f of files) {
+      if (media.length >= MAX_IMAGES) { toast?.(`最多 ${MAX_IMAGES} 张图片`, "warn"); break; }
+      if (!(f.type || "").startsWith("image/")) continue;
+      const id = Math.random().toString(36).slice(2);
+      const preview = URL.createObjectURL(f);
+      setMedia((prev) => [...prev, { id, kind: "image", file: f, preview }]);
     }
   };
 
@@ -114,9 +122,9 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
   /* ── 发布 ──────────────────────────────────────────── */
   const isPublishing = phase !== "idle";
   const canPublish = !isPublishing && (
-    type === "image"
-      ? (media.length > 0)               // 图文帖：至少 1 个媒体
-      : (title.trim() || body.trim())    // 文字帖：标题或正文非空
+    type === "image" ? media.length > 0 :                  // 图片帖：至少 1 张
+    type === "video" ? media.some((m) => m.kind === "video") : // 视频帖：有视频
+    (title.trim() || body.trim())                          // 文字帖：标题/正文非空
   );
 
   const handlePublish = async () => {
@@ -131,7 +139,7 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
       let mediaItems       = [];   // 有序媒体（图片/视频）
       let coverAspectRatio = null;
 
-      if (type === "image" && media.length > 0) {
+      if (type !== "text" && media.length > 0) {
         setPhase("uploading");
         setProgress({ done: 0, total: media.length });
         for (let i = 0; i < media.length; i++) {
@@ -151,16 +159,17 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
             mediaItems.push({ type: "image", url: dispR.url, thumbnail_url: thumbR.url });
             if (i === 0 && width && height) coverAspectRatio = +(width / height).toFixed(4);
           } else {
-            // 视频：先传视频，再传缩略图（若有）
-            const vidR = await uploadPostVideo(item.file, user.id, abortRef.current);
-            uploadedRef.current.push(vidR);
+            // 视频：先传缩略图（小），再带进度上传视频
             let thumbUrl = null;
             if (item.thumbFile) {
-              if (abortRef.current.current) throw _abort();
               const tR = await uploadPostImage(item.thumbFile, user.id, abortRef.current);
               uploadedRef.current.push(tR);
               thumbUrl = tR.url;
             }
+            if (abortRef.current.current) throw _abort();
+            setVideoPct(0);
+            const vidR = await uploadPostVideoProgress(item.file, user.id, (r) => setVideoPct(Math.round(r * 100)));
+            uploadedRef.current.push(vidR);
             mediaItems.push({ type: "video", url: vidR.url, thumbnail_url: thumbUrl, duration: item.duration || 0 });
             if (i === 0 && item.w && item.h) coverAspectRatio = +(item.w / item.h).toFixed(4);
           }
@@ -177,12 +186,12 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
         petId:            pet?.id,
         title:            title.trim(),
         content:          body,
-        postType:         type,
-        displayImageUrls: type === "image" ? displayImageUrls : [],
-        thumbnailUrls:    type === "image" ? thumbnailUrls : [],
-        mediaItems:       type === "image" ? mediaItems : [],
-        coverAspectRatio: type === "image" ? coverAspectRatio : null,
-        textBgColor:      type === "text"  ? bgColor : null,
+        postType:         type === "text" ? "text" : "image",
+        displayImageUrls: type === "text" ? [] : displayImageUrls,
+        thumbnailUrls:    type === "text" ? [] : thumbnailUrls,
+        mediaItems:       type === "text" ? [] : mediaItems,
+        coverAspectRatio: type === "text" ? null : coverAspectRatio,
+        textBgColor:      type === "text" ? bgColor : null,
       });
 
       // 成功后清空 uploadedRef（不再需要 cleanup）
@@ -230,7 +239,7 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
             取消
           </button>
           <div style={{ flex:1, textAlign:"center", fontSize:15, fontWeight:700, color:C.text }}>
-            发布{type === "image" ? "图片" : "文字"}帖
+            发布{type === "image" ? "图片" : type === "video" ? "视频" : "文字"}帖
           </div>
           <button onClick={handlePublish} disabled={!canPublish}
             style={{ padding:"6px 14px", borderRadius:14, fontSize:13, fontWeight:700,
@@ -239,9 +248,8 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
                      border:"none",
                      cursor: canPublish ? "pointer" : "default",
                      minWidth: 70 }}>
-            {phase === "compressing" ? "压缩…" :
-             phase === "uploading"   ? `${progress.done}/${progress.total}` :
-             phase === "saving"      ? "保存…" : "发布"}
+            {phase === "uploading" ? (type === "video" ? `${videoPct}%` : `${progress.done}/${progress.total}`) :
+             phase === "saving"    ? "保存…" : "发布"}
           </button>
         </div>
 
@@ -250,13 +258,14 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
           <div style={{ display:"flex", gap:8, marginBottom:14 }}>
             {[
               { key:"image", label:"📷 图片帖" },
+              { key:"video", label:"🎬 视频帖" },
               { key:"text",  label:"📝 文字帖" },
             ].map((t) => {
               const on = type === t.key;
               return (
-                <button key={t.key} onClick={() => !isPublishing && setType(t.key)}
+                <button key={t.key} onClick={() => changeType(t.key)}
                   disabled={isPublishing}
-                  style={{ flex:1, padding:"10px 0", borderRadius:14, fontSize:13,
+                  style={{ flex:1, padding:"10px 0", borderRadius:14, fontSize:12.5,
                            fontWeight:600,
                            background: on ? C.pri : "white",
                            color: on ? "white" : C.text,
@@ -269,10 +278,70 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
             })}
           </div>
 
-          {/* 图文模式：选图片 / 视频 */}
+          {/* 视频帖：仅一段视频 + 上传进度 */}
+          {type === "video" && (
+            <>
+              <input ref={videoInputRef} type="file" accept="video/*"
+                     onChange={handlePick} disabled={isPublishing}
+                     style={{ display:"none" }} />
+              {media.length === 0 ? (
+                <button onClick={() => videoInputRef.current?.click()} disabled={isPublishing}
+                  style={{ width:"100%", aspectRatio:"16 / 10", borderRadius:16,
+                           border:`1.5px dashed ${C.border}`, background:"white", color:C.sub,
+                           cursor: isPublishing ? "default" : "pointer", marginBottom:8,
+                           display:"flex", flexDirection:"column", alignItems:"center",
+                           justifyContent:"center", gap:8 }}>
+                  <span style={{ fontSize:36 }}>🎬</span>
+                  <span style={{ fontSize:13, fontWeight:600 }}>选择一段视频</span>
+                  <span style={{ fontSize:11 }}>仅支持一段视频 · ≤ {MAX_VIDEO_MB}MB</span>
+                </button>
+              ) : media.map((m) => (
+                <div key={m.id} style={{ position:"relative", width:"100%", aspectRatio:"16 / 10",
+                                         borderRadius:16, overflow:"hidden", background:"#000", marginBottom:8 }}>
+                  {m.preview
+                    ? <img src={m.preview} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                    : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center",
+                                    justifyContent:"center", fontSize:40 }}>🎬</div>}
+                  <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <span style={{ width:48, height:48, borderRadius:"50%", background:"rgba(0,0,0,0.42)",
+                                   display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <span style={{ borderLeft:"16px solid white", borderTop:"10px solid transparent",
+                                     borderBottom:"10px solid transparent", marginLeft:4 }} />
+                    </span>
+                  </div>
+                  {m.duration > 0 && (
+                    <div style={{ position:"absolute", right:8, bottom:8, background:"rgba(0,0,0,0.6)",
+                                  color:"white", fontSize:11, padding:"1px 6px", borderRadius:6 }}>
+                      {fmtDuration(m.duration)}
+                    </div>
+                  )}
+                  {!isPublishing && (
+                    <button onClick={() => removePicked(0)}
+                      style={{ position:"absolute", top:8, right:8, width:24, height:24, borderRadius:"50%",
+                               background:"rgba(0,0,0,0.6)", color:"white", border:"none", cursor:"pointer",
+                               fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+                  )}
+                  {isPublishing && (
+                    <div style={{ position:"absolute", left:0, right:0, bottom:0, padding:"8px 10px",
+                                  background:"rgba(0,0,0,0.55)" }}>
+                      <div style={{ height:4, borderRadius:999, background:"rgba(255,255,255,0.3)", overflow:"hidden" }}>
+                        <div style={{ height:"100%", width:`${videoPct}%`, background:C.pri, transition:"width .2s" }} />
+                      </div>
+                      <div style={{ color:"white", fontSize:11, marginTop:4, textAlign:"center" }}>视频上传中 {videoPct}%</div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div style={{ fontSize:11, color:C.sub, marginBottom:14 }}>
+                一个视频帖只能上传一段视频
+              </div>
+            </>
+          )}
+
+          {/* 图片帖：多张图片 */}
           {type === "image" && (
             <>
-              <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple
+              <input ref={fileInputRef} type="file" accept="image/*" multiple
                      onChange={handlePick} disabled={isPublishing}
                      style={{ display:"none" }} />
               <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)",
@@ -341,7 +410,7 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
                 )}
               </div>
               <div style={{ fontSize:11, color:C.sub, marginBottom:14 }}>
-                支持图片 / 视频（视频 ≤ {MAX_VIDEO_MB}MB）
+                最多 {MAX_IMAGES} 张图片
               </div>
             </>
           )}
@@ -405,9 +474,8 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
 
           {isPublishing && (
             <div style={{ marginTop:14, textAlign:"center", fontSize:12, color:C.sub }}>
-              {phase === "compressing" && "🗜️ 正在压缩图片…"}
-              {phase === "uploading"   && `📤 正在上传 ${progress.done}/${progress.total}`}
-              {phase === "saving"      && "💾 正在保存…"}
+              {phase === "uploading" && (type === "video" ? `📤 视频上传中 ${videoPct}%` : `📤 正在上传 ${progress.done}/${progress.total}`)}
+              {phase === "saving"    && "💾 正在保存…"}
             </div>
           )}
         </div>

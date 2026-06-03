@@ -648,7 +648,7 @@ function ImmersiveVideo({
         {/* 视频 */}
         {state !== "error" ? (
           <video ref={vRef} src={videoUrl || undefined} poster={posterUrl || undefined}
-            autoPlay muted loop playsInline preload="auto"
+            autoPlay muted loop playsInline preload="metadata"
             onClick={togglePlay}
             onLoadedData={() => setState("ready")}
             onCanPlay={() => setState("ready")}
@@ -863,7 +863,7 @@ function DetailVideo({ src, poster }) {
     <div style={{ position:"relative", width:"100%", background:"#000",
                   display:"flex", alignItems:"center", justifyContent:"center" }}>
       <video ref={ref} src={src} poster={poster || undefined}
-        autoPlay muted loop playsInline preload="auto"
+        autoPlay muted loop playsInline preload="metadata"
         onClick={togglePlay}
         onLoadedData={() => setState("ready")}
         onCanPlay={() => setState("ready")}

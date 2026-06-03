@@ -810,6 +810,47 @@ export async function uploadPostImage(file, userId, abortFlag) {
 }
 
 /**
+ * 上传视频到 post-images bucket，带真实上传进度（XHR）。
+ * onProgress: (ratio 0~1) => void
+ * 返回 { url, path }
+ */
+export function uploadPostVideoProgress(file, userId, onProgress) {
+  return new Promise((resolve, reject) => {
+    if (!file || !userId) return reject(new Error("缺少 file 或 userId"));
+    if (file.size > 50 * 1024 * 1024) return reject(new Error("视频太大啦，请上传 50MB 以内的视频"));
+
+    const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!base || !key) return reject(new Error("Supabase 未配置"));
+
+    const ext = (file.name?.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const safeExt = ["mp4", "mov", "webm", "m4v"].includes(ext) ? ext : "mp4";
+    const path = `${userId}/video-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${safeExt}`;
+    const endpoint = `${base}/storage/v1/object/post-images/${path}`;
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", endpoint, true);
+    xhr.setRequestHeader("authorization", `Bearer ${key}`);
+    xhr.setRequestHeader("apikey", key);
+    xhr.setRequestHeader("x-upsert", "false");
+    xhr.setRequestHeader("cache-control", "86400");
+    if (file.type) xhr.setRequestHeader("content-type", file.type);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress?.(e.loaded / e.total); };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve({ url: `${base}/storage/v1/object/public/post-images/${path}`, path });
+      } else {
+        reject(new Error(`视频上传失败 (${xhr.status})`));
+      }
+    };
+    xhr.onerror = () => reject(new Error("视频上传失败，请检查网络后重试"));
+    xhr.ontimeout = () => reject(new Error("视频上传超时，请重试"));
+    xhr.timeout = 180000; // 3 分钟
+    xhr.send(file);
+  });
+}
+
+/**
  * 上传一个视频到 post-images bucket（复用现有 bucket，≤50MB）。
  * abortFlag: { current: boolean }
  */
