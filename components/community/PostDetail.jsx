@@ -10,7 +10,7 @@
  *  - 评论树形（1 级嵌套），可点赞/回复/删除
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   getPostById,
   listComments, createComment,
@@ -301,11 +301,8 @@ export default function PostDetail({
                 const ar = i === 0 ? firstAspect : 1;
                 if (m.type === "video") {
                   return (
-                    <div key={i} style={{ flex:"0 0 100%", scrollSnapAlign:"start",
-                                          aspectRatio:`${ar} / 1`, background:"#000" }}>
-                      <video src={m.url} poster={m.thumbnail_url || undefined}
-                        controls preload="metadata" playsInline
-                        style={{ width:"100%", height:"100%", objectFit:"contain", display:"block" }} />
+                    <div key={i} style={{ flex:"0 0 100%", scrollSnapAlign:"start", background:"#000" }}>
+                      <DetailVideo src={m.url} poster={m.thumbnail_url || null} />
                     </div>
                   );
                 }
@@ -474,6 +471,73 @@ function CommentBlock({ c, user, replies, isLiked, likedReplies, onToggleLike, o
 }
 
 /* ── 详情页单张图片：模糊缩略图占位 → 高清图渐显 ─────────── */
+/* TikTok 式视频：进入即静音自动循环播放 + 声音开关 + 点击暂停/播放 */
+function DetailVideo({ src, poster }) {
+  const ref = useRef(null);
+  const [muted, setMuted] = useState(true);
+  const [state, setState] = useState(src ? "loading" : "error"); // loading | ready | error
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || !src) return;
+    v.muted = true;
+    const t = setTimeout(() => { v.play?.().catch(() => {}); }, 0);
+    return () => clearTimeout(t);
+  }, [src]);
+
+  const toggleMute = (e) => {
+    e.stopPropagation();
+    const v = ref.current; if (!v) return;
+    const next = !muted;
+    setMuted(next); v.muted = next;
+    if (!next) v.play?.().catch(() => {});
+  };
+  const togglePlay = () => {
+    const v = ref.current; if (!v) return;
+    if (v.paused) v.play?.().catch(() => {}); else v.pause?.();
+  };
+
+  if (state === "error") {
+    return (
+      <div style={{ width:"100%", minHeight:240, background:"#000", color:"#bbb",
+                    display:"flex", alignItems:"center", justifyContent:"center", fontSize:13 }}>
+        视频加载失败，请稍后再试
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position:"relative", width:"100%", background:"#000",
+                  display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <video ref={ref} src={src} poster={poster || undefined}
+        autoPlay muted loop playsInline preload="auto"
+        onClick={togglePlay}
+        onLoadedData={() => setState("ready")}
+        onCanPlay={() => setState("ready")}
+        onError={() => setState("error")}
+        style={{ width:"100%", maxHeight:420, objectFit:"contain", display:"block", background:"#000" }} />
+
+      {state === "loading" && (
+        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center",
+                      pointerEvents:"none" }}>
+          <span style={{ width:30, height:30, borderRadius:"50%",
+                         border:"3px solid rgba(255,255,255,0.35)", borderTopColor:"#fff",
+                         animation:"vspin .8s linear infinite" }} />
+        </div>
+      )}
+
+      <button onClick={toggleMute}
+        style={{ position:"absolute", top:10, right:10, width:36, height:36, borderRadius:"50%",
+                 background:"rgba(0,0,0,0.45)", border:"none", cursor:"pointer", color:"white",
+                 fontSize:16, display:"flex", alignItems:"center", justifyContent:"center",
+                 backdropFilter:"blur(2px)", WebkitBackdropFilter:"blur(2px)" }}>
+        {muted ? "🔇" : "🔊"}
+      </button>
+      <style>{`@keyframes vspin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
 function DetailImage({ src, thumb, aspectRatio, eager, onClick }) {
   const [loaded, setLoaded] = useState(false);
 
