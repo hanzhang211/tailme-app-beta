@@ -122,7 +122,7 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
   const doSendText = async () => {
     const text = inp.trim();
     if (!text || sending || !convId) return;
-    if (!canText) { flash("对方回关你后才能继续聊天哦 🐾"); return; }
+    if (!canText) { flash("对方回复后才能继续聊天哦 🐾"); return; }
     setSending(true); setInp("");
     try {
       const saved = await sendPrivateText({ convId, senderId: meId, receiverId: target.id, content: text });
@@ -234,8 +234,8 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
                       padding:"9px 16px", fontSize:11.5, color:"#9A7B55", textAlign:"center",
                       lineHeight:1.5, flexShrink:0 }}>
           {canText
-            ? "你们还不是互相关注，只能先发一条消息打个招呼～（对方回关后可畅聊、发图片）"
-            : "对方回关你后才能继续聊天 · 发图片 🐾"}
+            ? "只能先发一条消息打个招呼～ 对方回复后即可继续聊天（互相关注后可发图片）"
+            : "对方回复后才能继续聊天 🐾"}
         </div>
       )}
 
@@ -255,7 +255,7 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
           onChange={(e) => setInp(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && doSendText()}
           disabled={!canText}
-          placeholder={canText ? "输入消息..." : "对方回关后才能继续聊天"}
+          placeholder={canText ? "输入消息..." : "对方回复后才能继续聊天"}
           style={{ flex:1, borderRadius:999, padding:"10px 16px", fontSize:14, minWidth:0,
                    border:`1.5px solid ${C.border}`, background:C.bg,
                    color: canText ? C.text : C.sub, outline:"none",
