@@ -123,31 +123,61 @@ export default function UserProfile({ viewerId, userId, onClose }) {
   const name = user?.username || "毛孩子家长";
 
   return (
-    <div style={{ position:"absolute", inset:0, zIndex:120, background:C.bg,
-                  display:"flex", flexDirection:"column" }}>
-      {/* 顶栏 */}
-      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"52px 16px 12px",
-                    background:"white", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
-        <button onClick={onClose}
-          style={{ width:34, height:34, borderRadius:999, background:C.bg, border:`1px solid ${C.border}`,
-                   cursor:"pointer", fontSize:18, color:C.text }}>‹</button>
-        <div style={{ fontSize:16, fontWeight:800, color:C.text,
-                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{name}</div>
-      </div>
+    <div style={{ position:"absolute", inset:0, zIndex:120, background:C.bg }}>
+      {/* 返回（浮于顶部，始终可见）*/}
+      <button onClick={onClose}
+        style={{ position:"absolute", top:50, left:14, zIndex:6, width:36, height:36, borderRadius:"50%",
+                 background:"rgba(255,255,255,0.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)",
+                 border:"none", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", cursor:"pointer",
+                 fontSize:20, color:C.text, display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
 
-      <div ref={scrollRef} style={{ flex:1, overflowY:"auto" }}>
-        {/* 头部 */}
-        <div style={{ background:"white", padding:"20px 18px 18px" }}>
+      <div ref={scrollRef} style={{ height:"100%", overflowY:"auto" }}>
+        {/* 顶部背景图（该用户自定义；无则米白渐变 + 淡爪印）*/}
+        <div style={{ position:"relative", width:"100%", height:200, overflow:"hidden" }}>
+          {user?.profile_background_url ? (
+            <img src={user.profile_background_url} alt="" loading="lazy"
+              style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />
+          ) : (
+            <>
+              <div style={{ position:"absolute", inset:0,
+                            background:"linear-gradient(135deg, #F4E7DA 0%, #EEE6DB 55%, #EEE9E1 100%)" }} />
+              <svg width="200" height="150" viewBox="0 0 200 150" aria-hidden="true"
+                style={{ position:"absolute", top:24, right:-10, opacity:0.45, pointerEvents:"none" }}>
+                <g fill="#E4D6C4">
+                  <ellipse cx="120" cy="44" rx="13" ry="17"/>
+                  <ellipse cx="148" cy="30" rx="13" ry="17"/>
+                  <ellipse cx="176" cy="36" rx="12" ry="16"/>
+                  <path d="M112 74 q-12 24 13 31 q26 7 47 -2 q18 -11 7 -28 q-13 -16 -35 -16 q-23 0 -32 15Z"/>
+                </g>
+              </svg>
+            </>
+          )}
+          {/* 底部渐变遮罩 → 米白 */}
+          <div style={{ position:"absolute", inset:0, pointerEvents:"none",
+                        background:"linear-gradient(to bottom, rgba(0,0,0,0.06) 0%, rgba(238,233,225,0) 30%, rgba(238,233,225,0.5) 80%, #EEE9E1 100%)" }} />
+        </div>
+
+        {/* 用户卡：头像叠在背景下方 */}
+        <div style={{ position:"relative", zIndex:2, margin:"-50px 14px 0",
+                      background:"white", borderRadius:24, padding:"14px 16px 18px",
+                      boxShadow:"0 4px 20px rgba(0,0,0,0.06)" }}>
           <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-            <Avatar url={user?.avatar_url} size={64} />
+            <div style={{ marginTop:-46, flexShrink:0 }}>
+              <div style={{ width:92, height:92, borderRadius:"50%", background:"white", padding:4,
+                            boxSizing:"border-box", boxShadow:"0 4px 14px rgba(0,0,0,0.12)" }}>
+                <Avatar url={user?.avatar_url} size={84} />
+              </div>
+            </div>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:18, fontWeight:800, color:C.text }}>{name}</div>
+              <div style={{ fontSize:20, fontWeight:800, color:C.text,
+                            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{name}</div>
+              {user?.user_no && <div style={{ fontSize:12, color:C.sub, marginTop:4 }}>用户号 {user.user_no}</div>}
               {user?.city && <div style={{ fontSize:12, color:C.sub, marginTop:3 }}>📍 {user.city}</div>}
             </div>
           </div>
 
           {/* 统计三列 */}
-          <div style={{ display:"flex", marginTop:18, marginBottom:16 }}>
+          <div style={{ display:"flex", marginTop:16, marginBottom: isSelf ? 0 : 16 }}>
             <Stat n={counts.following} label="关注" />
             <Stat n={counts.followers} label="粉丝" />
             <Stat n={likes}            label="获赞" />
