@@ -28,6 +28,7 @@ import {
 } from "@/services/communityService";
 import { avatarForBreed } from "@/services/breedAvatar";
 import PetAvatar from "@/components/PetAvatar";
+import BreedIcon from "@/components/icons/BreedIcon";
 import PrivateChatList from "./PrivateChatList";
 import PrivateChatDetail from "./PrivateChatDetail";
 
@@ -288,7 +289,7 @@ export default function ChatRoom({ user, pet, pets = [] }) {
               const jr = joinedRooms.find((j) => j.breed === breed);
               return (
                 <ExclusiveCard key={breed}
-                  icon={avatarForBreed(breed, pet_type)} title={`${breed}群`}
+                  icon={<BreedIcon breed={breed} petType={pet_type} size={30} isMyBreed />} title={`${breed}群`}
                   desc={`一起分享${breed}的日常生活`}
                   members={s?.members} online={s?.online}
                   unread={jr ? unreadOf(jr.id, jr.recent) : 0}
@@ -310,7 +311,7 @@ export default function ChatRoom({ user, pet, pets = [] }) {
             const s = groupStats.statByBreed[r.breed];
             return (
               <JoinedRow key={r.id}
-                icon={avatarForBreed(r.breed, r.pet_type)} title={roomDisplay(r)}
+                icon={<BreedIcon breed={r.breed} petType={r.pet_type} size={28} />} title={roomDisplay(r)}
                 lastMsg={r.lastMsg} members={s?.members} online={s?.online}
                 unread={unreadOf(r.id, r.recent)}
                 onClick={() => enterRoom(r.id)} />
@@ -327,7 +328,7 @@ export default function ChatRoom({ user, pet, pets = [] }) {
                 <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none", marginBottom:8 }}>
                   {groupStats.hotGroups.map((g, i) => (
                     <HotGroupCard key={g.roomId} rank={i + 1}
-                      icon={avatarForBreed(g.breed, g.pet_type)} title={`${g.breed}群`}
+                      icon={<BreedIcon breed={g.breed} petType={g.pet_type} size={28} />} title={`${g.breed}群`}
                       members={g.members}
                       onClick={() => enterBreedRoom({ breed: g.breed, pet_type: g.pet_type })} />
                   ))}
@@ -413,8 +414,8 @@ export default function ChatRoom({ user, pet, pets = [] }) {
                        boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
               <span style={{ width:36, height:36, borderRadius:"50%", background:C.tint,
                              display:"flex", alignItems:"center", justifyContent:"center",
-                             fontSize:18, flexShrink:0 }}>
-                {avatarForBreed(r.breed, isCat ? "cat" : "dog")}
+                             flexShrink:0 }}>
+                <BreedIcon breed={r.breed} petType={isCat ? "cat" : "dog"} size={26} />
               </span>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:14, fontWeight:600, color:C.text }}>{r.breed}群聊</div>
