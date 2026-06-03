@@ -28,6 +28,8 @@ import {
 } from "@/services/communityService";
 import { avatarForBreed } from "@/services/breedAvatar";
 import PetAvatar from "@/components/PetAvatar";
+import PrivateChatList from "./PrivateChatList";
+import PrivateChatDetail from "./PrivateChatDetail";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
@@ -55,6 +57,10 @@ function relTime(iso) {
 const roomDisplay = (r) => !r ? "" : (r.breed === null ? "全部闲聊" : `${r.breed}群聊`);
 
 export default function ChatRoom({ user, pet, pets = [] }) {
+  /* 顶层分区：群聊 / 私聊（私聊为新增，群聊原样保留）*/
+  const [section, setSection] = useState("group"); // group | private
+  const [pmSel,   setPmSel]   = useState(null);     // 私聊详情：{ conversationId?, other }
+
   const [rooms,        setRooms]        = useState([]);
   const [view,         setView]         = useState("lobby");   // lobby | more | room
   const [activeRoomId, setActiveRoomId] = useState(null);
@@ -221,6 +227,28 @@ export default function ChatRoom({ user, pet, pets = [] }) {
   };
 
   /* ════════════════════════════════════════════════
+     section: private（私聊）—— 独立于群聊
+     ════════════════════════════════════════════════ */
+  if (section === "private") {
+    return (
+      <div style={{ height:"100%", position:"relative", background:C.bg }}>
+        <div style={{ height:"100%", overflowY:"auto", padding:"14px 16px 28px" }}>
+          <ChatSectionToggle section={section} onChange={setSection} />
+          <PrivateChatList meId={user?.id} onOpen={setPmSel} />
+        </div>
+        {pmSel && (
+          <PrivateChatDetail
+            meId={user?.id}
+            target={pmSel.other}
+            conversationId={pmSel.conversationId || null}
+            onClose={() => setPmSel(null)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  /* ════════════════════════════════════════════════
      view: lobby
      ════════════════════════════════════════════════ */
   if (view === "lobby") {
@@ -232,6 +260,9 @@ export default function ChatRoom({ user, pet, pets = [] }) {
 
     return (
       <div style={{ height:"100%", overflowY:"auto", background:C.bg, padding:"14px 16px 28px" }}>
+
+        {/* 群聊 / 私聊 分区切换（私聊为新增）*/}
+        <ChatSectionToggle section={section} onChange={setSection} />
 
         {/* 群聊 / 我的群 切换 */}
         <div style={{ display:"flex", gap:10, marginBottom:18 }}>
@@ -467,6 +498,28 @@ export default function ChatRoom({ user, pet, pets = [] }) {
 /* ──────────────────────────────────────────────────
    小组件
    ────────────────────────────────────────────────── */
+/* 群聊 / 私聊 分段切换（顶层分区）*/
+function ChatSectionToggle({ section, onChange }) {
+  return (
+    <div style={{ display:"flex", gap:6, background:C.tint, borderRadius:999, padding:4, marginBottom:16 }}>
+      {[["group", "群聊"], ["private", "私聊"]].map(([key, label]) => {
+        const on = section === key;
+        return (
+          <button key={key} onClick={() => onChange(key)}
+            style={{ flex:1, padding:"9px 0", borderRadius:999, fontSize:14,
+                     fontWeight: on ? 800 : 600, border:"none", cursor:"pointer",
+                     background: on ? "white" : "transparent",
+                     color: on ? C.pri : C.sub,
+                     boxShadow: on ? "0 2px 8px rgba(0,0,0,0.08)" : "none",
+                     transition:"all .15s" }}>
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Center({ children, color }) {
   return (
     <div style={{ height:"100%", display:"flex", alignItems:"center", justifyContent:"center",

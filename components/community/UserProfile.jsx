@@ -16,6 +16,7 @@ import {
 } from "@/services/communityService";
 import { PostCard, splitTwoCols } from "./PostFeed";
 import PostDetail from "./PostDetail";
+import PrivateChatDetail from "./PrivateChatDetail";
 import { avatarForBreed } from "@/services/breedAvatar";
 import { formatPetAge } from "@/services/petAge";
 
@@ -35,6 +36,7 @@ export default function UserProfile({ viewerId, userId, onClose }) {
   const [following, setFollowing] = useState(false);
   const [busy,   setBusy]   = useState(false);
   const [loading, setLoading] = useState(true);
+  const [pmOpen, setPmOpen] = useState(false); // 私聊浮层
 
   const [posts,    setPosts]    = useState([]);
   const [likedSet, setLikedSet] = useState(new Set());
@@ -151,16 +153,25 @@ export default function UserProfile({ viewerId, userId, onClose }) {
             <Stat n={likes}            label="获赞" />
           </div>
 
-          {/* 关注按钮（自己主页不显示） */}
+          {/* 关注 + 私聊（自己主页不显示）*/}
           {!isSelf && (
-            <button onClick={toggleFollow} disabled={busy}
-              style={{ width:"100%", height:42, borderRadius:999, fontSize:14, fontWeight:700,
-                       cursor: busy ? "default" : "pointer",
-                       background: following ? "white" : C.pri,
-                       color: following ? C.sub : "white",
-                       border: following ? `1px solid ${C.border}` : "none" }}>
-              {following ? "已关注" : "+ 关注"}
-            </button>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={toggleFollow} disabled={busy}
+                style={{ flex:1, height:42, borderRadius:999, fontSize:14, fontWeight:700,
+                         cursor: busy ? "default" : "pointer",
+                         background: following ? "white" : C.pri,
+                         color: following ? C.sub : "white",
+                         border: following ? `1px solid ${C.border}` : "none" }}>
+                {following ? "已关注" : "+ 关注"}
+              </button>
+              <button onClick={() => setPmOpen(true)}
+                style={{ flex:1, height:42, borderRadius:999, fontSize:14, fontWeight:700,
+                         cursor:"pointer", background:"white", color:C.pri,
+                         border:`1px solid #F0C9A8`,
+                         display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                💬 私聊
+              </button>
+            </div>
           )}
         </div>
 
@@ -236,6 +247,14 @@ export default function UserProfile({ viewerId, userId, onClose }) {
           onDeleted={(id) => setPosts((prev) => prev.filter((p) => p.id !== id))}
           onClose={() => setDetailId(null)}
           toast={() => {}} />
+      )}
+
+      {pmOpen && !isSelf && (
+        <PrivateChatDetail
+          meId={viewerId}
+          target={{ id: userId, username: name, avatar_url: user?.avatar_url }}
+          onClose={() => setPmOpen(false)}
+        />
       )}
     </div>
   );
