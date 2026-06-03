@@ -338,16 +338,26 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
 
       <div style={{ padding:"14px 14px 0" }}>
         <button onClick={() => setComposeOpen(true)}
-          style={{ width:"100%", padding:"12px 16px", textAlign:"left",
-                   borderRadius:18, fontSize:13, color:C.sub,
+          style={{ width:"100%", padding:"13px 14px", textAlign:"left",
+                   borderRadius:20, fontSize:13.5, color:C.sub,
                    background:"white", border:`1px solid ${C.border}`,
                    cursor:"pointer",
                    boxShadow:"0 2px 8px rgba(0,0,0,0.04)",
                    display:"flex", alignItems:"center", gap:10 }}>
-          <span style={{ width:30, height:30, borderRadius:"50%", background:C.tint,
+          <span style={{ width:32, height:32, borderRadius:"50%", background:C.tint,
                          display:"flex", alignItems:"center", justifyContent:"center",
-                         fontSize:14 }}>✏️</span>
-          分享 {pet?.name || "你的宠物"} 的日常...
+                         fontSize:15, flexShrink:0 }}>✏️</span>
+          <span style={{ flex:1, minWidth:0, overflow:"hidden",
+                         textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            分享 {pet?.name || "你的宠物"} 的日常...
+          </span>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+            style={{ flexShrink:0 }}>
+            <rect x="3" y="4" width="18" height="16" rx="3" stroke={C.sub} strokeWidth="1.8"/>
+            <circle cx="8.5" cy="9.5" r="1.8" fill={C.sub}/>
+            <path d="M5 18l5-5 4 4 2-2 3 3" stroke={C.sub} strokeWidth="1.8" fill="none"
+                  strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </button>
       </div>
 
@@ -549,7 +559,7 @@ function RecommendCard({ label, post, toProfile, onOpenProfile, onOpenPost }) {
   };
   return (
     <div onClick={clickable ? handle : undefined}
-      style={{ flex:"0 0 calc((100% - 16px) / 3)", minWidth:0, background:"white", borderRadius:14,
+      style={{ flex:"0 0 calc((100% - 16px) / 3)", minWidth:0, background:"white", borderRadius:18,
                overflow:"hidden", cursor: clickable ? "pointer" : "default",
                opacity: clickable ? 1 : 0.6, boxShadow:"0 2px 10px rgba(0,0,0,0.06)" }}>
       <div style={{ width:"100%", aspectRatio:"1 / 1", background:C.tint,
@@ -580,7 +590,7 @@ export function PostCard({ post, isLiked, onOpen, onToggleLike, onOpenTopic, onO
 
   return (
     <div onClick={onOpen}
-      style={{ background:"white", borderRadius:14, overflow:"hidden",
+      style={{ background:"white", borderRadius:18, overflow:"hidden",
                cursor:"pointer", boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
 
       {/* 封面 */}
