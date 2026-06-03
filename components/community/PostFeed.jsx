@@ -562,7 +562,7 @@ function RecommendCard({ label, post, toProfile, onOpenProfile, onOpenPost }) {
       style={{ flex:"0 0 calc((100% - 16px) / 3)", minWidth:0, background:"white", borderRadius:18,
                overflow:"hidden", cursor: clickable ? "pointer" : "default",
                opacity: clickable ? 1 : 0.6, boxShadow:"0 2px 10px rgba(0,0,0,0.06)" }}>
-      <div style={{ width:"100%", aspectRatio:"1 / 1", background:C.tint,
+      <div style={{ width:"100%", aspectRatio:"3 / 2", background:C.tint,
                     display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
         {cover
           ? <img src={cover} alt="" loading="lazy"
