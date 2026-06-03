@@ -176,6 +176,9 @@ ALTER TABLE reports    ENABLE ROW LEVEL SECURITY;
 -- 房间：任意人可读
 CREATE POLICY "read_rooms" ON chat_rooms
   FOR SELECT USING (true);
+-- 房间：anon 可按需创建品种群（预置之外的品种点击进入时自动建房）
+CREATE POLICY "insert_rooms" ON chat_rooms
+  FOR INSERT WITH CHECK (true);
 
 -- 帖子/评论/消息：anon 只能读 visible
 CREATE POLICY "read_visible_posts" ON posts
