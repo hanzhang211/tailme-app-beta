@@ -371,7 +371,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
             <div style={{ display:"flex", background:"white", borderRadius:24, padding:"18px 0",
                           boxShadow:"0 2px 14px rgba(0,0,0,0.05)" }}>
               {[
-                { label:"获赞", val: stats.totalLikes,        icon:<HeartStatIcon />, onClick: null },
+                { label:"获赞", val: stats.totalLikes,        icon:<PawLikeIcon filled color="#E68645" size={20} />, onClick: null },
                 { label:"关注", val: followCounts.following,  icon:<UsersStatIcon />, onClick: () => setFollowView("following") },
                 { label:"粉丝", val: followCounts.followers,  icon:<FansStatIcon />,  onClick: () => setFollowView("followers") },
               ].map((s, i) => (
