@@ -39,7 +39,7 @@ function fmtRelTime(iso) {
 
 export default function PostDetail({
   postId, user, pet, initialLiked,
-  onLikeChange, onDeleted, onClose, toast,
+  onLikeChange, onDeleted, onClose, toast, onOpenProfile,
 }) {
   const [post,     setPost]     = useState(null);
   const [loadingPost, setLoadingPost] = useState(true);
@@ -236,10 +236,14 @@ export default function PostDetail({
                      cursor:"pointer", padding:"4px 6px" }}>
             ←
           </button>
-          <PetAvatar pet={post?.pet} overrideUrl={post?.user?.avatar_url} size={32} bg={C.tint} />
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{display}</div>
-            <div style={{ fontSize:10, color:C.sub }}>{post ? fmtRelTime(post.created_at) : ""}</div>
+          <div onClick={() => { if (onOpenProfile && post?.user_id) { onOpenProfile(post.user_id); onClose?.(); } }}
+            style={{ display:"flex", alignItems:"center", gap:10, flex:1, minWidth:0,
+                     cursor: (onOpenProfile && post?.user_id) ? "pointer" : "default" }}>
+            <PetAvatar pet={post?.pet} overrideUrl={post?.user?.avatar_url} size={32} bg={C.tint} />
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{display}</div>
+              <div style={{ fontSize:10, color:C.sub }}>{post ? fmtRelTime(post.created_at) : ""}</div>
+            </div>
           </div>
           {post && (
             <button onClick={own ? handleDeletePost : handleReport}

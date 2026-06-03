@@ -542,6 +542,7 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
           onLikeChange={handleLikeChange}
           onDeleted={(id) => setPosts((prev) => prev.filter((p) => p.id !== id))}
           onClose={() => setDetailId(null)}
+          onOpenProfile={onOpenProfile}
           toast={toast}
         />
       )}
