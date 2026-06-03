@@ -69,7 +69,9 @@ export default function PrivateChatList({ meId, onOpen }) {
     : list;
 
   const preview = (c) =>
-    c.last_message_type === "image" ? "[图片]" : (c.last_message || "开始聊天吧～");
+    c.last_message_type === "image" ? "[图片]"
+    : c.last_message_type === "video" ? "[视频]"
+    : (c.last_message || "开始聊天吧～");
 
   return (
     <div>

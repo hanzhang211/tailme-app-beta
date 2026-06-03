@@ -586,8 +586,11 @@ export function PostCard({ post, isLiked, onOpen, onToggleLike, onOpenTopic, onO
   const breed = post.pet?.breed || "";
   const time  = relativeTime(post.created_at);
   const tags  = Array.isArray(post.hashtags) ? post.hashtags : [];
+  const media = Array.isArray(post.media_items) ? post.media_items : [];
+  const firstVideo = media[0]?.type === "video";
+  const mediaCount = media.length || (Array.isArray(post.image_urls) ? post.image_urls.length : 0);
   const thumbUrl = post.cover_thumbnail_url || post.cover_image_url || null;
-  const isText  = post.post_type === "text" || !thumbUrl;
+  const isText  = post.post_type === "text" || (!thumbUrl && media.length === 0);
 
   return (
     <div onClick={onOpen}
@@ -620,7 +623,7 @@ export function PostCard({ post, isLiked, onOpen, onToggleLike, onOpenTopic, onO
         </div>
       ) : (
         <CoverImage src={thumbUrl} ratio={imageCoverRatio(post)}
-          count={Array.isArray(post.image_urls) ? post.image_urls.length : 0} />
+          count={mediaCount} isVideo={firstVideo} />
       )}
 
       {/* 标题（图片帖外露） */}
@@ -726,16 +729,37 @@ function TopicView({ tag, loading, colL, colR, likedSet, onBack, onOpenPost, onT
 /* ──────────────────────────────────────────────────────
    封面图：skeleton + lazy + fade-in + fallback
    ────────────────────────────────────────────────────── */
-function CoverImage({ src, ratio, count = 0 }) {
-  const [state, setState] = useState("loading"); // loading | loaded | error
+function CoverImage({ src, ratio, count = 0, isVideo = false }) {
+  const [state, setState] = useState(src ? "loading" : "error"); // loading | loaded | error
+
+  const PlayBadge = () => (
+    <div style={{ position:"absolute", inset:0, zIndex:2, display:"flex",
+                  alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
+      <span style={{ width:38, height:38, borderRadius:"50%", background:"rgba(0,0,0,0.45)",
+                     display:"flex", alignItems:"center", justifyContent:"center",
+                     backdropFilter:"blur(2px)", WebkitBackdropFilter:"blur(2px)" }}>
+        <span style={{ borderLeft:"12px solid white", borderTop:"8px solid transparent",
+                       borderBottom:"8px solid transparent", marginLeft:4 }} />
+      </span>
+    </div>
+  );
 
   return (
     <div style={{ position:"relative", width:"100%",
                   aspectRatio: `${ratio} / 1`,
                   background: C.tint, overflow:"hidden" }}>
-      {/* 多图角标 1/N */}
-      {count > 1 && (
-        <div style={{ position:"absolute", top:6, right:6, zIndex:2,
+      {/* 视频播放角标 / 多图 1/N */}
+      {isVideo ? (
+        <div style={{ position:"absolute", top:6, right:6, zIndex:3,
+                      background:"rgba(0,0,0,0.5)", color:"#fff",
+                      fontSize:10, fontWeight:700, lineHeight:1, padding:"3px 7px",
+                      borderRadius:999, display:"flex", alignItems:"center", gap:3 }}>
+          <span style={{ borderLeft:"6px solid white", borderTop:"4px solid transparent",
+                         borderBottom:"4px solid transparent" }} />
+          {count > 1 ? `1/${count}` : "视频"}
+        </div>
+      ) : count > 1 && (
+        <div style={{ position:"absolute", top:6, right:6, zIndex:3,
                       background:"rgba(0,0,0,0.45)", color:"#fff",
                       fontSize:10, fontWeight:700, lineHeight:1,
                       padding:"3px 7px", borderRadius:999,
@@ -750,11 +774,11 @@ function CoverImage({ src, ratio, count = 0 }) {
                       backgroundSize: "200% 100%",
                       animation: "shimmer 1.6s linear infinite" }} />
       )}
-      {state === "error" ? (
+      {!src || state === "error" ? (
         <div style={{ position:"absolute", inset:0,
                       display:"flex", alignItems:"center", justifyContent:"center",
-                      color:C.sub, fontSize:11 }}>
-          🖼 图片加载失败
+                      color:C.sub, fontSize:26 }}>
+          🐾
         </div>
       ) : (
         <img src={src} alt=""
@@ -765,6 +789,7 @@ function CoverImage({ src, ratio, count = 0 }) {
                    opacity: state === "loaded" ? 1 : 0,
                    transition:"opacity .25s ease" }} />
       )}
+      {isVideo && <PlayBadge />}
       <style>{`@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
     </div>
   );

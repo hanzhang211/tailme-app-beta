@@ -23,7 +23,7 @@ function sb() {
 }
 
 const MSG_COLS =
-  "id, conversation_id, sender_id, receiver_id, content, message_type, image_url, read_at, created_at";
+  "id, conversation_id, sender_id, receiver_id, content, message_type, image_url, video_url, thumbnail_url, duration, read_at, created_at";
 
 function participantKey(a, b) {
   return a < b ? `${a}__${b}` : `${b}__${a}`;
@@ -165,6 +165,40 @@ export async function uploadPrivateImage(file, convId) {
   const { data: pub } = sb().storage.from("private-chat-images").getPublicUrl(path);
   if (!pub?.publicUrl) throw new Error("获取图片地址失败");
   return pub.publicUrl;
+}
+
+/* ── 上传私聊视频（≤50MB，复用 private-chat-images bucket）──── */
+export async function uploadPrivateVideo(file, convId) {
+  if (!file) throw new Error("没有选择视频");
+  if (!file.type?.startsWith("video/")) throw new Error("请选择视频文件");
+  if (file.size > 50 * 1024 * 1024) throw new Error("视频太大啦，请上传 50MB 以内的视频");
+  const ext = (file.name?.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const safeExt = ["mp4", "mov", "webm", "m4v"].includes(ext) ? ext : "mp4";
+  const path = `${convId}/video-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${safeExt}`;
+  const { error } = await sb()
+    .storage.from("private-chat-images")
+    .upload(path, file, { cacheControl: "86400", upsert: false, contentType: file.type || undefined });
+  if (error) throw new Error(`视频上传失败: ${error.message}`);
+  const { data: pub } = sb().storage.from("private-chat-images").getPublicUrl(path);
+  if (!pub?.publicUrl) throw new Error("获取视频地址失败");
+  return pub.publicUrl;
+}
+
+/* ── 发送视频消息 ───────────────────────────────────────── */
+export async function sendPrivateVideoMsg({ convId, senderId, receiverId, videoUrl, thumbnailUrl, duration }) {
+  if (!convId || !senderId || !receiverId || !videoUrl) throw new Error("缺少信息");
+  const { data, error } = await sb()
+    .from("private_messages")
+    .insert({
+      conversation_id: convId, sender_id: senderId, receiver_id: receiverId,
+      content: "[视频]", message_type: "video", video_url: videoUrl,
+      thumbnail_url: thumbnailUrl || null, duration: duration || null,
+    })
+    .select(MSG_COLS)
+    .single();
+  if (error) throw new Error(`发送失败: ${error.message}`);
+  await bumpConversation(convId, "[视频]", "video");
+  return data;
 }
 
 /* ── 发送图片消息 ───────────────────────────────────────── */

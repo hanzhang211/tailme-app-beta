@@ -16,9 +16,11 @@ import { useEffect, useRef, useState } from "react";
 import {
   getOrCreateConversation, listPrivateMessages,
   sendPrivateText, uploadPrivateImage, sendPrivateImageMsg,
+  uploadPrivateVideo, sendPrivateVideoMsg,
   markConversationRead, subscribePrivateConversation, unsubscribePrivate,
 } from "@/services/privateChatService";
 import { isFollowing } from "@/services/communityService";
+import { captureVideoThumbnail, fmtDuration } from "@/services/videoThumb";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#2A2520",
@@ -50,6 +52,7 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
   const [uploading, setUploading] = useState(false);
   const [rel, setRel]         = useState({ mutual: false, loaded: false }); // 互相关注关系
   const [notice, setNotice]   = useState(null);
+  const [playing, setPlaying] = useState(() => new Set());                  // 正在内联播放的视频消息 id
 
   const scrollRef  = useRef(null);
   const chRef      = useRef(null);
@@ -132,21 +135,35 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
     finally { setSending(false); }
   };
 
-  const openImagePicker = () => {
+  const openMediaPicker = () => {
     if (uploading || !convId) return;
-    if (!canImage) { flash("互相关注后才能发图片哦~"); return; }
+    if (!canImage) { flash("互相关注后才能发图片 / 视频哦~"); return; }
     fileRef.current?.click();
   };
 
-  const doSendImage = async (e) => {
+  const doSendMedia = async (e) => {
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f || uploading || !convId) return;
-    if (!canImage) { flash("互相关注后才能发图片哦~"); return; }
+    if (!canImage) { flash("互相关注后才能发图片 / 视频哦~"); return; }
+    const isVideo = (f.type || "").startsWith("video/");
     setUploading(true); setErr(null);
     try {
-      const url = await uploadPrivateImage(f, convId);
-      const saved = await sendPrivateImageMsg({ convId, senderId: meId, receiverId: target.id, imageUrl: url });
+      let saved;
+      if (isVideo) {
+        if (f.size > 50 * 1024 * 1024) throw new Error("视频太大啦，请上传 50MB 以内的视频");
+        let thumbnailUrl = null, duration = 0;
+        try {
+          const { thumbFile, duration: d } = await captureVideoThumbnail(f);
+          duration = d;
+          thumbnailUrl = await uploadPrivateImage(thumbFile, convId);
+        } catch { /* 抽帧失败 → 无封面，UI 用默认占位 */ }
+        const videoUrl = await uploadPrivateVideo(f, convId);
+        saved = await sendPrivateVideoMsg({ convId, senderId: meId, receiverId: target.id, videoUrl, thumbnailUrl, duration });
+      } else {
+        const url = await uploadPrivateImage(f, convId);
+        saved = await sendPrivateImageMsg({ convId, senderId: meId, receiverId: target.id, imageUrl: url });
+      }
       setMsgs((prev) => prev.some((m) => m.id === saved.id) ? prev : [...prev, saved]);
       onActivity?.();
     } catch (e) { setErr(e.message); }
@@ -186,13 +203,44 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
         {msgs.map((m) => {
           const own = m.sender_id === meId;
           const isImg = m.message_type === "image" && m.image_url;
+          const isVideo = m.message_type === "video" && m.video_url;
           return (
             <div key={m.id} style={{ display:"flex", gap:8, marginBottom:14,
                                      flexDirection: own ? "row-reverse" : "row" }}>
               {!own && <Avatar url={target?.avatar_url} size={34} />}
               <div style={{ maxWidth:"72%", display:"flex", flexDirection:"column",
                             alignItems: own ? "flex-end" : "flex-start" }}>
-                {isImg ? (
+                {isVideo ? (
+                  playing.has(m.id) ? (
+                    <video src={m.video_url} poster={m.thumbnail_url || undefined}
+                      controls autoPlay playsInline
+                      style={{ maxWidth:220, width:"100%", borderRadius:16, display:"block",
+                               boxShadow:"0 1px 6px rgba(0,0,0,0.08)" }} />
+                  ) : (
+                    <div onClick={() => setPlaying((p) => new Set(p).add(m.id))}
+                      style={{ position:"relative", maxWidth:220, width:200, borderRadius:16,
+                               overflow:"hidden", cursor:"pointer", background:C.tint,
+                               aspectRatio:"3 / 4", boxShadow:"0 1px 6px rgba(0,0,0,0.08)",
+                               display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      {m.thumbnail_url
+                        ? <img src={m.thumbnail_url} alt="视频" loading="lazy"
+                            style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />
+                        : <span style={{ fontSize:34 }}>🎬</span>}
+                      <span style={{ position:"relative", width:44, height:44, borderRadius:"50%",
+                                     background:"rgba(0,0,0,0.45)", display:"flex",
+                                     alignItems:"center", justifyContent:"center" }}>
+                        <span style={{ borderLeft:"14px solid white", borderTop:"9px solid transparent",
+                                       borderBottom:"9px solid transparent", marginLeft:4 }} />
+                      </span>
+                      {m.duration > 0 && (
+                        <span style={{ position:"absolute", right:8, bottom:8, background:"rgba(0,0,0,0.6)",
+                                       color:"white", fontSize:11, padding:"1px 6px", borderRadius:6 }}>
+                          {fmtDuration(m.duration)}
+                        </span>
+                      )}
+                    </div>
+                  )
+                ) : isImg ? (
                   <img src={m.image_url} alt="图片" loading="lazy"
                     onClick={() => typeof window !== "undefined" && window.open(m.image_url, "_blank")}
                     style={{ maxWidth:220, width:"100%", borderRadius:16, display:"block",
@@ -242,14 +290,14 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
       {/* 输入区 */}
       <div style={{ background:"white", borderTop:`1px solid ${C.border}`, padding:"10px 12px 20px",
                     display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
-        <button onClick={openImagePicker} disabled={uploading || !convId}
+        <button onClick={openMediaPicker} disabled={uploading || !convId}
           style={{ width:38, height:38, borderRadius:"50%", flexShrink:0, background:C.bg,
                    border:`1px solid ${C.border}`, cursor: uploading ? "default" : "pointer",
                    opacity: canImage ? 1 : 0.45,
                    display:"flex", alignItems:"center", justifyContent:"center", color:C.pri, fontSize:20 }}>
           {uploading ? "…" : "＋"}
         </button>
-        <input ref={fileRef} type="file" accept="image/*" onChange={doSendImage} style={{ display:"none" }} />
+        <input ref={fileRef} type="file" accept="image/*,video/*" onChange={doSendMedia} style={{ display:"none" }} />
         <input
           value={inp}
           onChange={(e) => setInp(e.target.value)}

@@ -220,7 +220,7 @@ export async function listPosts({ limit = 20, before } = {}) {
   let q = sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
-      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls, media_items,
       like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),
@@ -249,7 +249,7 @@ export async function listFollowingPosts(userId, { limit = 30 } = {}) {
   const { data, error } = await sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
-      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls, media_items,
       like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),
@@ -371,7 +371,7 @@ export async function listCityPosts(city, { limit = 30 } = {}) {
   const { data, error } = await sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
-      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls, media_items,
       like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),
@@ -431,7 +431,7 @@ export async function getRecommendedPosts() {
     const { data, error } = await sb.from("posts")
       .select(`
         id, title, content, post_type, text_bg_color,
-        cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls,
+        cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls, media_items,
         like_count, comment_count, created_at, hashtags,
         user_id, pet_id,
         user:users!posts_user_id_fkey ( username, avatar_url ),
@@ -561,7 +561,7 @@ export async function listPostsByTag(tag, { limit = 30 } = {}) {
   const { data, error } = await sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
-      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls, media_items,
       like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),
@@ -590,7 +590,7 @@ export async function listMyPosts(userId, { limit = 50, before } = {}) {
   let q = sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
-      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls, media_items,
       like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),
@@ -623,7 +623,7 @@ export async function listLikedPosts(userId, { limit = 50 } = {}) {
   const { data, error } = await sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
-      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls, media_items,
       like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),
@@ -699,7 +699,7 @@ export async function getPostById(id) {
   const { data, error } = await sb.from("posts")
     .select(`
       id, title, content, post_type, text_bg_color,
-      display_image_urls, image_urls, thumbnail_urls,
+      display_image_urls, image_urls, thumbnail_urls, media_items,
       cover_image_url, cover_thumbnail_url, cover_aspect_ratio,
       status, like_count, comment_count, created_at,
       user_id, pet_id,
@@ -716,7 +716,7 @@ export async function getPostById(id) {
 export async function createPost({
   userId, petId, content, title, postType,
   displayImageUrls, thumbnailUrls, originalImageUrls,
-  coverAspectRatio, textBgColor,
+  coverAspectRatio, textBgColor, mediaItems,
 }) {
   const sb = requireSupabase();
   const { flagged: fc } = checkContent(content || "");
@@ -726,6 +726,17 @@ export async function createPost({
   const hasDisp = Array.isArray(displayImageUrls) && displayImageUrls.length;
   const hasThumb = Array.isArray(thumbnailUrls) && thumbnailUrls.length;
   const hasOrig  = Array.isArray(originalImageUrls) && originalImageUrls.length;
+
+  // 有序媒体（图片/视频）；存在则用它派生封面
+  const media = Array.isArray(mediaItems) ? mediaItems.filter(Boolean) : [];
+  const hasMedia = media.length > 0;
+  const first = media[0] || null;
+  const coverImg = first
+    ? (first.type === "video" ? (first.thumbnail_url || null) : first.url)
+    : (hasDisp ? displayImageUrls[0] : null);
+  const coverThumb = first
+    ? (first.thumbnail_url || (first.type === "image" ? first.url : null))
+    : (hasThumb ? thumbnailUrls[0] : null);
 
   // 自动解析 #话题（标题 + 正文）
   const hashtags = parseHashtags(`${title || ""} ${content || ""}`);
@@ -738,21 +749,22 @@ export async function createPost({
       title:               (title || "").trim() || null,
       content:             (content || "").trim(),
       hashtags,
-      post_type:           postType || (hasDisp ? "image" : "text"),
+      post_type:           postType || (hasDisp || hasMedia ? "image" : "text"),
       text_bg_color:       textBgColor || null,
       display_image_urls:  hasDisp ? displayImageUrls : null,
       thumbnail_urls:      hasThumb ? thumbnailUrls : null,
       original_image_urls: hasOrig ? originalImageUrls : null,
       // image_urls 保留写入（向后兼容老代码读旧字段），值同 display
       image_urls:          hasDisp ? displayImageUrls : null,
-      cover_image_url:     hasDisp ? displayImageUrls[0] : null,
-      cover_thumbnail_url: hasThumb ? thumbnailUrls[0] : null,
+      media_items:         hasMedia ? media : [],
+      cover_image_url:     coverImg,
+      cover_thumbnail_url: coverThumb,
       cover_aspect_ratio:  coverAspectRatio || null,
       status:              flagged ? "flagged" : "visible",
     })
     .select(`
       id, title, content, post_type, text_bg_color,
-      display_image_urls, thumbnail_urls, original_image_urls, image_urls,
+      display_image_urls, thumbnail_urls, original_image_urls, image_urls, media_items,
       cover_image_url, cover_thumbnail_url, cover_aspect_ratio,
       status, like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
@@ -794,6 +806,36 @@ export async function uploadPostImage(file, userId, abortFlag) {
 
   const { data: pub } = sb.storage.from("post-images").getPublicUrl(path);
   if (!pub?.publicUrl) throw new Error("获取图片 URL 失败");
+  return { url: pub.publicUrl, path };
+}
+
+/**
+ * 上传一个视频到 post-images bucket（复用现有 bucket，≤50MB）。
+ * abortFlag: { current: boolean }
+ */
+export async function uploadPostVideo(file, userId, abortFlag) {
+  const sb = requireSupabase();
+  if (!file || !userId) throw new Error("缺少 file 或 userId");
+  if (file.size > 50 * 1024 * 1024) throw new Error("视频太大啦，请上传 50MB 以内的视频");
+
+  const ext = (file.name.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const safeExt = ["mp4", "mov", "webm", "m4v"].includes(ext) ? ext : "mp4";
+  const path = `${userId}/video-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${safeExt}`;
+
+  if (abortFlag?.current) { const e = new Error("已取消"); e.name = "AbortError"; throw e; }
+
+  const { error: upErr } = await sb.storage
+    .from("post-images")
+    .upload(path, file, { cacheControl: "86400", upsert: false, contentType: file.type || undefined });
+  if (upErr) throw new Error(`视频上传失败: ${upErr.message}`);
+
+  if (abortFlag?.current) {
+    sb.storage.from("post-images").remove([path]).catch(() => {});
+    const e = new Error("已取消"); e.name = "AbortError"; throw e;
+  }
+
+  const { data: pub } = sb.storage.from("post-images").getPublicUrl(path);
+  if (!pub?.publicUrl) throw new Error("获取视频 URL 失败");
   return { url: pub.publicUrl, path };
 }
 

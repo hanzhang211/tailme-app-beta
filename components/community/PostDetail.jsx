@@ -56,6 +56,7 @@ export default function PostDetail({
   const [replyTo,  setReplyTo]  = useState(null);
 
   const [viewerIdx, setViewerIdx] = useState(null);
+  const [viewerSrc, setViewerSrc] = useState(null);
 
   const display = post?.user?.username || "未命名宠物";
   const own     = post?.user_id === user?.id;
@@ -70,7 +71,9 @@ export default function PostDetail({
     ? post.thumbnail_urls
     : [];
 
-  const isText  = post?.post_type === "text" || images.length === 0;
+  // 有序媒体（图片/视频）；存在则优先用它渲染
+  const media = Array.isArray(post?.media_items) ? post.media_items : [];
+  const isText  = post?.post_type === "text" || (images.length === 0 && media.length === 0);
   const firstAspect = Number(post?.cover_aspect_ratio) > 0 ? Number(post.cover_aspect_ratio) : 1;
 
   /* 拉详情 + 评论（详情拉完才显示，避免空白闪烁） */
@@ -291,6 +294,27 @@ export default function PostDetail({
                 {post.content}
               </div>
             </div>
+          ) : media.length > 0 ? (
+            <div style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory",
+                          background:"#000" }}>
+              {media.map((m, i) => {
+                const ar = i === 0 ? firstAspect : 1;
+                if (m.type === "video") {
+                  return (
+                    <div key={i} style={{ flex:"0 0 100%", scrollSnapAlign:"start",
+                                          aspectRatio:`${ar} / 1`, background:"#000" }}>
+                      <video src={m.url} poster={m.thumbnail_url || undefined}
+                        controls preload="metadata" playsInline
+                        style={{ width:"100%", height:"100%", objectFit:"contain", display:"block" }} />
+                    </div>
+                  );
+                }
+                return (
+                  <DetailImage key={i} src={m.url} thumb={m.thumbnail_url || null}
+                    aspectRatio={ar} eager={i === 0} onClick={() => setViewerSrc(m.url)} />
+                );
+              })}
+            </div>
           ) : (
             <div style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory",
                           background:"#000" }}>
@@ -408,12 +432,12 @@ export default function PostDetail({
         </div>
 
         {/* 图片大图查看 */}
-        {viewerIdx !== null && (
-          <div onClick={() => setViewerIdx(null)}
+        {(viewerSrc || viewerIdx !== null) && (
+          <div onClick={() => { setViewerIdx(null); setViewerSrc(null); }}
             style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.94)",
                      zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center",
                      cursor:"zoom-out", padding:20 }}>
-            <img src={images[viewerIdx]} alt=""
+            <img src={viewerSrc || images[viewerIdx]} alt=""
               style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain" }} />
           </div>
         )}
