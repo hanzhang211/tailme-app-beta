@@ -331,6 +331,25 @@ export async function listFollowers(userId, { limit = 200 } = {}) {
   return (data || []).map((r) => ({ ...(r.follower || {}), followed_at: r.created_at })).filter((u) => u.id);
 }
 
+/**
+ * 全站搜索用户：按昵称（模糊）或用户号（模糊）匹配，排除自己。
+ * 用于私聊「发起聊天」搜索。
+ */
+export async function searchUsers(query, { excludeId, limit = 20 } = {}) {
+  const raw = (query || "").trim();
+  // 去掉会破坏 PostgREST or() 过滤语法的字符
+  const q = raw.replace(/[,()%*]/g, "");
+  if (!q) return [];
+  const sb = requireSupabase();
+  let req = sb.from("users")
+    .select("id, username, avatar_url, city, user_no")
+    .or(`username.ilike.%${q}%,user_no.ilike.%${q}%`);
+  if (excludeId) req = req.neq("id", excludeId);
+  const { data, error } = await req.limit(limit);
+  if (error) throw new Error(`搜索用户失败: ${error.message}`);
+  return (data || []).filter((u) => u.username); // 只展示已设昵称的用户
+}
+
 /** 一批用户里，我已关注了哪些（返回 Set） */
 export async function getFollowingSet(followerId, userIds = []) {
   if (!followerId || !userIds.length) return new Set();

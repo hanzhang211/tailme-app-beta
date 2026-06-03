@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { listConversations, subscribeMyInbox, unsubscribePrivate } from "@/services/privateChatService";
-import { listFollowing } from "@/services/communityService";
+import { listFollowing, searchUsers } from "@/services/communityService";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#2A2520",
@@ -138,24 +138,41 @@ export default function PrivateChatList({ meId, onOpen }) {
   );
 }
 
-/* 发起私聊：从「我的关注」里挑一个人 */
+/* 发起私聊：默认显示「我的关注」；搜索时按昵称/用户号搜全站用户 */
 function StartChatPicker({ meId, onClose, onPick }) {
-  const [users, setUsers]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [q, setQ]           = useState("");
+  const [following, setFollowing] = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [q, setQ]                 = useState("");
+  const [results, setResults]     = useState([]);
+  const [searching, setSearching] = useState(false);
 
+  // 默认：我的关注
   useEffect(() => {
     let alive = true;
     listFollowing(meId)
-      .then((rows) => { if (alive) setUsers(rows || []); })
+      .then((rows) => { if (alive) setFollowing(rows || []); })
       .catch(() => {})
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [meId]);
 
-  const filtered = q.trim()
-    ? users.filter((u) => (u.username || "").toLowerCase().includes(q.trim().toLowerCase()))
-    : users;
+  // 搜索（昵称或用户号，全站）—— 输入停顿 300ms 后查询
+  useEffect(() => {
+    const term = q.trim();
+    if (!term) { setResults([]); setSearching(false); return; }
+    setSearching(true);
+    let alive = true;
+    const t = setTimeout(() => {
+      searchUsers(term, { excludeId: meId })
+        .then((rows) => { if (alive) setResults(rows || []); })
+        .catch(() => { if (alive) setResults([]); })
+        .finally(() => { if (alive) setSearching(false); });
+    }, 300);
+    return () => { alive = false; clearTimeout(t); };
+  }, [q, meId]);
+
+  const isSearch = !!q.trim();
+  const rows = isSearch ? results : following;
 
   return (
     <div onClick={(e) => e.target === e.currentTarget && onClose()}
@@ -165,22 +182,28 @@ function StartChatPicker({ meId, onClose, onPick }) {
                     padding:"16px 16px 28px", maxHeight:"75vh", overflowY:"auto" }}>
         <div style={{ width:40, height:4, borderRadius:4, background:C.light, margin:"0 auto 14px" }} />
         <div style={{ fontSize:16, fontWeight:800, color:C.text, marginBottom:4 }}>发起私聊</div>
-        <div style={{ fontSize:12, color:C.sub, marginBottom:14 }}>从你关注的毛孩子家长里选一位</div>
+        <div style={{ fontSize:12, color:C.sub, marginBottom:14 }}>搜索昵称或用户号找到 TA，或从关注里选</div>
 
         <div style={{ display:"flex", alignItems:"center", gap:8, background:"white",
                       border:`1px solid ${C.border}`, borderRadius:999, padding:"9px 14px", marginBottom:14 }}>
           <span style={{ fontSize:14, color:C.sub }}>🔍</span>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索昵称"
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索昵称或用户号"
             style={{ flex:1, border:"none", outline:"none", background:"transparent", fontSize:13, color:C.text, minWidth:0 }} />
         </div>
 
-        {loading ? (
-          <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:24 }}>加载中…</div>
-        ) : filtered.length === 0 ? (
-          <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"30px 20px", lineHeight:1.8 }}>
-            {q.trim() ? "没找到相关用户" : "还没有关注的人，先去社区关注感兴趣的家长吧 🐾"}
+        {!isSearch && (
+          <div style={{ fontSize:12, fontWeight:700, color:C.sub, margin:"0 0 8px 2px" }}>我的关注</div>
+        )}
+
+        {(isSearch ? searching : loading) ? (
+          <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:24 }}>
+            {isSearch ? "搜索中…" : "加载中…"}
           </div>
-        ) : filtered.map((u) => (
+        ) : rows.length === 0 ? (
+          <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"30px 20px", lineHeight:1.8 }}>
+            {isSearch ? "没找到该用户，换个昵称或用户号试试" : "还没有关注的人，搜索昵称/用户号找 TA 吧 🐾"}
+          </div>
+        ) : rows.map((u) => (
           <button key={u.id} onClick={() => onPick({ id: u.id, username: u.username, avatar_url: u.avatar_url })}
             style={{ width:"100%", display:"flex", alignItems:"center", gap:12, textAlign:"left",
                      background:"white", border:`1px solid ${C.border}`, borderRadius:16,
@@ -191,7 +214,10 @@ function StartChatPicker({ meId, onClose, onPick }) {
                             overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                 {u.username || "毛孩子家长"}
               </div>
-              {u.city && <div style={{ fontSize:11, color:C.sub, marginTop:2 }}>📍 {u.city}</div>}
+              <div style={{ fontSize:11, color:C.sub, marginTop:2,
+                            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                {u.user_no ? `用户号 ${u.user_no}` : ""}{u.user_no && u.city ? " · " : ""}{u.city ? `📍 ${u.city}` : ""}
+              </div>
             </div>
             <span style={{ fontSize:12, fontWeight:700, color:C.pri }}>私聊 ›</span>
           </button>

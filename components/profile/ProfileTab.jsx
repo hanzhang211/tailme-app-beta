@@ -334,7 +334,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
                               overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                   {user?.username || "未命名"}
                 </div>
-                <div style={{ fontSize:13, color:C.sub, marginTop:6 }}>手机号 {maskPhone(user?.phone)}</div>
+                <div style={{ fontSize:13, color:C.sub, marginTop:6 }}>用户号 {user?.user_no || maskPhone(user?.phone)}</div>
               </div>
 
               {/* 右侧：编辑按钮（圆形橙色铅笔）+ 个人主页 胶囊 */}
