@@ -701,7 +701,7 @@ export async function getPostById(id) {
       id, title, content, post_type, text_bg_color,
       display_image_urls, image_urls, thumbnail_urls, media_items,
       cover_image_url, cover_thumbnail_url, cover_aspect_ratio,
-      status, like_count, comment_count, created_at,
+      status, like_count, comment_count, created_at, hashtags,
       user_id, pet_id,
       user:users!posts_user_id_fkey ( username, avatar_url ),
       pet:pets!posts_pet_id_fkey ( name, breed, ai_avatar_url )

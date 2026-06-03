@@ -534,6 +534,7 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
           onDeleted={(id) => setPosts((prev) => prev.filter((p) => p.id !== id))}
           onClose={() => setDetailId(null)}
           onOpenProfile={onOpenProfile}
+          onOpenTopic={openTopic}
           toast={toast}
         />
       )}

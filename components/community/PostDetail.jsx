@@ -41,7 +41,7 @@ function fmtRelTime(iso) {
 
 export default function PostDetail({
   postId, user, pet, initialLiked,
-  onLikeChange, onDeleted, onClose, toast, onOpenProfile,
+  onLikeChange, onDeleted, onClose, toast, onOpenProfile, onOpenTopic,
 }) {
   const [post,     setPost]     = useState(null);
   const [loadingPost, setLoadingPost] = useState(true);
@@ -234,7 +234,7 @@ export default function PostDetail({
                     animation:"detail-up .25s ease-out", overflow:"hidden" }}>
 
         {/* 头部 */}
-        <div style={{ padding:"12px 16px", borderBottom:`1px solid ${C.border}`,
+        <div style={{ padding:"12px 16px", background:"white", borderBottom:`1px solid ${C.border}`,
                       display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
           <button onClick={onClose}
             style={{ background:"transparent", border:"none", fontSize:18, color:C.text,
@@ -279,7 +279,8 @@ export default function PostDetail({
 
           {/* 媒体 / 文字卡 */}
           {isText ? (
-            <div style={{ background: post.text_bg_color || C.tint,
+            <div style={{ margin:"12px 14px 0", borderRadius:18, overflow:"hidden",
+                          background: post.text_bg_color || C.tint,
                           padding:"30px 24px", minHeight:200 }}>
               {post.title && (
                 <div style={{ fontSize:22, fontWeight:800,
@@ -295,6 +296,7 @@ export default function PostDetail({
               </div>
             </div>
           ) : media.length > 0 ? (
+            <div style={{ margin:"12px 14px 0", borderRadius:18, overflow:"hidden", background:"#000" }}>
             <div style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory",
                           background:"#000" }}>
               {media.map((m, i) => {
@@ -312,7 +314,9 @@ export default function PostDetail({
                 );
               })}
             </div>
+            </div>
           ) : (
+            <div style={{ margin:"12px 14px 0", borderRadius:18, overflow:"hidden", background:"#000" }}>
             <div style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory",
                           background:"#000" }}>
               {images.map((url, i) => {
@@ -331,6 +335,7 @@ export default function PostDetail({
                   />
                 );
               })}
+            </div>
             </div>
           )}
 
@@ -352,9 +357,25 @@ export default function PostDetail({
             </div>
           )}
 
+          {/* #话题 */}
+          {Array.isArray(post.hashtags) && post.hashtags.length > 0 && (
+            <div style={{ padding: isText ? "12px 18px 4px" : "0 18px 6px",
+                          display:"flex", flexWrap:"wrap", gap:8 }}>
+              {post.hashtags.map((tag) => (
+                <button key={tag}
+                  onClick={() => { if (onOpenTopic) { onOpenTopic(tag); onClose?.(); } }}
+                  style={{ fontSize:12.5, fontWeight:600, color:C.pri, background:C.tint,
+                           border:"none", borderRadius:999, padding:"4px 12px",
+                           cursor: onOpenTopic ? "pointer" : "default" }}>
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* 互动栏 */}
           <div style={{ padding:"12px 18px", borderBottom:`1px solid ${C.border}`,
-                        display:"flex", gap:18, fontSize:13 }}>
+                        display:"flex", gap:24, fontSize:13 }}>
             <button onClick={togglePostLike}
               style={{ background:"transparent", border:"none", cursor:"pointer",
                        display:"flex", alignItems:"center", gap:6,
@@ -378,8 +399,9 @@ export default function PostDetail({
             </div>
             {loadingC && <div style={{ fontSize:12, color:C.sub }}>加载中…</div>}
             {!loadingC && topLevels.length === 0 && (
-              <div style={{ fontSize:13, color:C.sub, textAlign:"center", padding:"24px 0" }}>
-                还没人评论，来抢沙发 🛋
+              <div style={{ textAlign:"center", padding:"34px 0" }}>
+                <div style={{ fontSize:52, lineHeight:1, marginBottom:10 }}>🐕</div>
+                <div style={{ fontSize:13, color:C.sub }}>还没人评论，来抢沙发 🛋️</div>
               </div>
             )}
 
@@ -475,6 +497,7 @@ function CommentBlock({ c, user, replies, isLiked, likedReplies, onToggleLike, o
 function DetailVideo({ src, poster }) {
   const ref = useRef(null);
   const [muted, setMuted] = useState(true);
+  const [prog, setProg] = useState(0);
   const [state, setState] = useState(src ? "loading" : "error"); // loading | ready | error
 
   useEffect(() => {
@@ -514,8 +537,25 @@ function DetailVideo({ src, poster }) {
         onClick={togglePlay}
         onLoadedData={() => setState("ready")}
         onCanPlay={() => setState("ready")}
+        onTimeUpdate={(e) => { const v = e.target; if (v.duration) setProg(v.currentTime / v.duration); }}
         onError={() => setState("error")}
         style={{ width:"100%", maxHeight:420, objectFit:"contain", display:"block", background:"#000" }} />
+
+      {/* 视频标签 */}
+      <div style={{ position:"absolute", top:10, left:10, display:"flex", alignItems:"center", gap:5,
+                    background:"rgba(0,0,0,0.45)", color:"white", fontSize:11, fontWeight:700,
+                    padding:"4px 9px", borderRadius:999,
+                    backdropFilter:"blur(2px)", WebkitBackdropFilter:"blur(2px)" }}>
+        <span style={{ width:7, height:7, borderRadius:"50%", background:C.pri }} />
+        视频
+      </div>
+
+      {/* 细进度条 */}
+      <div style={{ position:"absolute", left:0, right:0, bottom:0, height:3,
+                    background:"rgba(255,255,255,0.25)" }}>
+        <div style={{ height:"100%", width:`${Math.round(prog * 100)}%`, background:C.pri,
+                      transition:"width .2s linear" }} />
+      </div>
 
       {state === "loading" && (
         <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center",
