@@ -12,7 +12,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getUserPets, deletePet, updateUserAvatar, getPetCountByUsers } from "@/services/supabaseService";
+import { getUserPets, deletePet, updateUserAvatar, getPetCountByUsers, setUsername, isUsernameTaken } from "@/services/supabaseService";
+import { checkUsername } from "@/services/contentFilter";
 import { uploadUserAvatar } from "@/services/petAvatarService";
 import {
   listMyPosts, listLikedPosts, getUserStats,
@@ -85,6 +86,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [avatarPet,    setAvatarPet]    = useState(null); // 当前生成头像的宠物，null=关闭
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false); // 用户头像选择弹窗
+  const [editNameOpen, setEditNameOpen] = useState(false);          // 编辑用户名弹窗
 
   // 关注/粉丝
   const [followCounts, setFollowCounts] = useState({ following: 0, followers: 0 });
@@ -339,7 +341,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
 
               {/* 右侧：编辑按钮（圆形橙色铅笔）+ 个人主页 胶囊 */}
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:12, flexShrink:0 }}>
-                <button onClick={() => setSettingsOpen(true)}
+                <button onClick={() => setEditNameOpen(true)}
                   style={{ width:44, height:44, borderRadius:"50%", background:"white", border:"none",
                            boxShadow:"0 2px 10px rgba(0,0,0,0.10)", cursor:"pointer",
                            display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -452,6 +454,15 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
           user={user} pets={pets}
           onClose={() => setAvatarPickerOpen(false)}
           onSelect={handleSelectUserAvatar}
+          toast={toast}
+        />
+      )}
+
+      {editNameOpen && (
+        <EditNameModal
+          user={user}
+          onClose={() => setEditNameOpen(false)}
+          onSaved={(updated) => { onUserUpdated?.(updated); setEditNameOpen(false); }}
           toast={toast}
         />
       )}
@@ -611,6 +622,91 @@ function FollowListView({ mode, meId, onBack, onOpenProfile }) {
             )}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────
+   编辑用户名（点头部铅笔进入）
+   ────────────────────────────────────────────────────── */
+function EditNameModal({ user, onClose, onSaved, toast }) {
+  const [name, setName]     = useState(user?.username || "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState(null);
+
+  const handleSave = async () => {
+    const trimmed = name.trim();
+    const current = user?.username || "";
+    if (trimmed === current) { onClose(); return; }
+    const check = checkUsername(trimmed);
+    if (!check.ok) { setError(check.reason); return; }
+    setSaving(true); setError(null);
+    try {
+      // 仅当不是自己当前名（忽略大小写）才查重，避免误判
+      if (trimmed.toLowerCase() !== current.toLowerCase()) {
+        const taken = await isUsernameTaken(trimmed);
+        if (taken) { setError("该用户名已被占用，请换一个"); setSaving(false); return; }
+      }
+      const updated = await setUsername(user.id, trimmed);
+      toast?.("用户名已更新 ✨", "success");
+      onSaved(updated);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div onClick={(e) => e.target === e.currentTarget && !saving && onClose()}
+      style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.45)",
+               display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div style={{ width:"100%", maxWidth:430, background:C.bg, borderRadius:"22px 22px 0 0",
+                    padding:"18px 18px 28px" }}>
+        <div style={{ width:40, height:4, borderRadius:4, background:C.light, margin:"0 auto 16px" }} />
+        <div style={{ fontSize:17, fontWeight:800, color:C.text, marginBottom:4 }}>修改用户名</div>
+        <div style={{ fontSize:12, color:C.sub, marginBottom:18 }}>
+          这是你在社群里展示的名字 · 2–20 字 · 不能重复
+        </div>
+
+        <div style={{ fontSize:12, fontWeight:600, color:C.sub, marginBottom:8 }}>用户名</div>
+        <input
+          value={name}
+          onChange={(e) => { setName(e.target.value); setError(null); }}
+          onKeyDown={(e) => e.key === "Enter" && !saving && handleSave()}
+          maxLength={20}
+          placeholder="输入新的用户名"
+          autoFocus
+          style={{ width:"100%", borderRadius:14, padding:"12px 14px", fontSize:14, boxSizing:"border-box",
+                   border:`1.5px solid ${C.border}`, background:"white", color:C.text, outline:"none" }} />
+
+        {user?.user_no && (
+          <div style={{ fontSize:11, color:C.sub, marginTop:10 }}>
+            用户号 {user.user_no}（不可修改）
+          </div>
+        )}
+
+        {error && (
+          <div style={{ marginTop:12, padding:"10px 14px", background:"#FFF0F0", borderRadius:12,
+                        fontSize:12, color:"#D94040", lineHeight:1.5 }}>❌ {error}</div>
+        )}
+
+        <div style={{ display:"flex", gap:10, marginTop:18 }}>
+          <button onClick={onClose} disabled={saving}
+            style={{ flex:1, padding:"13px 0", borderRadius:14, fontSize:14, fontWeight:600,
+                     background:"white", color:C.text, border:`1px solid ${C.border}`,
+                     cursor: saving ? "default" : "pointer" }}>
+            取消
+          </button>
+          <button onClick={handleSave} disabled={saving || name.trim().length < 2}
+            style={{ flex:2, padding:"13px 0", borderRadius:14, fontSize:14, fontWeight:700, border:"none",
+                     background: !saving && name.trim().length >= 2 ? C.pri : C.tint,
+                     color: !saving && name.trim().length >= 2 ? "white" : C.sub,
+                     cursor: !saving && name.trim().length >= 2 ? "pointer" : "default" }}>
+            {saving ? "保存中…" : "保存"}
+          </button>
+        </div>
       </div>
     </div>
   );
