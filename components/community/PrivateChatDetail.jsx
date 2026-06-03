@@ -18,6 +18,7 @@ import {
   sendPrivateText, uploadPrivateImage, sendPrivateImageMsg,
   markConversationRead, subscribePrivateConversation, unsubscribePrivate,
 } from "@/services/privateChatService";
+import { isFollowing } from "@/services/communityService";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#2A2520",
@@ -47,10 +48,26 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
   const [inp, setInp]         = useState("");
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [rel, setRel]         = useState({ mutual: false, loaded: false }); // 互相关注关系
+  const [notice, setNotice]   = useState(null);
 
-  const scrollRef = useRef(null);
-  const chRef     = useRef(null);
-  const fileRef   = useRef(null);
+  const scrollRef  = useRef(null);
+  const chRef      = useRef(null);
+  const fileRef    = useRef(null);
+  const noticeRef  = useRef();
+
+  const flash = (msg) => {
+    clearTimeout(noticeRef.current);
+    setNotice(msg);
+    noticeRef.current = setTimeout(() => setNotice(null), 2600);
+  };
+
+  /* 私信权限：互相关注=畅聊+图片；未互关=只能发 1 条文字、不能发图 */
+  const theyReplied = msgs.some((m) => m.sender_id === target?.id);
+  const myCount     = msgs.reduce((n, m) => (m.sender_id === meId ? n + 1 : n), 0);
+  const canText     = rel.mutual || theyReplied || myCount < 1;
+  const canImage    = rel.mutual;
+  const strangerBanner = rel.loaded && !rel.mutual && !theyReplied;
 
   /* 解析会话 → 加载历史 → 订阅 → 标记已读 */
   useEffect(() => {
@@ -65,6 +82,14 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
         }
         if (!alive) return;
         setConvId(cid);
+
+        // 关系：是否互相关注（决定能否畅聊 / 发图片）
+        Promise.all([
+          isFollowing(meId, target.id),
+          isFollowing(target.id, meId),
+        ]).then(([iFollow, theyFollow]) => {
+          if (alive) setRel({ mutual: iFollow && theyFollow, loaded: true });
+        }).catch(() => { if (alive) setRel({ mutual: false, loaded: true }); });
 
         const list = await listPrivateMessages(cid);
         if (!alive) return;
@@ -97,6 +122,7 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
   const doSendText = async () => {
     const text = inp.trim();
     if (!text || sending || !convId) return;
+    if (!canText) { flash("对方回关你后才能继续聊天哦 🐾"); return; }
     setSending(true); setInp("");
     try {
       const saved = await sendPrivateText({ convId, senderId: meId, receiverId: target.id, content: text });
@@ -106,10 +132,17 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
     finally { setSending(false); }
   };
 
+  const openImagePicker = () => {
+    if (uploading || !convId) return;
+    if (!canImage) { flash("互相关注后才能发图片哦~"); return; }
+    fileRef.current?.click();
+  };
+
   const doSendImage = async (e) => {
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f || uploading || !convId) return;
+    if (!canImage) { flash("互相关注后才能发图片哦~"); return; }
     setUploading(true); setErr(null);
     try {
       const url = await uploadPrivateImage(f, convId);
@@ -185,12 +218,34 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
         })}
       </div>
 
+      {/* 轻提示 */}
+      {notice && (
+        <div style={{ position:"absolute", left:"50%", bottom:96, transform:"translateX(-50%)",
+                      background:"#2A2520", color:"white", padding:"9px 16px", borderRadius:999,
+                      fontSize:12.5, fontWeight:600, zIndex:10, maxWidth:"82%", textAlign:"center",
+                      boxShadow:"0 6px 20px rgba(0,0,0,0.25)" }}>
+          {notice}
+        </div>
+      )}
+
+      {/* 陌生人提示条（未互相关注）*/}
+      {strangerBanner && (
+        <div style={{ background:"#FBF1E6", borderTop:`1px solid ${C.border}`,
+                      padding:"9px 16px", fontSize:11.5, color:"#9A7B55", textAlign:"center",
+                      lineHeight:1.5, flexShrink:0 }}>
+          {canText
+            ? "你们还不是互相关注，只能先发一条消息打个招呼～（对方回关后可畅聊、发图片）"
+            : "对方回关你后才能继续聊天 · 发图片 🐾"}
+        </div>
+      )}
+
       {/* 输入区 */}
       <div style={{ background:"white", borderTop:`1px solid ${C.border}`, padding:"10px 12px 20px",
                     display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
-        <button onClick={() => fileRef.current?.click()} disabled={uploading || !convId}
+        <button onClick={openImagePicker} disabled={uploading || !convId}
           style={{ width:38, height:38, borderRadius:"50%", flexShrink:0, background:C.bg,
                    border:`1px solid ${C.border}`, cursor: uploading ? "default" : "pointer",
+                   opacity: canImage ? 1 : 0.45,
                    display:"flex", alignItems:"center", justifyContent:"center", color:C.pri, fontSize:20 }}>
           {uploading ? "…" : "＋"}
         </button>
@@ -199,13 +254,17 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
           value={inp}
           onChange={(e) => setInp(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && doSendText()}
-          placeholder="输入消息..."
+          disabled={!canText}
+          placeholder={canText ? "输入消息..." : "对方回关后才能继续聊天"}
           style={{ flex:1, borderRadius:999, padding:"10px 16px", fontSize:14, minWidth:0,
-                   border:`1.5px solid ${C.border}`, background:C.bg, color:C.text, outline:"none" }} />
-        <button onClick={doSendText} disabled={!inp.trim() || sending}
+                   border:`1.5px solid ${C.border}`, background:C.bg,
+                   color: canText ? C.text : C.sub, outline:"none",
+                   cursor: canText ? "text" : "not-allowed" }} />
+        <button onClick={doSendText} disabled={!inp.trim() || sending || !canText}
           style={{ flexShrink:0, padding:"9px 18px", borderRadius:999, border:"none",
-                   background: inp.trim() && !sending ? C.pri : C.light, color:"white",
-                   fontSize:14, fontWeight:700, cursor: inp.trim() && !sending ? "pointer" : "default" }}>
+                   background: inp.trim() && !sending && canText ? C.pri : C.light, color:"white",
+                   fontSize:14, fontWeight:700,
+                   cursor: inp.trim() && !sending && canText ? "pointer" : "default" }}>
           发送
         </button>
       </div>
