@@ -267,7 +267,7 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
       return n;
     });
     setPosts((prev) => prev.map((p) =>
-      p.id === postId ? { ...p, like_count: (p.like_count || 0) + likeDelta } : p
+      p.id === postId ? { ...p, like_count: Math.max(0, (p.like_count || 0) + likeDelta) } : p
     ));
   };
 
@@ -673,7 +673,7 @@ export function PostCard({ post, isLiked, onOpen, onToggleLike, onOpenTopic, onO
                    fontSize:11, fontWeight: isLiked ? 700 : 500, padding:0 }}>
           <span key={isLiked ? "on" : "off"}
             style={{ display:"inline-flex", animation: isLiked ? "pawpop .2s ease" : "none" }}>
-            <PawLikeIcon filled={isLiked} size={16} />
+            <PawLikeIcon filled={isLiked} size={20} />
           </span>
           {post.like_count || 0}
         </button>

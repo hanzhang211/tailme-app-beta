@@ -142,7 +142,7 @@ BEGIN
   END IF;
   RETURN COALESCE(NEW, OLD);
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS trg_post_likes_count ON post_likes;
 CREATE TRIGGER trg_post_likes_count
@@ -233,7 +233,7 @@ BEGIN
   END IF;
   RETURN COALESCE(NEW, OLD);
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS trg_comment_likes_count ON comment_likes;
 CREATE TRIGGER trg_comment_likes_count

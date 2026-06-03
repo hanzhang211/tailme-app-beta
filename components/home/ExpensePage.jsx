@@ -212,7 +212,7 @@ export default function ExpensePage({ user, pets, onBack, onAmountChanged }) {
               <button onClick={() => handleDelete(it)}
                 style={{ background:"transparent", border:"none", cursor:"pointer",
                          padding:"2px 4px", display:"flex", alignItems:"center" }}>
-                <PetTrashIcon size={18} />
+                <PetTrashIcon size={20} />
               </button>
             </div>
           ))}

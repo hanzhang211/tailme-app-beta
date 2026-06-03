@@ -326,7 +326,7 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
                                   onClick={() => { setMenuOpenId(null); setEditMedDisease(d); }}/>
                                 <div style={{ height:1, background:"rgba(0,0,0,0.06)", margin:"4px 10px" }}/>
                                 <MenuItem label="删除记录" color="#D94040"
-                                  icon={<PetTrashIcon size={15} active />}
+                                  icon={<PetTrashIcon size={16} active />}
                                   onClick={() => { setMenuOpenId(null); handleDeleteDisease(d); }}/>
                               </div>
                             )}
@@ -507,7 +507,7 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
                       <button onClick={() => handleDeleteRecord(r)}
                         style={{ background:"transparent", border:"none", cursor:"pointer",
                                  padding:"2px 4px", display:"flex", alignItems:"center" }}>
-                        <PetTrashIcon size={15} />
+                        <PetTrashIcon size={17} />
                       </button>
                     </div>
                   );
@@ -1064,7 +1064,7 @@ function DiseaseDetailSheet({ disease: initD, pets, user, onClose, onDelete, onU
                            background:"transparent", border:"none", cursor:"pointer",
                            fontSize:14, fontWeight:600, color:"#D94040",
                            display:"flex", alignItems:"center", gap:8 }}>
-                  <PetTrashIcon size={15} active /> 删除
+                  <PetTrashIcon size={16} active /> 删除
                 </button>
               </div>
             )}

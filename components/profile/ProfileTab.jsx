@@ -806,14 +806,14 @@ function MiniPostCard({ post, onOpen, onDelete }) {
       <div style={{ padding:"6px 9px 9px", display:"flex", alignItems:"center",
                     fontSize:11, color:C.sub }}>
         <span style={{ display:"flex", alignItems:"center", gap:4 }}>
-          <PawLikeIcon size={14} /> {post.like_count || 0}
+          <PawLikeIcon size={17} /> {post.like_count || 0}
         </span>
         <div style={{ flex:1 }} />
         {onDelete && (
           <button onClick={onDelete}
             style={{ background:"transparent", border:"none", cursor:"pointer",
                      color:C.sub, padding:"2px 4px", display:"flex", alignItems:"center" }}>
-            <PetTrashIcon size={15} />
+            <PetTrashIcon size={18} />
           </button>
         )}
       </div>

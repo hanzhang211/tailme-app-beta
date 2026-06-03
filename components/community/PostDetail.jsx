@@ -124,14 +124,14 @@ export default function PostDetail({
     if (!user?.id) return;
     const wasLiked = isLiked;
     setIsLiked(!wasLiked);
-    setLikeCount((c) => c + (wasLiked ? -1 : 1));
+    setLikeCount((c) => Math.max(0, c + (wasLiked ? -1 : 1)));
     onLikeChange?.(postId, !wasLiked, wasLiked ? -1 : 1);
     try {
       if (wasLiked) await unlikePost(postId, user.id);
       else          await likePost(postId, user.id);
     } catch (e) {
       setIsLiked(wasLiked);
-      setLikeCount((c) => c + (wasLiked ? 1 : -1));
+      setLikeCount((c) => Math.max(0, c + (wasLiked ? 1 : -1)));
       onLikeChange?.(postId, wasLiked, wasLiked ? 1 : -1);
       toast?.(e.message, "error");
     }
@@ -169,7 +169,7 @@ export default function PostDetail({
       return n;
     });
     setComments((prev) => prev.map((c) =>
-      c.id === commentId ? { ...c, like_count: (c.like_count || 0) + (isL ? -1 : 1) } : c
+      c.id === commentId ? { ...c, like_count: Math.max(0, (c.like_count || 0) + (isL ? -1 : 1)) } : c
     ));
     try {
       if (isL) await unlikeComment(commentId, user.id);
@@ -251,7 +251,7 @@ export default function PostDetail({
             <button onClick={own ? handleDeletePost : handleReport}
               style={{ background:"transparent", border:"none", cursor:"pointer",
                        color:C.sub, fontSize:14, display:"flex", alignItems:"center", padding:0 }}>
-              {own ? <PetTrashIcon size={18} /> : "⚐"}
+              {own ? <PetTrashIcon size={20} /> : "⚐"}
             </button>
           )}
         </div>
@@ -341,7 +341,7 @@ export default function PostDetail({
                        fontWeight: isLiked ? 700 : 500, fontSize:13 }}>
               <span key={isLiked ? "on" : "off"}
                 style={{ display:"inline-flex", animation: isLiked ? "pawpop .2s ease" : "none" }}>
-                <PawLikeIcon filled={isLiked} size={18} />
+                <PawLikeIcon filled={isLiked} size={22} />
               </span>
               {likeCount}
             </button>
@@ -510,7 +510,7 @@ function CommentRow({ c, user, isLiked, onToggleLike, onDelete, onReply, replyHi
                      fontSize:11, padding:0, display:"flex", alignItems:"center", gap:4 }}>
             <span key={isLiked ? "on" : "off"}
               style={{ display:"inline-flex", animation: isLiked ? "pawpop .2s ease" : "none" }}>
-              <PawLikeIcon filled={isLiked} size={14} />
+              <PawLikeIcon filled={isLiked} size={17} />
             </span>
             {c.like_count || 0}
           </button>
@@ -525,7 +525,7 @@ function CommentRow({ c, user, isLiked, onToggleLike, onDelete, onReply, replyHi
             <button onClick={onDelete}
               style={{ background:"transparent", border:"none", cursor:"pointer",
                        color:C.sub, padding:0, display:"flex", alignItems:"center" }}>
-              <PetTrashIcon size={14} />
+              <PetTrashIcon size={17} />
             </button>
           )}
         </div>
