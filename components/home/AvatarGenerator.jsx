@@ -14,11 +14,21 @@ import {
   saveAIAvatarToPet,
 } from "@/services/petAvatarService";
 import { compressImage } from "@/services/imageCompress";
+import PetCameraIllustration from "@/components/illustrations/PetCameraIllustration";
 
 const C = {
-  pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
-  sub:"#8A8074", light:"#D6D5D8", border:"#D6D5D8",
+  pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#2A2520",
+  sub:"#8A8178", light:"#D6D5D8", border:"#D6D5D8", peach:"#F2C7A5",
 };
+
+/* 小四角星（标题装饰，浅橙/金色）*/
+function TitleStar({ size = 16, color = "#E8A24E" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true">
+      <path d="M12 2l2.4 6.2L21 10l-6.6 1.8L12 22l-2.4-6.2L3 10l6.6-1.8L12 2z" />
+    </svg>
+  );
+}
 
 const PHASES = {
   PICK:    "pick",     // 选图
@@ -145,15 +155,19 @@ export default function AvatarGenerator({ user, pet, onSaved, onClose }) {
     <div onClick={(e) => phase !== PHASES.GENING && e.target === e.currentTarget && onClose?.()}
       style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:1000,
                display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ width:"100%", maxWidth:430, background:C.bg,
-                    borderRadius:"22px 22px 0 0", padding:"18px 18px 28px",
-                    maxHeight:"90vh", overflowY:"auto" }}>
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ width:"100%", maxWidth:430, background:C.bg,
+                 borderRadius:"30px 30px 0 0", padding:"14px 18px calc(28px + env(safe-area-inset-bottom))",
+                 maxHeight:"92vh", overflowY:"auto", animation:"aiSheetUp .26s ease-out" }}>
+        <style>{`@keyframes aiSheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
         <div style={{ width:40, height:4, borderRadius:4, background:C.light,
-                      margin:"0 auto 16px" }}/>
-        <div style={{ fontSize:18, fontWeight:800, color:C.text, marginBottom:6, textAlign:"center" }}>
-          ✨ AI 专属宠物形象
+                      margin:"0 auto 18px" }}/>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginBottom:7 }}>
+          <TitleStar size={15} />
+          <span style={{ fontSize:23, fontWeight:800, color:C.text, letterSpacing:0.2 }}>AI 专属宠物形象</span>
+          <TitleStar size={15} />
         </div>
-        <div style={{ fontSize:12, color:C.sub, marginBottom:16, textAlign:"center" }}>
+        <div style={{ fontSize:13.5, color:C.sub, marginBottom:18, textAlign:"center", lineHeight:1.5 }}>
           上传一张毛孩的清晰照片，AI 给它生成一个可爱头像
         </div>
 
@@ -202,24 +216,93 @@ export default function AvatarGenerator({ user, pet, onSaved, onClose }) {
 
 /* ──────────────────────────────────────────── */
 function PickStep({ onPick }) {
+  const inputRef = useRef(null);
+  const openPicker = () => inputRef.current?.click();
+
   return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"20px 0" }}>
-      <label style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10,
-                      width:"100%", padding:"30px 16px", borderRadius:18,
-                      background:"white", border:`1.5px dashed ${C.border}`, cursor:"pointer",
-                      transition:"border-color .15s" }}
-        onMouseOver={(e) => e.currentTarget.style.borderColor = C.pri}
-        onMouseOut={(e) => e.currentTarget.style.borderColor = C.border}>
-        <div style={{ fontSize:48 }}>📷</div>
-        <div style={{ fontSize:14, fontWeight:700, color:C.text }}>选择毛孩照片</div>
-        <div style={{ fontSize:11, color:C.sub, lineHeight:1.5, textAlign:"center" }}>
-          建议光线明亮、正面、面部清晰<br/>支持 JPG / PNG / HEIC，≤ 10MB
+    <>
+      <input ref={inputRef} type="file" accept="image/*" onChange={onPick} style={{ display:"none" }} />
+
+      {/* 上传区：大圆角虚线框 + 相机插画 */}
+      <div onClick={openPicker}
+        style={{ width:"100%", borderRadius:24, background:"white",
+                 border:`2px dashed ${C.peach}`, cursor:"pointer",
+                 padding:"22px 18px 24px", display:"flex", flexDirection:"column",
+                 alignItems:"center", boxShadow:"0 2px 12px rgba(0,0,0,0.04)" }}>
+        <PetCameraIllustration size={158} style={{ display:"block", marginBottom:6 }} />
+        <div style={{ fontSize:16, fontWeight:800, color:C.text, marginBottom:6 }}>选择毛孩照片</div>
+        <div style={{ fontSize:13, color:C.sub }}>建议光线明亮、正面、面部清晰</div>
+        <div style={{ fontSize:11.5, color:C.light, marginTop:3 }}>
+          {"支持 JPG / PNG / HEIC，< 10MB"}
         </div>
-        <input type="file" accept="image/*"
-          onChange={onPick}
-          style={{ display:"none" }} />
-      </label>
-    </div>
+      </div>
+
+      {/* 拍照建议卡片：三列 */}
+      <div style={{ display:"flex", background:"white", borderRadius:20, padding:"14px 6px",
+                    marginTop:14, boxShadow:"0 2px 10px rgba(0,0,0,0.04)" }}>
+        {[
+          { Icon: SunIcon,  title:"正面更清晰", note:"建议正面对镜头" },
+          { Icon: BulbIcon, title:"光线充足",   note:"自然光效果更佳" },
+          { Icon: PawIcon,  title:"五官完整",   note:"避免遮挡更准确" },
+        ].map((t, i) => (
+          <div key={t.title} style={{ flex:1, display:"flex", alignItems:"center" }}>
+            {i > 0 && <div style={{ width:1, height:36, background:C.border, opacity:0.6 }} />}
+            <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4, padding:"0 4px" }}>
+              <t.Icon />
+              <div style={{ fontSize:12.5, fontWeight:700, color:C.text }}>{t.title}</div>
+              <div style={{ fontSize:10.5, color:C.sub, textAlign:"center" }}>{t.note}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 主按钮 */}
+      <button onClick={openPicker}
+        style={{ width:"100%", height:56, marginTop:16, borderRadius:999, border:"none",
+                 background:C.pri, color:"white", fontSize:18, fontWeight:800, cursor:"pointer",
+                 boxShadow:"0 8px 18px rgba(230,134,69,0.32)" }}>
+        选择照片
+      </button>
+
+      {/* 隐私提示 */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginTop:14 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z" stroke={C.peach} strokeWidth="1.8" strokeLinejoin="round"/>
+          <path d="M8.8 12.2l2.2 2.2 4-4.4" stroke={C.peach} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <span style={{ fontSize:12, color:C.sub }}>仅用于生成宠物形象，我们会严格保护你的隐私</span>
+      </div>
+    </>
+  );
+}
+
+/* 建议卡片橙色线条小图标 */
+function SunIcon({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2" stroke="#E68645" strokeWidth="1.8"/>
+      <g stroke="#E68645" strokeWidth="1.8" strokeLinecap="round">
+        <path d="M12 3v2.4M12 18.6V21M3 12h2.4M18.6 12H21M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7"/>
+      </g>
+    </svg>
+  );
+}
+function BulbIcon({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M9 16.5a6 6 0 1 1 6 0c-.5.4-.8 1-.8 1.7v.3H9.8v-.3c0-.7-.3-1.3-.8-1.7z"
+            stroke="#E68645" strokeWidth="1.8" strokeLinejoin="round"/>
+      <path d="M9.8 20.5h4.4" stroke="#E68645" strokeWidth="1.8" strokeLinecap="round"/>
+    </svg>
+  );
+}
+function PawIcon({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="#E68645" aria-hidden="true">
+      <ellipse cx="6" cy="9" rx="1.9" ry="2.5"/><ellipse cx="10.3" cy="6" rx="2.1" ry="2.8"/>
+      <ellipse cx="14.7" cy="6" rx="2.1" ry="2.8"/><ellipse cx="18.5" cy="9.5" rx="1.9" ry="2.4"/>
+      <path d="M7.5 14.5q-2 4 1.5 6.4 3.4 1.6 6.6-.2 2.4-2.2.4-6.2-1.6-2.6-4.5-2.6-2.6 0-4 2.6z"/>
+    </svg>
   );
 }
 
