@@ -23,7 +23,7 @@ import {
 import PetAvatar from "@/components/PetAvatar";
 import PawLikeIcon from "@/components/icons/PawLikeIcon";
 import PetTrashIcon from "@/components/icons/PetTrashIcon";
-import BreedIcon from "@/components/icons/BreedIcon";
+import EmptyCommentsDogCat from "@/components/illustrations/EmptyCommentsDogCat";
 import { fmtDuration } from "@/services/videoThumb";
 
 const C = {
@@ -520,24 +520,8 @@ export default function PostDetail({
 function CommentEmpty() {
   return (
     <div style={{ textAlign:"center", padding:"30px 0 26px" }}>
-      <div style={{ position:"relative", width:180, height:104, margin:"0 auto 14px" }}>
-        {/* 浅色点缀 */}
-        <span style={{ position:"absolute", left:20, top:4, fontSize:12, opacity:0.5 }}>🐾</span>
-        <span style={{ position:"absolute", right:26, top:0, fontSize:13, opacity:0.55 }}>💛</span>
-        <span style={{ position:"absolute", right:14, top:40, fontSize:11, opacity:0.4 }}>🐾</span>
-        {/* 小窝（垫子）*/}
-        <div style={{ position:"absolute", left:"50%", bottom:0, transform:"translateX(-50%)",
-                      width:156, height:30, borderRadius:"50%", background:C.tint }} />
-        <div style={{ position:"absolute", left:"50%", bottom:6, transform:"translateX(-50%)",
-                      width:120, height:18, borderRadius:"50%", background:"#EADFCB" }} />
-        {/* 狗 + 猫 依偎 */}
-        <div style={{ position:"absolute", left:"50%", bottom:14, transform:"translateX(-50%)",
-                      display:"flex", alignItems:"flex-end" }}>
-          <BreedIcon breed="柴犬" petType="dog" size={62} />
-          <BreedIcon breed="美短" petType="cat" size={52} style={{ marginLeft:-10 }} />
-        </div>
-      </div>
-      <div style={{ fontSize:14, fontWeight:600, color:C.text }}>这里还空着，快来抢个小窝吧</div>
+      <EmptyCommentsDogCat className="w-44 mx-auto" />
+      <div style={{ fontSize:14, fontWeight:600, color:C.text, marginTop:14 }}>这里还空着，快来抢个小窝吧</div>
     </div>
   );
 }
