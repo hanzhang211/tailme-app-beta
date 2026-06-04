@@ -22,6 +22,7 @@ import { formatPetAge } from "@/services/petAge";
 import { avatarForBreed } from "@/services/breedAvatar";
 import PrivateChatDetail from "@/components/community/PrivateChatDetail";
 import DogFriendEdit from "./DogFriendEdit";
+import DogWaitingIllustration from "./DogWaitingIllustration";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#2A2520",
@@ -423,7 +424,7 @@ function PawOrange({ size = 20 }) {
 function EmptyState({ title, desc }) {
   return (
     <div style={{ textAlign:"center", padding:"44px 24px" }}>
-      <div style={{ fontSize:46, marginBottom:6 }}>🐕</div>
+      <DogWaitingIllustration size={150} style={{ display:"block", margin:"0 auto 18px" }} />
       <div style={{ fontSize:14.5, fontWeight:700, color:C.text }}>{title}</div>
       <div style={{ fontSize:12.5, color:C.sub, marginTop:6, lineHeight:1.6 }}>{desc}</div>
     </div>
