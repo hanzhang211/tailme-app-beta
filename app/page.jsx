@@ -705,10 +705,26 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   const [avatarOpen,       setAvatarOpen]   = useState(false);
   const [avatarBroken,     setAvatarBroken] = useState(false);
   const [avatarLoaded,     setAvatarLoaded] = useState(false);
+  const [cachedAvatar,     setCachedAvatar] = useState(null); // 该宠物上次成功显示的头像（localStorage 占位）
+  const avatarImgRef = useRef(null);
   // 优先用 thumb（300 WebP 小图，加载快）；rembg 抠图后 thumb 也是透明的
   // URL 含时间戳，每次生成都不同，天然绕开缓存
   const avatarSrc = pet.pet_avatar_thumb_url || pet.ai_avatar_url || null;
-  useEffect(() => { setAvatarBroken(false); setAvatarLoaded(false); }, [pet?.id, avatarSrc]);
+  const avatarCacheKey = pet?.id ? `tailme_pet_avatar_cache_${pet.id}` : null;
+
+  // 切换宠物 / 换头像：重置加载态，并读出该宠物上次缓存的头像作为占位（避免空白）
+  useEffect(() => {
+    setAvatarBroken(false);
+    setAvatarLoaded(false);
+    if (!avatarCacheKey) { setCachedAvatar(null); return; }
+    try { setCachedAvatar(localStorage.getItem(avatarCacheKey) || null); } catch { setCachedAvatar(null); }
+  }, [pet?.id, avatarSrc, avatarCacheKey]);
+
+  // 命中浏览器缓存的图片，onLoad 可能在 React 绑定前就触发 → 用 complete 兜底，避免一直空白需刷新
+  useEffect(() => {
+    const img = avatarImgRef.current;
+    if (img && img.complete && img.naturalWidth > 0) setAvatarLoaded(true);
+  }, [avatarSrc]);
 
   // 聊天气泡文案：首次打开随机一条，切换宠物时重新随机（尽量避开上一条），同一次浏览保持不变
   const lastBubbleIdx = useRef(-1);
@@ -730,6 +746,16 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   // 环形上一只 / 下一只（即使在首/尾也回绕）
   const prevPet = showCarousel ? pets[(petIdx - 1 + petCount) % petCount] : null;
   const nextPet = showCarousel ? pets[(petIdx + 1) % petCount] : null;
+
+  // 预加载当前 + 相邻宠物头像，切换/打开时不闪白
+  useEffect(() => {
+    const urls = [
+      avatarSrc,
+      prevPet?.pet_avatar_thumb_url || prevPet?.ai_avatar_url,
+      nextPet?.pet_avatar_thumb_url || nextPet?.ai_avatar_url,
+    ].filter(Boolean);
+    urls.forEach((u) => { const im = new Image(); im.src = u; });
+  }, [avatarSrc, prevPet?.id, nextPet?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Swipe 手势（循环，无边界，无 rubber-band）
   const touchStartX = useRef(null);
@@ -1260,22 +1286,37 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
               {/* 主头像（点击进入 AI 宠物聊天占位页） */}
               <div onClick={() => setSubPage("petchat")}
                    style={{ position:"relative", padding:"4px 10px", flexShrink:0, cursor:"pointer" }}>
-                {avatarSrc && !avatarBroken ? (
-                  <img src={avatarSrc} alt={pet.name}
-                    fetchPriority="high"
-                    onLoad={() => setAvatarLoaded(true)}
-                    onError={() => setAvatarBroken(true)}
-                    style={{ width:210, height:210, objectFit:"contain", display:"block",
-                             opacity: avatarLoaded ? 1 : 0,
-                             transition:"opacity 0.45s ease",
-                             animation:"float 3s ease-in-out infinite",
-                             mixBlendMode:"multiply" }} />
-                ) : (
-                  <div style={{ fontSize:150, lineHeight:1,
-                                animation:"float 3s ease-in-out infinite" }}>
-                    🐶
-                  </div>
-                )}
+                <div style={{ position:"relative", width:210, height:210 }}>
+                  {/* 占位层：真实头像未加载完成时显示 —— 优先上次缓存头像，否则默认小狗（永不空白） */}
+                  {!avatarLoaded && (
+                    cachedAvatar ? (
+                      <img src={cachedAvatar} alt="" aria-hidden="true"
+                        style={{ position:"absolute", inset:0, width:210, height:210, objectFit:"contain",
+                                 animation:"float 3s ease-in-out infinite", mixBlendMode:"multiply" }} />
+                    ) : (
+                      <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center",
+                                    justifyContent:"center", fontSize:150, lineHeight:1,
+                                    animation:"float 3s ease-in-out infinite" }}>
+                        🐶
+                      </div>
+                    )
+                  )}
+                  {/* 真实头像：加载完成后淡入覆盖占位层；broken 时不渲染，占位层继续兜底 */}
+                  {avatarSrc && !avatarBroken && (
+                    <img ref={avatarImgRef} src={avatarSrc} alt={pet.name}
+                      fetchPriority="high"
+                      onLoad={() => {
+                        setAvatarLoaded(true);
+                        try { if (avatarCacheKey && avatarSrc) localStorage.setItem(avatarCacheKey, avatarSrc); } catch {}
+                      }}
+                      onError={() => setAvatarBroken(true)}
+                      style={{ position:"absolute", inset:0, width:210, height:210, objectFit:"contain", display:"block",
+                               opacity: avatarLoaded ? 1 : 0,
+                               transition:"opacity 0.45s ease",
+                               animation:"float 3s ease-in-out infinite",
+                               mixBlendMode:"multiply" }} />
+                  )}
+                </div>
                 {/* 位置 A：右上角小状态标签。生病中 > 饿了 */}
                 {sick ? (
                   <div style={{ position:"absolute", top:0, right:-4, background:"#5FA766", borderRadius:20,
