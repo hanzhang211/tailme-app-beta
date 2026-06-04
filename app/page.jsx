@@ -1957,7 +1957,7 @@ export default function AppRoot() {
   return shell(
     <>
       <div style={{ position:"absolute", top:0, left:0, right:0, bottom:60, overflow:"hidden" }}>
-        {tab === 0 && <SocialTab user={user} pet={pet} />}
+        {tab === 0 && <SocialTab user={user} pet={pet} pets={pets} />}
         {tab === 1 && <MapTab />}
         {tab === 2 && <HomeTab user={user} pet={pet} pets={pets} onPetUpdate={handlePetDataUpdated} onSwitchPet={setActivePet} />}
         {tab === 3 && <CommunityTab user={user} pet={pet} pets={pets} onUserUpdated={setUser} onOpenProfile={setProfileUserId} />}

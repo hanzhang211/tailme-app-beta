@@ -62,7 +62,7 @@ function PawWhite({ size = 16 }) {
   );
 }
 
-export default function SocialTab({ user, pet }) {
+export default function SocialTab({ user, pet, pets = [] }) {
   const [profile, setProfile]   = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [nearby, setNearby]     = useState([]);
@@ -290,7 +290,7 @@ export default function SocialTab({ user, pet }) {
       {/* 编辑名片 */}
       {editOpen && (
         <DogFriendEdit
-          user={user} pet={pet} profile={profile}
+          user={user} pet={pet} pets={pets} profile={profile}
           onClose={() => setEditOpen(false)}
           onSaved={handleEditSaved}
           toast={toast} />

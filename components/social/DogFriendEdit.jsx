@@ -16,6 +16,7 @@ import {
   upsertDogProfile, setDogVisibility, getCurrentPosition,
   WALKING_TIMES, PERSONALITY_TAGS, SMALL_DOG_OPTIONS, BIG_DOG_OPTIONS,
 } from "@/services/dogFriendService";
+import PetAvatar from "@/components/PetAvatar";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#2A2520",
@@ -23,7 +24,12 @@ const C = {
 };
 const TINT_ON = "#FBEEE2";
 
-export default function DogFriendEdit({ user, pet, profile, onClose, onSaved, toast }) {
+export default function DogFriendEdit({ user, pet, pets = [], profile, onClose, onSaved, toast }) {
+  // 选哪只宠物遛弯：默认用名片里已存的那只；没有则单宠物自动选、多宠物需手选
+  // （不再默认首页激活的那只）
+  const [petId, setPetId]       = useState(
+    () => profile?.pet_id || (pets.length === 1 ? pets[0].id : "")
+  );
   const [visible, setVisible]   = useState(!!profile?.is_visible);
   const [times, setTimes]       = useState(() => new Set(profile?.walking_times || []));
   const [chars, setChars]       = useState(() => new Set(profile?.personalities || []));
@@ -66,10 +72,14 @@ export default function DogFriendEdit({ user, pet, profile, onClose, onSaved, to
 
   const handleSave = async () => {
     if (saving) return;
+    if (pets.length > 0 && !petId) {
+      toast?.("请选择一只一起遛弯的毛孩子", "warn");
+      return;
+    }
     setSaving(true);
     try {
       await upsertDogProfile({
-        userId: user.id, petId: pet?.id,
+        userId: user.id, petId: petId || null,
         walkingTimes: [...times], personalities: [...chars],
         smallPref: small || null, bigPref: big || null, intro: intro.trim(),
       });
@@ -106,6 +116,33 @@ export default function DogFriendEdit({ user, pet, profile, onClose, onSaved, to
               为保护安全，仅展示这次登录的大致距离，不公开具体位置。开启后会持续显示，直到你手动关闭。
             </div>
           </div>
+
+          {/* 选择一起遛弯的毛孩子 */}
+          {pets.length > 0 && (
+            <Card>
+              <SectionTitle title="选择一起遛弯的毛孩子" hint={pets.length > 1 ? "可切换" : undefined} />
+              <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:2 }}>
+                {pets.map((p) => {
+                  const on = petId === p.id;
+                  return (
+                    <button key={p.id} onClick={() => setPetId(p.id)}
+                      style={{ flexShrink:0, width:78, display:"flex", flexDirection:"column", alignItems:"center",
+                               gap:6, background:"transparent", border:"none", cursor:"pointer" }}>
+                      <span style={{ padding:3, borderRadius:"50%",
+                                     border:`2.5px solid ${on ? C.pri : "transparent"}`,
+                                     background: on ? TINT_ON : "transparent" }}>
+                        <PetAvatar pet={p} size={54} bg={C.tint} />
+                      </span>
+                      <span style={{ fontSize:12, fontWeight: on ? 700 : 500, color: on ? C.pri : C.text,
+                                     maxWidth:74, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                        {p.name || "毛孩子"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
 
           {/* 是否公开距离信息 */}
           <Card>
