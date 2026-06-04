@@ -1,203 +1,159 @@
 "use client";
 
-import type { CSSProperties } from "react";
-
 /**
  * components/illustrations/EmptyCommentsDogCat.tsx
  *
  * TailMe 风格「空评论」轻插画（纯 inline SVG，无外部图片/字体/emoji）：
- *  一只浅橙奶油色 Q 版小狗 + 一只浅灰白 Q 版小猫并排坐着，
- *  上方一颗黄色爱心，左右浅色爪印点缀，底部淡淡椭圆阴影。
- * 仅作帖子详情「还没有评论」占位用，无业务逻辑。
+ *  左边一只浅橙奶油色 Q 版小狗、右边一只灰白色 Q 版小猫，
+ *  都是「大头 + 圆身体 + 短腿」的正常宠物坐姿（无人形、无手臂、无长腿），
+ *  上方一颗小爱心，左右浅色爪印，底部淡椭圆阴影。
+ *  仅作帖子详情「还没有评论」占位用，无业务逻辑。
  *
- * props:
- *  - size:   宽度 px（默认 180）
- *  - width:  宽度（覆盖 size，可为数字或 CSS 字符串）
- *  - height: 高度（缺省时按 viewBox 比例自动）
- *  - className / style
+ * 用法：<EmptyCommentsDogCat className="w-44 h-auto mx-auto" />
  */
 
 type Props = {
-  size?: number;
-  width?: number | string;
-  height?: number | string;
   className?: string;
-  style?: CSSProperties;
 };
 
-export default function EmptyCommentsDogCat({
-  size,
-  width,
-  height,
-  className,
-  style,
-}: Props) {
-  const w = width ?? size ?? 180;
+// —— TailMe 暖色调色板 ——
+const DOG = "#F6C27A"; // 小狗主体（橙黄）
+const DOG_EAR = "#E69A45"; // 小狗耳朵/尾巴（深一点的橙）
+const DOG_FACE = "#FFF4E5"; // 小狗口鼻白色区
+const CAT = "#F4EFE6"; // 小猫主体（米白）
+const CAT_LINE = "#B8ADA0"; // 小猫条纹/暗部
+const CHEEK = "#F6B8A8"; // 腮红
+const INK = "#2A2520"; // 眼睛/狗鼻
+const PINK = "#EFA890"; // 猫鼻/耳内粉
+const HEART = "#F4C84B"; // 黄色爱心
+const PAW = "#F2C7A5"; // 浅橙爪印
+const SHADOW = "#EADFCB"; // 椭圆阴影
 
-  // —— TailMe 暖色调色板 ——
-  const dog = "#F3B765"; // 小狗主体（浅橙）
-  const dogD = "#E59E45"; // 小狗耳朵/暗部
-  const cream = "#FBEEDA"; // 奶油色（胸口/口鼻/前爪）
-  const cat = "#D7D7DD"; // 小猫主体（浅灰）
-  const catD = "#BCBCC5"; // 小猫斑纹
-  const catW = "#FFFDFA"; // 小猫白色
-  const pink = "#F2C7BE"; // 耳朵内/鼻子粉
-  const cheek = "#F3B7A6"; // 腮红
-  const nosePk = "#E89A86"; // 猫鼻
-  const ink = "#3A2A1C"; // 眼睛/狗鼻
-  const heart = "#F4C84B"; // 黄色爱心
-  const paw = "#E2D2B8"; // 浅色爪印
-  const shadow = "#E7DAC4"; // 椭圆阴影
-
-  // 爪印（以 0,0 为中心，约 20px）
-  const Paw = ({
-    x,
-    y,
-    s = 1,
-    o = 0.45,
-  }: {
-    x: number;
-    y: number;
-    s?: number;
-    o?: number;
-  }) => (
-    <g transform={`translate(${x} ${y}) scale(${s})`} fill={paw} opacity={o}>
-      <ellipse cx="0" cy="6" rx="8" ry="6.5" />
-      <ellipse cx="-7" cy="-2.5" rx="3" ry="4" />
-      <ellipse cx="-2.4" cy="-7" rx="3" ry="4" />
-      <ellipse cx="3" cy="-7" rx="3" ry="4" />
-      <ellipse cx="7.5" cy="-2.5" rx="3" ry="4" />
+// 浅色爪印（以 0,0 为中心，约 18px）
+function Paw({ x, y, s = 1, o = 0.5 }: { x: number; y: number; s?: number; o?: number }) {
+  return (
+    <g transform={`translate(${x} ${y}) scale(${s})`} fill={PAW} opacity={o}>
+      <ellipse cx="0" cy="5" rx="7" ry="6" />
+      <ellipse cx="-6" cy="-2.5" rx="2.6" ry="3.4" />
+      <ellipse cx="-2" cy="-6" rx="2.6" ry="3.4" />
+      <ellipse cx="2.6" cy="-6" rx="2.6" ry="3.4" />
+      <ellipse cx="6.5" cy="-2.5" rx="2.6" ry="3.4" />
     </g>
   );
+}
 
+export default function EmptyCommentsDogCat({ className }: Props) {
   return (
     <svg
       className={className}
-      width={w}
-      height={height}
-      viewBox="0 0 240 210"
+      width="180"
+      viewBox="0 0 240 160"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       role="img"
-      aria-label="一只小狗和一只小猫"
-      style={{ height: height == null ? "auto" : undefined, ...style }}
+      aria-label="一只小狗和一只小猫坐在一起"
+      style={{ height: "auto" }}
     >
-      {/* 底部淡淡椭圆阴影 */}
-      <ellipse cx="120" cy="190" rx="92" ry="13" fill={shadow} opacity="0.7" />
+      {/* 底部淡椭圆阴影 */}
+      <ellipse cx="120" cy="149" rx="88" ry="10" fill={SHADOW} opacity="0.7" />
 
-      {/* 浅色爪印点缀 */}
-      <Paw x="30" y="66" s="0.95" o={0.5} />
-      <Paw x="36" y="150" s="0.55" o={0.4} />
-      <Paw x="205" y="98" s="0.8" o={0.5} />
-      <Paw x="200" y="158" s="0.5" o={0.38} />
+      {/* 浅色爪印装饰 */}
+      <Paw x="26" y="48" s={0.95} o={0.55} />
+      <Paw x="30" y="120" s={0.55} o={0.4} />
+      <Paw x="212" y="64" s={0.85} o={0.55} />
+      <Paw x="208" y="124" s={0.5} o={0.4} />
 
-      {/* 黄色爱心（两只之间上方） */}
+      {/* 黄色小爱心（两只之间上方） */}
       <path
-        d="M118 47 C118 47 105 39 105 30 C105 25 109 22.5 113 24.3 C115 25.2 116.7 27 118 29 C119.3 27 121 25.2 123 24.3 C127 22.5 131 25 131 30 C131 39 118 47 118 47 Z"
-        fill={heart}
+        d="M117 35 C117 35 105 28 105 20.5 C105 16 109 14 112.5 15.7 C114.3 16.6 115.8 18.2 117 20 C118.2 18.2 119.7 16.6 121.5 15.7 C125 14 129 16 129 20.5 C129 28 117 35 117 35 Z"
+        fill={HEART}
       />
 
-      {/* ───────── 小狗（左） ───────── */}
-      {/* 尾巴 */}
-      <path
-        d="M104 150 C124 148 126 126 118 118 C122 130 114 144 100 146 Z"
-        fill={dogD}
-      />
-      {/* 身体 */}
-      <ellipse cx="74" cy="150" rx="38" ry="36" fill={dog} />
-      {/* 胸口奶油色 */}
-      <ellipse cx="74" cy="158" rx="20" ry="26" fill={cream} />
-      {/* 前爪 */}
-      <ellipse cx="60" cy="178" rx="11" ry="9" fill={cream} />
-      <ellipse cx="90" cy="178" rx="11" ry="9" fill={cream} />
-      {/* 耳朵（垂耳） */}
-      <path d="M50 74 C30 76 26 100 34 116 C44 110 50 92 54 80 Z" fill={dogD} />
-      <path d="M94 74 C114 76 118 100 110 116 C100 110 94 92 90 80 Z" fill={dogD} />
-      {/* 头 */}
-      <circle cx="72" cy="98" r="36" fill={dog} />
-      {/* 额头白斑 */}
-      <path d="M72 68 C65 84 65 100 72 112 C79 100 79 84 72 68 Z" fill={cream} />
-      {/* 口鼻奶油色 */}
-      <ellipse cx="72" cy="108" rx="20" ry="15" fill={cream} />
+      {/* ───────── 小狗（左，坐姿） ───────── */}
+      {/* 尾巴（左侧小弯尾，画在身体后） */}
+      <path d="M52 126 C36 124 36 105 46 100 C42 109 47 119 58 121 Z" fill={DOG_EAR} />
+      {/* 圆身体 */}
+      <ellipse cx="82" cy="118" rx="34" ry="26" fill={DOG} />
+      {/* 两只短前爪 */}
+      <ellipse cx="70" cy="139" rx="9" ry="6" fill={DOG_FACE} />
+      <ellipse cx="94" cy="139" rx="9" ry="6" fill={DOG_FACE} />
+      {/* 下垂耳朵（画在头之前，让头盖住耳根） */}
+      <path d="M60 52 C46 54 44 78 53 90 C59 84 62 66 64 56 Z" fill={DOG_EAR} />
+      <path d="M104 52 C118 54 120 78 111 90 C105 84 102 66 100 56 Z" fill={DOG_EAR} />
+      {/* 大头 */}
+      <circle cx="82" cy="70" r="30" fill={DOG} />
+      {/* 口鼻白色区 */}
+      <ellipse cx="82" cy="82" rx="16" ry="12.5" fill={DOG_FACE} />
       {/* 腮红 */}
-      <ellipse cx="51" cy="106" rx="6" ry="4" fill={cheek} opacity="0.7" />
-      <ellipse cx="93" cy="106" rx="6" ry="4" fill={cheek} opacity="0.7" />
+      <ellipse cx="62" cy="80" rx="6" ry="4" fill={CHEEK} opacity="0.7" />
+      <ellipse cx="102" cy="80" rx="6" ry="4" fill={CHEEK} opacity="0.7" />
       {/* 眼睛 */}
-      <circle cx="60" cy="95" r="4.6" fill={ink} />
-      <circle cx="84" cy="95" r="4.6" fill={ink} />
-      <circle cx="61.6" cy="93.4" r="1.5" fill="#fff" />
-      <circle cx="85.6" cy="93.4" r="1.5" fill="#fff" />
+      <circle cx="71" cy="69" r="4.2" fill={INK} />
+      <circle cx="93" cy="69" r="4.2" fill={INK} />
+      <circle cx="72.4" cy="67.6" r="1.4" fill="#fff" />
+      <circle cx="94.4" cy="67.6" r="1.4" fill="#fff" />
       {/* 鼻子 */}
-      <ellipse cx="72" cy="103" rx="5" ry="3.8" fill={ink} />
-      {/* 嘴 + 舌头 */}
+      <ellipse cx="82" cy="79" rx="4.2" ry="3.2" fill={INK} />
+      {/* 微笑嘴 */}
       <path
-        d="M72 107 C72 113 68 116 64 115 M72 107 C72 113 76 116 80 115"
-        stroke={ink}
+        d="M82 82 C82 88 78 90 74 89 M82 82 C82 88 86 90 90 89"
+        stroke={INK}
         strokeWidth="1.6"
         strokeLinecap="round"
         fill="none"
       />
-      <ellipse cx="72" cy="115" rx="3.6" ry="4.6" fill={nosePk} />
 
-      {/* ───────── 小猫（右） ───────── */}
-      {/* 尾巴（带斑纹） */}
-      <path
-        d="M183 156 C202 152 198 126 187 120 C192 132 184 148 174 150 Z"
-        fill={cat}
-      />
-      <path
-        d="M191 130 C194 132 195 137 193 141 C190 139 189 134 191 130 Z"
-        fill={catD}
-      />
-      {/* 身体 */}
-      <ellipse cx="156" cy="154" rx="31" ry="32" fill={cat} />
-      {/* 胸口白色 */}
-      <ellipse cx="156" cy="160" rx="16" ry="22" fill={catW} />
-      {/* 前爪 */}
-      <ellipse cx="146" cy="178" rx="9" ry="7.5" fill={catW} />
-      <ellipse cx="168" cy="178" rx="9" ry="7.5" fill={catW} />
-      {/* 身上斑纹 */}
-      <path d="M138 140 C141 144 141 150 138 154" stroke={catD} strokeWidth="3" strokeLinecap="round" fill="none" />
-      <path d="M174 140 C171 144 171 150 174 154" stroke={catD} strokeWidth="3" strokeLinecap="round" fill="none" />
-      {/* 耳朵 */}
-      <path d="M134 96 L131 70 L155 90 Z" fill={cat} />
-      <path d="M178 96 L181 70 L157 90 Z" fill={cat} />
-      <path d="M137 92 L135.5 78 L150 90 Z" fill={pink} />
-      <path d="M175 92 L176.5 78 L162 90 Z" fill={pink} />
-      {/* 头 */}
-      <circle cx="156" cy="110" r="29" fill={cat} />
-      {/* 头顶斑纹 */}
-      <g stroke={catD} strokeWidth="3" strokeLinecap="round">
-        <line x1="156" y1="84" x2="156" y2="96" />
-        <line x1="147" y1="86" x2="145" y2="97" />
-        <line x1="165" y1="86" x2="167" y2="97" />
+      {/* ───────── 小猫（右，坐姿） ───────── */}
+      {/* 尾巴（右侧弯起，带条纹） */}
+      <path d="M178 128 C198 126 198 102 186 98 C193 105 188 119 176 121 Z" fill={CAT} />
+      <path d="M191 108 C194 110 194 116 191 119" stroke={CAT_LINE} strokeWidth="2.6" strokeLinecap="round" fill="none" />
+      {/* 圆身体 */}
+      <ellipse cx="152" cy="120" rx="30" ry="24" fill={CAT} />
+      {/* 身上条纹 */}
+      <path d="M138 113 C141 116 141 122 138 125" stroke={CAT_LINE} strokeWidth="2.6" strokeLinecap="round" fill="none" />
+      <path d="M166 113 C169 116 169 122 166 125" stroke={CAT_LINE} strokeWidth="2.6" strokeLinecap="round" fill="none" />
+      {/* 两只短前爪 */}
+      <ellipse cx="142" cy="139" rx="8" ry="5.5" fill="#FFFDFA" />
+      <ellipse cx="162" cy="139" rx="8" ry="5.5" fill="#FFFDFA" />
+      {/* 三角猫耳（先画，头盖住耳根） */}
+      <path d="M135 60 L129 41 L151 57 Z" fill={CAT} />
+      <path d="M169 60 L175 41 L153 57 Z" fill={CAT} />
+      <path d="M137 57 L133 46 L147 56 Z" fill={PINK} />
+      <path d="M167 57 L171 46 L157 56 Z" fill={PINK} />
+      {/* 大头 */}
+      <circle cx="152" cy="76" r="27" fill={CAT} />
+      {/* 额头浅灰短纹 */}
+      <g stroke={CAT_LINE} strokeWidth="2.4" strokeLinecap="round">
+        <line x1="152" y1="56" x2="152" y2="66" />
+        <line x1="145" y1="58" x2="143" y2="67" />
+        <line x1="159" y1="58" x2="161" y2="67" />
       </g>
-      {/* 口鼻白色 */}
-      <ellipse cx="156" cy="118" rx="15" ry="11" fill={catW} />
       {/* 腮红 */}
-      <ellipse cx="139" cy="118" rx="5" ry="3.5" fill={cheek} opacity="0.6" />
-      <ellipse cx="173" cy="118" rx="5" ry="3.5" fill={cheek} opacity="0.6" />
+      <ellipse cx="136" cy="84" rx="5.5" ry="3.8" fill={CHEEK} opacity="0.6" />
+      <ellipse cx="168" cy="84" rx="5.5" ry="3.8" fill={CHEEK} opacity="0.6" />
       {/* 眼睛 */}
-      <circle cx="147" cy="110" r="4.2" fill={ink} />
-      <circle cx="165" cy="110" r="4.2" fill={ink} />
-      <circle cx="148.4" cy="108.6" r="1.4" fill="#fff" />
-      <circle cx="166.4" cy="108.6" r="1.4" fill="#fff" />
+      <circle cx="143" cy="78" r="3.9" fill={INK} />
+      <circle cx="161" cy="78" r="3.9" fill={INK} />
+      <circle cx="144.3" cy="76.7" r="1.3" fill="#fff" />
+      <circle cx="162.3" cy="76.7" r="1.3" fill="#fff" />
       {/* 鼻子 */}
-      <path d="M152.6 116 H159.4 L156 120 Z" fill={nosePk} />
-      {/* 嘴 */}
+      <path d="M148.6 85 H155.4 L152 88.5 Z" fill={PINK} />
+      {/* W 型嘴 */}
       <path
-        d="M156 120 C156 123 153.5 124.5 151 123.5 M156 120 C156 123 158.5 124.5 161 123.5"
-        stroke={ink}
+        d="M152 88.5 C152 91 150 92 148.2 91 M152 88.5 C152 91 154 92 155.8 91"
+        stroke={INK}
         strokeWidth="1.4"
         strokeLinecap="round"
         fill="none"
       />
-      {/* 胡须 */}
-      <g stroke="#C9C3BA" strokeWidth="1.3" strokeLinecap="round">
-        <line x1="142" y1="117" x2="126" y2="114" />
-        <line x1="142" y1="120" x2="127" y2="122" />
-        <line x1="170" y1="117" x2="186" y2="114" />
-        <line x1="170" y1="120" x2="185" y2="122" />
+      {/* 胡须（每边 3 根） */}
+      <g stroke="#C9C3BA" strokeWidth="1.2" strokeLinecap="round">
+        <line x1="140" y1="84" x2="125" y2="81" />
+        <line x1="140" y1="87" x2="124" y2="88" />
+        <line x1="140" y1="90" x2="126" y2="94" />
+        <line x1="164" y1="84" x2="179" y2="81" />
+        <line x1="164" y1="87" x2="180" y2="88" />
+        <line x1="164" y1="90" x2="178" y2="94" />
       </g>
     </svg>
   );
