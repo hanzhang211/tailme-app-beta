@@ -20,7 +20,6 @@ import {
 import { getOrCreateConversation, sendPrivateText } from "@/services/privateChatService";
 import { formatPetAge } from "@/services/petAge";
 import { avatarForBreed } from "@/services/breedAvatar";
-import PrivateChatDetail from "@/components/community/PrivateChatDetail";
 import DogFriendEdit from "./DogFriendEdit";
 import DogWaitingIllustration from "./DogWaitingIllustration";
 
@@ -86,7 +85,7 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
   const [staleNote, setStaleNote]     = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
-  const [chat, setChat]         = useState(null); // { conversationId, target }
+  const [invites, setInvites]   = useState({}); // userId -> 'sending' | 'sent'
   const [notice, setNotice]     = useState(null); // { msg, type }
   const noticeRef = useRef();
 
@@ -186,20 +185,22 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
     }
   };
 
-  /* ── 邀请一起遛弯 → 私聊 ── */
+  /* ── 邀请一起遛弯：后台自动发私聊邀请，不跳转，停留在列表页 ── */
   const handleInvite = async (card) => {
     if (!user?.id) { toast("请先登录", "error"); return; }
     if (card.user_id === user.id) { toast("不能邀请自己哦", "warn"); return; }
+    if (invites[card.user_id]) return; // 发送中 / 已发送 → 不重复
+    setInvites((m) => ({ ...m, [card.user_id]: "sending" }));
+    toast("正在发送遛弯申请…", "info");
     try {
       const conv = await getOrCreateConversation(user.id, card.user_id);
       await sendPrivateText({
         convId: conv.id, senderId: user.id, receiverId: card.user_id, content: INVITE_TEXT,
       });
-      setChat({
-        conversationId: conv.id,
-        target: { id: card.user_id, username: card.username, avatar_url: card.owner_avatar_url },
-      });
+      setInvites((m) => ({ ...m, [card.user_id]: "sent" }));
+      toast("已发送遛弯申请 🐾", "success");
     } catch (e) {
+      setInvites((m) => { const n = { ...m }; delete n[card.user_id]; return n; });
       toast(e.message, "error");
     }
   };
@@ -307,6 +308,7 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
         {/* 卡片列表 */}
         {visible && nearby.map((d) => (
           <DogCard key={d.user_id} d={d} onInvite={() => handleInvite(d)}
+            inviteStatus={invites[d.user_id] || "idle"}
             onOpenProfile={onOpenProfile ? () => onOpenProfile(d.user_id) : null} />
         ))}
       </div>
@@ -318,15 +320,6 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
           onClose={() => setEditOpen(false)}
           onSaved={handleEditSaved}
           toast={toast} />
-      )}
-
-      {/* 私聊详情（邀请后打开）*/}
-      {chat && (
-        <PrivateChatDetail
-          meId={user?.id}
-          conversationId={chat.conversationId}
-          target={chat.target}
-          onClose={() => setChat(null)} />
       )}
 
       {/* 轻量 toast */}
@@ -347,7 +340,7 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
 }
 
 /* ── 单张狗友卡片 ── */
-function DogCard({ d, onInvite, onOpenProfile }) {
+function DogCard({ d, onInvite, onOpenProfile, inviteStatus = "idle" }) {
   const age = formatPetAge(d.pet_birthday) || (d.pet_age != null ? `${d.pet_age}岁` : null);
   const tags = [];
   tags.push({ lbl: d.neutered ? "已绝育" : "未绝育", ok: d.neutered });
@@ -401,14 +394,33 @@ function DogCard({ d, onInvite, onOpenProfile }) {
         </div>
       )}
 
-      {/* 邀请按钮 */}
-      <button onClick={onInvite}
-        style={{ marginTop:14, width:"100%", padding:"12px 0", borderRadius:16, background:C.pri,
-                 color:"white", fontSize:13.5, fontWeight:700, border:"none", cursor:"pointer",
-                 display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-                 boxShadow:"0 4px 12px rgba(230,134,69,0.3)" }}>
-        <PawWhite size={16} /> 邀请一起遛弯
-      </button>
+      {/* 邀请按钮：默认 → 正在邀请… → 已发送（停留在列表页，不跳转）*/}
+      {(() => {
+        const cfg = {
+          idle:    { bg:C.pri,     shadow:"0 4px 12px rgba(230,134,69,0.3)" },
+          sending: { bg:"#F0B583", shadow:"none" },
+          sent:    { bg:"#5BB97A", shadow:"0 4px 12px rgba(91,185,122,0.3)" },
+        }[inviteStatus] || { bg:C.pri, shadow:"0 4px 12px rgba(230,134,69,0.3)" };
+        const busy = inviteStatus !== "idle";
+        return (
+          <button onClick={onInvite} disabled={busy}
+            style={{ marginTop:14, width:"100%", padding:"12px 0", borderRadius:16, background:cfg.bg,
+                     color:"white", fontSize:13.5, fontWeight:700, border:"none",
+                     cursor: busy ? "default" : "pointer",
+                     display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                     boxShadow:cfg.shadow, transition:"background .2s" }}>
+            {inviteStatus === "sending" ? (
+              <><span style={{ width:14, height:14, borderRadius:"50%", border:"2px solid rgba(255,255,255,0.5)",
+                               borderTopColor:"#fff", display:"inline-block",
+                               animation:"dfspin .8s linear infinite" }} /> 正在邀请…</>
+            ) : inviteStatus === "sent" ? (
+              <>✓ 已发送遛弯申请</>
+            ) : (
+              <><PawWhite size={16} /> 邀请一起遛弯</>
+            )}
+          </button>
+        );
+      })()}
     </div>
   );
 }
