@@ -27,6 +27,7 @@ import { formatPetAge, formatBirthday, PERSONALITIES, todayISO } from "@/service
 import MapTab from "@/components/map/MapTab";
 import SocialTab from "@/components/social/SocialTab";
 import CommunityTab from "@/components/community/CommunityTab";
+import { prefetchCommunityFeed } from "@/components/community/PostFeed";
 import UserProfile from "@/components/community/UserProfile";
 import ProfileTab from "@/components/profile/ProfileTab";
 import ExpensePage from "@/components/home/ExpensePage";
@@ -1879,6 +1880,11 @@ export default function AppRoot() {
   const [profileUserId, setProfileUserId] = useState(null); // 用户主页浮层
 
   const userId = user?.id ?? null;
+
+  /* 进入 App 后后台预取社群 feed，用户点「社群」时直接命中缓存（无加载） */
+  useEffect(() => {
+    if (screen === S.APP && userId) prefetchCommunityFeed(userId);
+  }, [screen, userId]);
 
   /* 切换激活宠物，同步到 localStorage */
   const setActivePet = (newPet) => {

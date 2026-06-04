@@ -78,6 +78,60 @@ function imageCoverRatio(post) {
 // 主 feed（推荐/最新）内存缓存：再次进入社群秒显，后台静默刷新（像小红书一样无加载）
 const feedCache = { posts: null, likedIds: null };
 
+/* 启动预取：进入 App 后后台先把社群 feed 拉好，用户点社群时直接命中缓存（无加载） */
+export async function prefetchCommunityFeed(userId) {
+  if (feedCache.posts) return; // 已有缓存不重复
+  try {
+    const list = await listPosts({ limit: PAGE_SIZE });
+    feedCache.posts = list;
+    if (userId && list.length) {
+      const liked = await getMyLikedPostIds(userId, list.map((p) => p.id));
+      feedCache.likedIds = [...liked];
+    }
+  } catch {}
+}
+
+/* 骨架屏：加载时画出和瀑布流一致的占位卡（带微光），观感"点开就有" */
+function SkelShimmer() {
+  return (
+    <div style={{ position:"absolute", inset:0,
+                  background:"linear-gradient(100deg, transparent 20%, rgba(255,255,255,0.65) 50%, transparent 80%)",
+                  transform:"translateX(-100%)", animation:"feedSkel 1.3s ease-in-out infinite" }} />
+  );
+}
+function SkelCard({ h }) {
+  return (
+    <div style={{ borderRadius:14, overflow:"hidden", background:"white", border:`1px solid ${C.border}` }}>
+      <div style={{ position:"relative", width:"100%", height:h, background:"#ECE6DC", overflow:"hidden" }}>
+        <SkelShimmer />
+      </div>
+      <div style={{ padding:"9px 10px 11px" }}>
+        <div style={{ position:"relative", height:11, borderRadius:6, background:"#ECE6DC", width:"88%", overflow:"hidden" }}>
+          <SkelShimmer />
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:9 }}>
+          <div style={{ width:20, height:20, borderRadius:"50%", background:"#ECE6DC" }} />
+          <div style={{ flex:1, height:9, borderRadius:5, background:"#ECE6DC" }} />
+          <div style={{ width:24, height:9, borderRadius:5, background:"#ECE6DC" }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+function FeedSkeleton() {
+  const H = [168, 210, 150, 196, 176, 226];
+  return (
+    <div style={{ display:"flex", gap:8, padding:"12px 12px 90px" }}>
+      {[0, 1].map((col) => (
+        <div key={col} style={{ flex:1, display:"flex", flexDirection:"column", gap:8, minWidth:0 }}>
+          {[0, 1, 2].map((i) => <SkelCard key={i} h={H[(col * 3 + i) % H.length]} />)}
+        </div>
+      ))}
+      <style>{`@keyframes feedSkel { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`}</style>
+    </div>
+  );
+}
+
 export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
   const [posts,    setPosts]    = useState(() => feedCache.posts || []);
   const [likedSet, setLikedSet] = useState(() => new Set(feedCache.likedIds || []));
@@ -459,7 +513,7 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
       {/* 关注流：我赞过/互动过的人的帖子 */}
       {feedTab === "follow" && (
         followLoading ? (
-          <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>加载中…</div>
+          <FeedSkeleton />
         ) : followPosts.length === 0 ? (
           <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"60px 24px", lineHeight:1.8 }}>
             还没有关注的内容 🐾<br/>
@@ -507,7 +561,7 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
               </button>
             </div>
             {cityLoading ? (
-              <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>加载中…</div>
+              <FeedSkeleton />
             ) : cityPosts.length === 0 ? (
               <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"50px 24px", lineHeight:1.8 }}>
                 {user.city} 还没有同城动态 🐾<br/>
@@ -531,7 +585,7 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
       )}
 
       {(feedTab === "recommend" || feedTab === "latest") && (<>
-        {loading && <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>加载中…</div>}
+        {loading && posts.length === 0 && <FeedSkeleton />}
         {err     && <div style={{ textAlign:"center", color:"#D94040", fontSize:12, padding:20 }}>❌ {err}</div>}
         {!loading && !err && posts.length === 0 && (
           <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"60px 0" }}>
