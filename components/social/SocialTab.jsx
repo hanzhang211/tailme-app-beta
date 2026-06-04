@@ -30,6 +30,37 @@ const C = {
 };
 const INVITE_TEXT = "你好呀，想和你一起遛狗～";
 const RADIUS_KM = 3;
+const INVITE_TTL = 4 * 60 * 60 * 1000; // 已发送状态保留 4 小时
+
+/* 已发送邀请持久化（localStorage，按 meId；4 小时内显示"已发送"）*/
+const inviteKey = (meId) => `tailme_walk_invites_${meId}`;
+function loadSentInvites(meId) {
+  if (!meId || typeof window === "undefined") return {};
+  try {
+    const raw = JSON.parse(localStorage.getItem(inviteKey(meId)) || "{}");
+    const now = Date.now(), out = {};
+    Object.entries(raw).forEach(([uid, ts]) => { if (now - ts < INVITE_TTL) out[uid] = "sent"; });
+    return out;
+  } catch { return {}; }
+}
+function persistInvite(meId, targetId) {
+  if (!meId || typeof window === "undefined") return;
+  try {
+    const raw = JSON.parse(localStorage.getItem(inviteKey(meId)) || "{}");
+    const now = Date.now();
+    Object.keys(raw).forEach((k) => { if (now - raw[k] >= INVITE_TTL) delete raw[k]; }); // 顺手清过期
+    raw[targetId] = now;
+    localStorage.setItem(inviteKey(meId), JSON.stringify(raw));
+  } catch {}
+}
+function unpersistInvite(meId, targetId) {
+  if (!meId || typeof window === "undefined") return;
+  try {
+    const raw = JSON.parse(localStorage.getItem(inviteKey(meId)) || "{}");
+    delete raw[targetId];
+    localStorage.setItem(inviteKey(meId), JSON.stringify(raw));
+  } catch {}
+}
 
 /* 圆角方形宠物头像：品种 emoji 即时占位（永不空白）→ 真图加载完淡入 */
 function DogAvatar({ url, breed, petType, size = 72 }) {
@@ -85,7 +116,7 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
   const [staleNote, setStaleNote]     = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
-  const [invites, setInvites]   = useState({}); // userId -> 'sending' | 'sent'
+  const [invites, setInvites]   = useState(() => loadSentInvites(user?.id)); // userId -> 'sending' | 'sent'（4h 持久化）
   const [notice, setNotice]     = useState(null); // { msg, type }
   const noticeRef = useRef();
 
@@ -185,23 +216,32 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
     }
   };
 
-  /* ── 邀请一起遛弯：后台自动发私聊邀请，不跳转，停留在列表页 ── */
+  /* 4 小时后自动允许重新邀请（页面长时间打开时也会过期）*/
+  useEffect(() => {
+    if (!user?.id) return;
+    const t = setInterval(() => setInvites(loadSentInvites(user.id)), 60000);
+    return () => clearInterval(t);
+  }, [user?.id]);
+
+  /* ── 邀请一起遛弯：乐观即时反馈 + 后台自动发私聊邀请，不跳转；已发送状态持久化 4h ── */
   const handleInvite = async (card) => {
     if (!user?.id) { toast("请先登录", "error"); return; }
     if (card.user_id === user.id) { toast("不能邀请自己哦", "warn"); return; }
-    if (invites[card.user_id]) return; // 发送中 / 已发送 → 不重复
-    setInvites((m) => ({ ...m, [card.user_id]: "sending" }));
-    toast("正在发送遛弯申请…", "info");
+    if (invites[card.user_id]) return; // 已发送 → 不重复
+    // 立即置"已发送"（秒反馈）并持久化；网络在后台进行
+    setInvites((m) => ({ ...m, [card.user_id]: "sent" }));
+    persistInvite(user.id, card.user_id);
+    toast("已发送遛弯申请 🐾", "success");
     try {
       const conv = await getOrCreateConversation(user.id, card.user_id);
       await sendPrivateText({
         convId: conv.id, senderId: user.id, receiverId: card.user_id, content: INVITE_TEXT,
       });
-      setInvites((m) => ({ ...m, [card.user_id]: "sent" }));
-      toast("已发送遛弯申请 🐾", "success");
     } catch (e) {
+      // 失败回滚
       setInvites((m) => { const n = { ...m }; delete n[card.user_id]; return n; });
-      toast(e.message, "error");
+      unpersistInvite(user.id, card.user_id);
+      toast("邀请发送失败，请重试", "error");
     }
   };
 

@@ -26,6 +26,9 @@ import UserProfile from "./UserProfile";
 // 私聊消息内存缓存（convId → 消息列表）：再次打开会话时秒显，后台静默刷新
 const pmMsgCache = new Map();
 
+// 遛弯自动邀请文案（须与 SocialTab 的 INVITE_TEXT 一致）：不计入"陌生人只能发 1 条"额度
+const WALK_INVITE_TEXT = "你好呀，想和你一起遛狗～";
+
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#2A2520",
   sub:"#8A8178", light:"#D6D5D8", border:"#E4DED3",
@@ -74,7 +77,8 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
 
   /* 私信权限：互相关注=畅聊+图片；未互关=只能发 1 条文字、不能发图 */
   const theyReplied = msgs.some((m) => m.sender_id === target?.id);
-  const myCount     = msgs.reduce((n, m) => (m.sender_id === meId ? n + 1 : n), 0);
+  // 自动遛弯邀请不占用"1 条"额度，用户仍可发自己的第一条消息
+  const myCount     = msgs.reduce((n, m) => (m.sender_id === meId && m.content !== WALK_INVITE_TEXT ? n + 1 : n), 0);
   const canText     = rel.mutual || theyReplied || myCount < 1;
   const canImage    = rel.mutual;
   const strangerBanner = rel.loaded && !rel.mutual && !theyReplied;
