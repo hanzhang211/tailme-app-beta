@@ -356,7 +356,6 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
                         marginBottom:18, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
             {[
               { key:"image", label:"图片帖", Icon:IconCamera },
-              { key:"video", label:"视频帖", Icon:IconVideo },
               { key:"text",  label:"文字帖", Icon:IconText },
             ].map((t) => {
               const on = type === t.key;
