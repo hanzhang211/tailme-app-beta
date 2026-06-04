@@ -17,7 +17,7 @@ import {
   getMyDogProfile, setDogVisibility, updateDogLocation,
   getNearbyDogFriends, getCurrentPosition,
 } from "@/services/dogFriendService";
-import { getOrCreateConversation, sendPrivateText } from "@/services/privateChatService";
+import { getOrCreateConversation, sendWalkInvite } from "@/services/privateChatService";
 import { formatPetAge } from "@/services/petAge";
 import { avatarForBreed } from "@/services/breedAvatar";
 import DogFriendEdit from "./DogFriendEdit";
@@ -28,8 +28,18 @@ const C = {
   sub:"#8A8178", light:"#D6D5D8", border:"#E3DCD0",
   green:"#4CAF50", greenBg:"#EAF6EC", redBg:"#FCEDED", red:"#E07A6B",
 };
-const INVITE_TEXT = "你好呀，想和你一起遛狗～";
 const RADIUS_KM = 3;
+
+/* 名片是否已完善（填了任一描述字段）：决定能否查看附近 + 邀请发出的卡片是否有内容 */
+function isCardReady(p) {
+  return !!p && (
+    (p.walking_times?.length > 0) ||
+    (p.personalities?.length > 0) ||
+    !!p.small_dog_preference ||
+    !!p.big_dog_preference ||
+    !!(p.intro && p.intro.trim())
+  );
+}
 const INVITE_TTL = 4 * 60 * 60 * 1000; // 已发送状态保留 4 小时
 
 /* 已发送邀请持久化（localStorage，按 meId；4 小时内显示"已发送"）*/
@@ -127,6 +137,27 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
   };
 
   const visible = !!profile?.is_visible;
+  const cardReady = isCardReady(profile); // 需同时:可见 + 名片已完善 才看得到附近伙伴
+
+  // 用自己的名片+宠物拼出要发出的遛弯卡片（cardReady 保证有内容）
+  const buildMyCard = () => {
+    const myPet = pets.find((p) => p.id === profile?.pet_id) || pet || null;
+    return {
+      v: 1,
+      ownerName: user?.username || "",
+      petName: myPet?.name || "",
+      petBreed: myPet?.breed || "",
+      petType: myPet?.pet_type || "",
+      petAvatar: myPet?.pet_avatar_thumb_url || myPet?.ai_avatar_url || "",
+      gender: myPet?.gender || "",
+      birthday: myPet?.birthday || "",
+      walkingTimes: profile?.walking_times || [],
+      personalities: profile?.personalities || [],
+      small: profile?.small_dog_preference || "",
+      big: profile?.big_dog_preference || "",
+      intro: profile?.intro || "",
+    };
+  };
 
   /* ── 初始加载：读名片；若已公开则尝试刷新位置 + 拉附近 ── */
   useEffect(() => {
@@ -137,7 +168,7 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
         const prof = await getMyDogProfile(user.id);
         if (!alive) return;
         setProfile(prof);
-        if (prof?.is_visible) refreshNearby(true);
+        if (prof?.is_visible && isCardReady(prof)) refreshNearby(true);
       } catch (e) {
         if (alive) toast(e.message, "error");
       } finally {
@@ -200,9 +231,14 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
         await setDogVisibility({ userId: user.id, visible: true, lat: coords.lat, lng: coords.lng });
         setProfile((p) => ({ ...(p || {}), is_visible: true, has_location: true }));
         setStaleNote(false);
-        const list = await getNearbyDogFriends({ userId: user.id, ...coords, radiusKm: RADIUS_KM });
-        setNearby(list);
-        toast("距离可见已开启 🐾", "success");
+        // 名片已完善才拉附近；否则提示去完善（避免空卡片）
+        if (cardReady) {
+          const list = await getNearbyDogFriends({ userId: user.id, ...coords, radiusKm: RADIUS_KM });
+          setNearby(list);
+          toast("距离可见已开启 🐾", "success");
+        } else {
+          toast("距离可见已开启，完善名片后即可查看附近狗友", "info");
+        }
       } else {
         await setDogVisibility({ userId: user.id, visible: false });
         setProfile((p) => ({ ...(p || {}), is_visible: false }));
@@ -234,8 +270,8 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
     toast("已发送遛弯申请 🐾", "success");
     try {
       const conv = await getOrCreateConversation(user.id, card.user_id);
-      await sendPrivateText({
-        convId: conv.id, senderId: user.id, receiverId: card.user_id, content: INVITE_TEXT,
+      await sendWalkInvite({
+        convId: conv.id, senderId: user.id, receiverId: card.user_id, card: buildMyCard(),
       });
     } catch (e) {
       // 失败回滚
@@ -309,10 +345,10 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                     padding:"16px 18px 6px" }}>
         <span style={{ fontSize:11.5, color:C.sub }}>以下为 3km 内的狗狗伙伴</span>
-        <button onClick={() => refreshNearby(false)} disabled={!visible || loadingList}
+        <button onClick={() => refreshNearby(false)} disabled={!visible || !cardReady || loadingList}
           style={{ display:"flex", alignItems:"center", gap:4, background:"transparent", border:"none",
-                   color: visible ? C.pri : C.light, fontSize:12, fontWeight:600,
-                   cursor: visible && !loadingList ? "pointer" : "default" }}>
+                   color: (visible && cardReady) ? C.pri : C.light, fontSize:12, fontWeight:600,
+                   cursor: (visible && cardReady && !loadingList) ? "pointer" : "default" }}>
           <span style={{ display:"inline-block", animation: loadingList ? "dfspin .8s linear infinite" : "none" }}>↻</span>
           刷新
         </button>
@@ -333,20 +369,37 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
             desc="先完善你的遛弯名片，开启公开距离，等毛孩子们来找你吧 🐾" />
         )}
 
-        {/* 已开启、加载中 */}
-        {visible && loadingList && nearby.length === 0 && (
+        {/* 已开启但名片未完善 → 先完善（避免发出空卡片）*/}
+        {!loadingProfile && visible && !cardReady && (
+          <div style={{ textAlign:"center", padding:"40px 24px" }}>
+            <DogWaitingIllustration size={140} style={{ display:"block", margin:"0 auto 16px" }} />
+            <div style={{ fontSize:14.5, fontWeight:700, color:C.text }}>先完善你的遛弯名片</div>
+            <div style={{ fontSize:12.5, color:C.sub, marginTop:6, lineHeight:1.6 }}>
+              填好名片后才能查看附近狗友，邀请时也会把你的名片发给对方 🐾
+            </div>
+            <button onClick={() => setEditOpen(true)}
+              style={{ marginTop:16, background:C.pri, color:"white", border:"none", borderRadius:999,
+                       padding:"11px 26px", fontSize:14, fontWeight:700, cursor:"pointer",
+                       boxShadow:"0 4px 12px rgba(230,134,69,0.3)" }}>
+              去完善遛弯名片
+            </button>
+          </div>
+        )}
+
+        {/* 已开启 + 名片完善、加载中 */}
+        {visible && cardReady && loadingList && nearby.length === 0 && (
           <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"30px 0" }}>正在寻找附近狗友…</div>
         )}
 
-        {/* 已开启、空 */}
-        {visible && !loadingList && nearby.length === 0 && (
+        {/* 已开启 + 名片完善、空 */}
+        {visible && cardReady && !loadingList && nearby.length === 0 && (
           <EmptyState
             title="还没有附近狗狗开启遛弯名片～"
             desc="先完善你的名片，等毛孩子们来找你吧 🐾" />
         )}
 
         {/* 卡片列表 */}
-        {visible && nearby.map((d) => (
+        {visible && cardReady && nearby.map((d) => (
           <DogCard key={d.user_id} d={d} onInvite={() => handleInvite(d)}
             inviteStatus={invites[d.user_id] || "idle"}
             onOpenProfile={onOpenProfile ? () => onOpenProfile(d.user_id) : null} />

@@ -135,6 +135,28 @@ async function bumpConversation(convId, preview, type) {
     .eq("id", convId);
 }
 
+/* ── 遛弯名片邀请：用一条带前缀的文本消息承载卡片(JSON)，不改表结构 ──
+   message_type 仍是 text；私聊里识别前缀渲染成卡片，会话列表预览显示「[遛弯邀请]」。*/
+export const WALK_CARD_PREFIX = "WALKCARD:";
+export function parseWalkCard(content) {
+  if (typeof content === "string" && content.startsWith(WALK_CARD_PREFIX)) {
+    try { return JSON.parse(content.slice(WALK_CARD_PREFIX.length)); } catch { return {}; }
+  }
+  return null;
+}
+export async function sendWalkInvite({ convId, senderId, receiverId, card }) {
+  if (!convId || !senderId || !receiverId) throw new Error("缺少会话信息");
+  const content = WALK_CARD_PREFIX + JSON.stringify(card || {});
+  const { data, error } = await sb()
+    .from("private_messages")
+    .insert({ conversation_id: convId, sender_id: senderId, receiver_id: receiverId, content, message_type: "text" })
+    .select(MSG_COLS)
+    .single();
+  if (error) throw new Error(`发送失败: ${error.message}`);
+  await bumpConversation(convId, "[遛弯邀请]", "text");
+  return data;
+}
+
 /* ── 发送文字 ───────────────────────────────────────────── */
 export async function sendPrivateText({ convId, senderId, receiverId, content }) {
   const text = (content || "").trim();

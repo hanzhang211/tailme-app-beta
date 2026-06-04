@@ -18,16 +18,16 @@ import {
   sendPrivateText, uploadPrivateImage, sendPrivateImageMsg,
   uploadPrivateVideo, sendPrivateVideoMsg,
   markConversationRead, subscribePrivateConversation, unsubscribePrivate,
+  parseWalkCard,
 } from "@/services/privateChatService";
 import { isFollowing } from "@/services/communityService";
 import { captureVideoThumbnail, fmtDuration } from "@/services/videoThumb";
+import { avatarForBreed } from "@/services/breedAvatar";
+import { formatPetAge } from "@/services/petAge";
 import UserProfile from "./UserProfile";
 
 // 私聊消息内存缓存（convId → 消息列表）：再次打开会话时秒显，后台静默刷新
 const pmMsgCache = new Map();
-
-// 遛弯自动邀请文案（须与 SocialTab 的 INVITE_TEXT 一致）：不计入"陌生人只能发 1 条"额度
-const WALK_INVITE_TEXT = "你好呀，想和你一起遛狗～";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#2A2520",
@@ -46,6 +46,56 @@ function Avatar({ url, size = 38, onClick }) {
                   overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center",
                   fontSize:size * 0.5, cursor: onClick ? "pointer" : "default" }}>
       {url ? <img src={url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🐾"}
+    </div>
+  );
+}
+
+/* 遛弯邀请卡片气泡（私聊里渲染对方/自己发出的遛弯名片）*/
+function WalkChip({ text }) {
+  return (
+    <span style={{ fontSize:10.5, fontWeight:600, color:C.pri, background:C.tint,
+                   padding:"3px 9px", borderRadius:20 }}>{text}</span>
+  );
+}
+function WalkCardBubble({ card }) {
+  const age  = formatPetAge(card.birthday) || "";
+  const sub  = [card.petBreed, age, card.gender === "male" ? "♂" : card.gender === "female" ? "♀" : ""].filter(Boolean).join(" · ");
+  const times = Array.isArray(card.walkingTimes) ? card.walkingTimes : [];
+  const tags  = Array.isArray(card.personalities) ? card.personalities : [];
+  const prefs = [card.small, card.big].filter(Boolean);
+  return (
+    <div style={{ width:258, maxWidth:"100%", background:"white", borderRadius:16, overflow:"hidden",
+                  border:`1px solid ${C.border}`, boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
+      <div style={{ background:C.tint, padding:"8px 12px", fontSize:12.5, fontWeight:800, color:C.pri }}>
+        🐾 想和你一起遛弯
+      </div>
+      <div style={{ padding:"11px 12px" }}>
+        <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+          <div style={{ width:46, height:46, borderRadius:14, overflow:"hidden", background:C.tint, flexShrink:0,
+                        display:"flex", alignItems:"center", justifyContent:"center", fontSize:24 }}>
+            {card.petAvatar
+              ? <img src={card.petAvatar} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+              : avatarForBreed(card.petBreed, card.petType)}
+          </div>
+          <div style={{ minWidth:0 }}>
+            <div style={{ fontSize:14, fontWeight:800, color:C.text, overflow:"hidden",
+                          textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{card.petName || "毛孩子"}</div>
+            {sub && <div style={{ fontSize:11.5, color:C.sub, marginTop:2 }}>{sub}</div>}
+          </div>
+        </div>
+        {times.length > 0 && (
+          <div style={{ fontSize:11.5, color:C.pri, fontWeight:600, marginTop:8 }}>⏰ {times.join(" / ")}</div>
+        )}
+        {(tags.length > 0 || prefs.length > 0) && (
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:8 }}>
+            {prefs.map((t) => <WalkChip key={`p${t}`} text={t} />)}
+            {tags.map((t) => <WalkChip key={t} text={t} />)}
+          </div>
+        )}
+        {card.intro && card.intro.trim() && (
+          <div style={{ fontSize:12, color:C.sub, marginTop:8, lineHeight:1.5, wordBreak:"break-word" }}>{card.intro}</div>
+        )}
+      </div>
     </div>
   );
 }
@@ -77,8 +127,8 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
 
   /* 私信权限：互相关注=畅聊+图片；未互关=只能发 1 条文字、不能发图 */
   const theyReplied = msgs.some((m) => m.sender_id === target?.id);
-  // 自动遛弯邀请不占用"1 条"额度，用户仍可发自己的第一条消息
-  const myCount     = msgs.reduce((n, m) => (m.sender_id === meId && m.content !== WALK_INVITE_TEXT ? n + 1 : n), 0);
+  // 自动遛弯邀请卡片不占用"1 条"额度，用户仍可发自己的第一条消息
+  const myCount     = msgs.reduce((n, m) => (m.sender_id === meId && !parseWalkCard(m.content) ? n + 1 : n), 0);
   const canText     = rel.mutual || theyReplied || myCount < 1;
   const canImage    = rel.mutual;
   const strangerBanner = rel.loaded && !rel.mutual && !theyReplied;
@@ -223,13 +273,16 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
           const own = m.sender_id === meId;
           const isImg = m.message_type === "image" && m.image_url;
           const isVideo = m.message_type === "video" && m.video_url;
+          const walkCard = parseWalkCard(m.content);
           return (
             <div key={m.id} style={{ display:"flex", gap:8, marginBottom:14,
                                      flexDirection: own ? "row-reverse" : "row" }}>
               {!own && <Avatar url={target?.avatar_url} size={34} onClick={openProfile} />}
-              <div style={{ maxWidth:"72%", display:"flex", flexDirection:"column",
+              <div style={{ maxWidth:"78%", display:"flex", flexDirection:"column",
                             alignItems: own ? "flex-end" : "flex-start" }}>
-                {isVideo ? (
+                {walkCard ? (
+                  <WalkCardBubble card={walkCard} />
+                ) : isVideo ? (
                   playing.has(m.id) ? (
                     <video src={m.video_url} poster={m.thumbnail_url || undefined}
                       controls autoPlay playsInline
