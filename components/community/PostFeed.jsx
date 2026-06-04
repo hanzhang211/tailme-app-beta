@@ -142,6 +142,7 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
 
   const [composeOpen, setComposeOpen] = useState(false);
   const [detailId,    setDetailId]    = useState(null);
+  const [detailPost,  setDetailPost]  = useState(null); // 列表已有的帖子对象,详情页先用它即时渲染
 
   // 🔥 今日热门话题 + ✨ 今日推荐（真实数据，5分钟缓存）
   const [hotTopics, setHotTopics] = useState([]);
@@ -375,6 +376,7 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
       img.fetchPriority = "high";
       img.src = firstUrl;
     }
+    setDetailPost(post);
     setDetailId(post.id);
   };
 
@@ -621,12 +623,13 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
       {detailId && (
         <PostDetail
           postId={detailId}
+          initialPost={detailPost}
           user={user} pet={pet}
           initialLiked={likedSet.has(detailId)}
-          initialIsVideo={(() => { const p = posts.find((x) => x.id === detailId); return p?.media_items?.[0]?.type === "video"; })()}
+          initialIsVideo={detailPost?.media_items?.[0]?.type === "video"}
           onLikeChange={handleLikeChange}
           onDeleted={(id) => setPosts((prev) => prev.filter((p) => p.id !== id))}
-          onClose={() => setDetailId(null)}
+          onClose={() => { setDetailId(null); setDetailPost(null); }}
           onOpenProfile={onOpenProfile}
           onOpenTopic={openTopic}
           toast={toast}

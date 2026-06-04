@@ -287,6 +287,7 @@ export default function UserProfile({ viewerId, userId, onClose }) {
 
       {detailId && (
         <PostDetail postId={detailId} user={{ id: viewerId }}
+          initialPost={posts.find((x) => x.id === detailId) || null}
           initialLiked={likedSet.has(detailId)}
           initialIsVideo={posts.find((x) => x.id === detailId)?.media_items?.[0]?.type === "video"}
           onLikeChange={(id, liked, delta) => {

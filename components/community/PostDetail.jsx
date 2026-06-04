@@ -43,13 +43,13 @@ function fmtRelTime(iso) {
 }
 
 export default function PostDetail({
-  postId, user, pet, initialLiked, initialIsVideo,
+  postId, user, pet, initialLiked, initialIsVideo, initialPost,
   onLikeChange, onDeleted, onClose, toast, onOpenProfile, onOpenTopic,
 }) {
-  const [post,     setPost]     = useState(null);
-  const [loadingPost, setLoadingPost] = useState(true);
+  const [post,     setPost]     = useState(initialPost || null);
+  const [loadingPost, setLoadingPost] = useState(!initialPost); // 有初始数据则不整屏加载
   const [isLiked,  setIsLiked]  = useState(initialLiked);
-  const [likeCount, setLikeCount] = useState(0);
+  const [likeCount, setLikeCount] = useState(initialPost?.like_count || 0);
   const [comments, setComments] = useState([]);
   const [likedCs,  setLikedCs]  = useState(new Set());
   const [loadingC, setLoadingC] = useState(true);
@@ -99,26 +99,24 @@ export default function PostDetail({
   /* 拉详情 + 评论（详情拉完才显示，避免空白闪烁） */
   useEffect(() => {
     let alive = true;
-    (async () => {
-      try {
-        const [p, list] = await Promise.all([
-          getPostById(postId),
-          listComments(postId),
-        ]);
+    // 帖子主体：有 initialPost 先用它即时渲染，后台拉完整（高清图等）再悄悄替换
+    getPostById(postId)
+      .then((p) => { if (alive && p) { setPost(p); setLikeCount(p.like_count || 0); } })
+      .catch((e) => { if (alive && !initialPost) toast?.(e.message, "error"); })
+      .finally(() => { if (alive) setLoadingPost(false); });
+    // 评论：独立加载，不挡住帖子主体（评论区自己显示加载/空状态）
+    setLoadingC(true);
+    listComments(postId)
+      .then(async (list) => {
         if (!alive) return;
-        setPost(p);
-        setLikeCount(p?.like_count || 0);
         setComments(list);
         if (user?.id && list.length) {
           const liked = await getMyLikedCommentIds(user.id, list.map((c) => c.id));
           if (alive) setLikedCs(liked);
         }
-      } catch (e) {
-        if (alive) toast?.(e.message, "error");
-      } finally {
-        if (alive) { setLoadingPost(false); setLoadingC(false); }
-      }
-    })();
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoadingC(false); });
     return () => { alive = false; };
   }, [postId, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
