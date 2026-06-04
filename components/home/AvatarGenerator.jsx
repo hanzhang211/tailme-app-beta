@@ -238,23 +238,7 @@ function PickStep({ onPick }) {
       </div>
 
       {/* 拍照建议卡片：三列 */}
-      <div style={{ display:"flex", background:"white", borderRadius:20, padding:"14px 6px",
-                    marginTop:14, boxShadow:"0 2px 10px rgba(0,0,0,0.04)" }}>
-        {[
-          { Icon: SunIcon,  title:"正面更清晰", note:"建议正面对镜头" },
-          { Icon: BulbIcon, title:"光线充足",   note:"自然光效果更佳" },
-          { Icon: PawIcon,  title:"五官完整",   note:"避免遮挡更准确" },
-        ].map((t, i) => (
-          <div key={t.title} style={{ flex:1, display:"flex", alignItems:"center" }}>
-            {i > 0 && <div style={{ width:1, height:36, background:C.border, opacity:0.6 }} />}
-            <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4, padding:"0 4px" }}>
-              <t.Icon />
-              <div style={{ fontSize:12.5, fontWeight:700, color:C.text }}>{t.title}</div>
-              <div style={{ fontSize:10.5, color:C.sub, textAlign:"center" }}>{t.note}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <TipCard />
 
       {/* 主按钮 */}
       <button onClick={openPicker}
@@ -265,13 +249,7 @@ function PickStep({ onPick }) {
       </button>
 
       {/* 隐私提示 */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginTop:14 }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z" stroke={C.peach} strokeWidth="1.8" strokeLinejoin="round"/>
-          <path d="M8.8 12.2l2.2 2.2 4-4.4" stroke={C.peach} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        <span style={{ fontSize:12, color:C.sub }}>仅用于生成宠物形象，我们会严格保护你的隐私</span>
-      </div>
+      <PrivacyNote />
     </>
   );
 }
@@ -296,13 +274,49 @@ function BulbIcon({ size = 22 }) {
     </svg>
   );
 }
-function PawIcon({ size = 22 }) {
+function PawIcon({ size = 22, color = "#E68645" }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="#E68645" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true">
       <ellipse cx="6" cy="9" rx="1.9" ry="2.5"/><ellipse cx="10.3" cy="6" rx="2.1" ry="2.8"/>
       <ellipse cx="14.7" cy="6" rx="2.1" ry="2.8"/><ellipse cx="18.5" cy="9.5" rx="1.9" ry="2.4"/>
       <path d="M7.5 14.5q-2 4 1.5 6.4 3.4 1.6 6.6-.2 2.4-2.2.4-6.2-1.6-2.6-4.5-2.6-2.6 0-4 2.6z"/>
     </svg>
+  );
+}
+
+/* 三列拍照建议卡（PICK / 生成中共用）*/
+function TipCard() {
+  return (
+    <div style={{ display:"flex", background:"white", borderRadius:20, padding:"14px 6px",
+                  marginTop:14, boxShadow:"0 2px 10px rgba(0,0,0,0.04)" }}>
+      {[
+        { Icon: SunIcon,  title:"正面更清晰", note:"建议正面对镜头" },
+        { Icon: BulbIcon, title:"光线充足",   note:"自然光效果更佳" },
+        { Icon: PawIcon,  title:"五官完整",   note:"避免遮挡更准确" },
+      ].map((t, i) => (
+        <div key={t.title} style={{ flex:1, display:"flex", alignItems:"center" }}>
+          {i > 0 && <div style={{ width:1, height:36, background:C.border, opacity:0.6 }} />}
+          <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4, padding:"0 4px" }}>
+            <t.Icon />
+            <div style={{ fontSize:12.5, fontWeight:700, color:C.text }}>{t.title}</div>
+            <div style={{ fontSize:10.5, color:C.sub, textAlign:"center" }}>{t.note}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* 隐私提示（PICK / 生成中共用）*/
+function PrivacyNote() {
+  return (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginTop:14 }}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z" stroke={C.peach} strokeWidth="1.8" strokeLinejoin="round"/>
+        <path d="M8.8 12.2l2.2 2.2 4-4.4" stroke={C.peach} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+      <span style={{ fontSize:12, color:C.sub }}>仅用于生成宠物形象，我们会严格保护你的隐私</span>
+    </div>
   );
 }
 
@@ -336,45 +350,180 @@ function PreviewStep({ src, onReselect, onGenerate, onCancel }) {
   );
 }
 
+const GEN_TIPS = [
+  "AI 正在记住它最可爱的表情 ✨",
+  "正在帮毛孩子整理小耳朵 🐾",
+  "快好了，马上见到专属形象啦",
+  "正在让它更像自己一点点",
+  "小爪印正在努力创作中 🐾",
+];
+
 function GeneratingStep({ previewSrc, elapsed, onCancel }) {
+  const [tipIdx, setTipIdx] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTipIdx((i) => (i + 1) % GEN_TIPS.length), 3500);
+    return () => clearInterval(t);
+  }, []);
+
+  // 视觉进度：随用时缓慢推进，最高 90%（真正完成由父组件切到 RESULT 体现）
+  const progress = Math.min(90, Math.round((elapsed / 55) * 90));
+
   return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"6px 0" }}>
-      <div style={{ position:"relative", width:160, height:160, borderRadius:"50%",
-                    overflow:"hidden", background:C.tint, marginBottom:18,
-                    boxShadow:"0 6px 18px rgba(230,134,69,0.18)" }}>
-        {previewSrc && (
-          <img src={previewSrc} alt=""
-            style={{ width:"100%", height:"100%", objectFit:"cover",
-                     filter:"saturate(0.6) blur(2px)" }} />
-        )}
-        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center",
-                      justifyContent:"center", background:"rgba(238,233,225,0.55)" }}>
-          <span style={{ fontSize:42, animation:"spin 1.4s linear infinite" }}>✨</span>
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
+      {/* ── 头像创作动画 ── */}
+      <div style={{ position:"relative", width:236, height:236, margin:"4px 0 4px" }}>
+        {/* 旋转虚线轨道 */}
+        <div style={{ position:"absolute", inset:14, borderRadius:"50%",
+                      border:`2px dashed ${C.peach}`, opacity:0.6,
+                      animation:"aiRingSpin 14s linear infinite" }} />
+
+        {/* 圆形预览 */}
+        <div style={{ position:"absolute", inset:26, borderRadius:"50%", overflow:"hidden",
+                      border:"3px solid rgba(230,134,69,0.35)", background:C.tint,
+                      boxShadow:"0 8px 22px rgba(230,134,69,0.18)" }}>
+          {previewSrc ? (
+            <img src={previewSrc} alt=""
+              style={{ width:"100%", height:"100%", objectFit:"cover", filter:"saturate(0.9) blur(1.5px)" }} />
+          ) : (
+            <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center",
+                          justifyContent:"center", fontSize:80, animation:"aiFloat 2.6s ease-in-out infinite" }}>🐶</div>
+          )}
+          {/* 柔光米白遮罩 */}
+          <div style={{ position:"absolute", inset:0, background:"rgba(238,233,225,0.32)" }} />
+          {/* shimmer 光扫 */}
+          <div style={{ position:"absolute", top:0, bottom:0, left:0, width:"55%",
+                        background:"linear-gradient(100deg, transparent, rgba(255,255,255,0.55), transparent)",
+                        animation:"aiShimmer 2.4s ease-in-out infinite" }} />
+          {/* 中央魔法笔（浮动）*/}
+          <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <div style={{ animation:"aiFloat 2.6s ease-in-out infinite" }}><MagicPen /></div>
+          </div>
         </div>
+
+        {/* 轨道上的爪印（3 个，相位错开，绕圈 + 自身保持正立）*/}
+        {[0, -4.67, -9.33].map((d, i) => (
+          <div key={i} style={{ position:"absolute", inset:26,
+                                animation:"aiOrbit 14s linear infinite", animationDelay:`${d}s` }}>
+            <div style={{ position:"absolute", top:-13, left:"50%", marginLeft:-13,
+                          animation:"aiOrbitCCW 14s linear infinite", animationDelay:`${d}s` }}>
+              <PawBadge />
+            </div>
+          </div>
+        ))}
+
+        {/* 周围小装饰：星星 / 爱心 / 小爪 */}
+        <Deco kind="sparkle" style={{ top:34, left:4 }}      delay="0s"   size={16} />
+        <Deco kind="sparkle" style={{ bottom:30, right:6 }}  delay="0.8s" size={12} />
+        <Deco kind="heart"   style={{ top:64, right:0 }}     delay="0.4s" size={15} />
+        <Deco kind="heart"   style={{ bottom:50, left:-2 }}  delay="1.2s" size={12} />
+        <Deco kind="paw"     style={{ top:10, right:40 }}    delay="0.6s" size={16} />
       </div>
-      <div style={{ fontSize:14, fontWeight:700, color:C.text }}>
-        正在生成专属宠物形象…
-      </div>
-      <div style={{ fontSize:12, color:C.sub, marginTop:4 }}>
+
+      {/* 文案 */}
+      <div style={{ fontSize:17, fontWeight:800, color:C.text }}>正在画出专属毛孩子形象…</div>
+      <div style={{ fontSize:12.5, color:C.sub, marginTop:5 }}>
         大约需要 30 - 60 秒（已用时 {elapsed}s）
       </div>
 
-      {/* 进度条（视觉占位，不是真实进度） */}
-      <div style={{ width:"100%", height:6, borderRadius:6, background:C.light, marginTop:18,
-                    overflow:"hidden" }}>
-        <div style={{ width:`${Math.min(100, (elapsed / 60) * 100)}%`,
-                      height:"100%", background:C.pri, transition:"width .6s linear" }} />
+      {/* 轮播暖心提示 */}
+      <div key={tipIdx}
+        style={{ marginTop:12, padding:"7px 16px", borderRadius:999, background:"white",
+                 border:`1px solid ${C.peach}`, fontSize:12.5, color:C.pri, fontWeight:600,
+                 display:"flex", alignItems:"center", gap:6, animation:"aiTipIn .5s ease" }}>
+        <PawIcon size={15} /> {GEN_TIPS[tipIdx]}
       </div>
 
+      {/* 进度条：橙色渐变 + 爪印滑块 */}
+      <div style={{ position:"relative", width:"100%", height:8, borderRadius:999,
+                    background:C.light, marginTop:18 }}>
+        <div style={{ height:"100%", width:`${progress}%`, borderRadius:999,
+                      background:"linear-gradient(90deg, #F2C7A5, #E68645)", transition:"width .6s ease" }} />
+        <div style={{ position:"absolute", top:"50%", left:`${progress}%`, transform:"translate(-50%,-50%)",
+                      width:24, height:24, borderRadius:"50%", background:"white",
+                      boxShadow:"0 2px 6px rgba(230,134,69,0.4)", transition:"left .6s ease",
+                      display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <PawIcon size={14} />
+        </div>
+      </div>
+
+      {/* 建议卡 */}
+      <div style={{ width:"100%" }}><TipCard /></div>
+
+      {/* 取消（胶囊）*/}
       <button onClick={onCancel}
-        style={{ marginTop:18, padding:"8px 20px", fontSize:12, color:C.sub,
-                 background:"transparent", border:`1px solid ${C.border}`,
-                 borderRadius:14, cursor:"pointer" }}>
+        style={{ marginTop:16, padding:"11px 32px", fontSize:13.5, fontWeight:600, color:C.sub,
+                 background:"white", border:`1px solid ${C.border}`, borderRadius:999, cursor:"pointer" }}>
         取消
       </button>
 
-      <style>{`@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }`}</style>
+      <PrivacyNote />
+
+      <style>{`
+        @keyframes aiRingSpin { to { transform: rotate(360deg); } }
+        @keyframes aiOrbit { to { transform: rotate(360deg); } }
+        @keyframes aiOrbitCCW { to { transform: rotate(-360deg); } }
+        @keyframes aiFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
+        @keyframes aiShimmer { 0%{transform:translateX(-180%)} 100%{transform:translateX(240%)} }
+        @keyframes aiSparkle { 0%,100%{opacity:.25;transform:scale(.8)} 50%{opacity:1;transform:scale(1.15)} }
+        @keyframes aiTipIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+      `}</style>
     </div>
+  );
+}
+
+/* 魔法笔（橙色铅笔 + 白爪印 + 顶部小星）*/
+function MagicPen() {
+  return (
+    <svg width="46" height="46" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <g transform="rotate(26 24 24)">
+        <rect x="20" y="9" width="8" height="25" rx="3" fill="#E68645" />
+        <rect x="20" y="9" width="8" height="6" rx="3" fill="#F2C7A5" />
+        <path d="M20 34l4 7 4-7z" fill="#FBEAD0" stroke="#E68645" strokeWidth="1" strokeLinejoin="round" />
+        <g fill="#fff">
+          <circle cx="22.6" cy="20" r="0.9" /><circle cx="25.4" cy="20" r="0.9" />
+          <circle cx="21.2" cy="22" r="0.8" /><circle cx="26.8" cy="22" r="0.8" />
+          <ellipse cx="24" cy="23.4" rx="2.1" ry="1.6" />
+        </g>
+      </g>
+      <path d="M37 9l1.2 3 3 1.2-3 1.2L37 17.4l-1.2-3-3-1.2 3-1.2L37 9z" fill="#FFD89E" />
+    </svg>
+  );
+}
+
+/* 轨道爪印小徽章（白底圆 + 橙爪）*/
+function PawBadge() {
+  return (
+    <div style={{ width:26, height:26, borderRadius:"50%", background:"#fff",
+                  boxShadow:"0 2px 6px rgba(230,134,69,0.35)",
+                  display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <PawIcon size={14} />
+    </div>
+  );
+}
+
+/* 浮动小装饰：星星 / 爱心 / 小爪 */
+function Deco({ kind, style, delay = "0s", size = 16 }) {
+  const base = { position:"absolute", ...style };
+  if (kind === "heart") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="#F4B58C" aria-hidden="true"
+        style={{ ...base, opacity:0.75, animation:"aiFloat 3s ease-in-out infinite", animationDelay:delay }}>
+        <path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10z" />
+      </svg>
+    );
+  }
+  if (kind === "paw") {
+    return (
+      <div style={{ ...base, animation:"aiSparkle 2.2s ease-in-out infinite", animationDelay:delay }}>
+        <PawIcon size={size} color="#F2C7A5" />
+      </div>
+    );
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="#F2C7A5" aria-hidden="true"
+      style={{ ...base, animation:"aiSparkle 1.9s ease-in-out infinite", animationDelay:delay }}>
+      <path d="M12 2l2 8 8 2-8 2-2 8-2-8-8-2 8-2 2-8z" />
+    </svg>
   );
 }
 
