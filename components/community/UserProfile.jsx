@@ -50,25 +50,32 @@ export default function UserProfile({ viewerId, userId, onClose }) {
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    (async () => {
-      try {
-        const [u, c, lk, ps, posts0] = await Promise.all([
-          getUserById(userId).catch(() => null),
-          getFollowCounts(userId),
-          getUserLikeTotal(userId),
-          getUserPets(userId).catch(() => []),
-          listMyPosts(userId, { limit: PAGE }),
-        ]);
+    // 切换用户时清空旧数据，避免串号
+    setPosts([]); setLikedSet(new Set()); setHasMore(true);
+    setUser(null); setPets([]); setCounts({ following: 0, followers: 0 }); setLikes(0);
+
+    // 1) 帖子优先：最先返回就渲染，不等头部信息/点赞态（一进去就有帖子）
+    listMyPosts(userId, { limit: PAGE })
+      .then((posts0) => {
         if (!alive) return;
-        setUser(u); setCounts(c); setLikes(lk); setPets(ps || []);
-        setPosts(posts0); setHasMore(posts0.length === PAGE);
-        if (!isSelf && viewerId) isFollowing(viewerId, userId).then((f) => alive && setFollowing(f));
+        setPosts(posts0);
+        setHasMore(posts0.length === PAGE);
+        setLoading(false);
+        // 点赞态后台补，不阻塞帖子显示
         if (viewerId && posts0.length) {
-          const liked = await getMyLikedPostIds(viewerId, posts0.map((p) => p.id));
-          if (alive) setLikedSet(liked);
+          getMyLikedPostIds(viewerId, posts0.map((p) => p.id))
+            .then((liked) => { if (alive) setLikedSet(liked); }).catch(() => {});
         }
-      } finally { if (alive) setLoading(false); }
-    })();
+      })
+      .catch(() => { if (alive) setLoading(false); });
+
+    // 2) 头部信息并行加载，各自就绪各自渲染（不阻塞帖子）
+    getUserById(userId).then((u) => { if (alive) setUser(u); }).catch(() => {});
+    getFollowCounts(userId).then((c) => { if (alive) setCounts(c); }).catch(() => {});
+    getUserLikeTotal(userId).then((lk) => { if (alive) setLikes(lk); }).catch(() => {});
+    getUserPets(userId).then((ps) => { if (alive) setPets(ps || []); }).catch(() => {});
+    if (!isSelf && viewerId) isFollowing(viewerId, userId).then((f) => { if (alive) setFollowing(f); }).catch(() => {});
+
     return () => { alive = false; };
   }, [userId]); // eslint-disable-line
 
