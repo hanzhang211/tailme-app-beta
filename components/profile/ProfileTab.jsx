@@ -38,6 +38,9 @@ const C = {
 
 const PET_LIMIT = 4;
 
+// 关注/粉丝列表内存缓存（`${meId}:${mode}` → {list, petCnt, iFollow}）：再次打开秒显
+const followListCache = new Map();
+
 function maskPhone(phone) {
   if (!phone) return "";
   const s = String(phone);
@@ -657,15 +660,17 @@ function ContactView({ onBack, toast }) {
    ────────────────────────────────────────────────────── */
 function FollowListView({ mode, meId, onBack, onOpenProfile }) {
   const isFollowing = mode === "following";
-  const [list,    setList]    = useState([]);
-  const [petCnt,  setPetCnt]  = useState({});
-  const [iFollow, setIFollow] = useState(new Set()); // 我已关注的（用于粉丝页“回关”判断）
-  const [loading, setLoading] = useState(true);
+  const cacheKey = `${meId}:${mode}`;
+  const cached = followListCache.get(cacheKey);
+  const [list,    setList]    = useState(cached?.list || []);
+  const [petCnt,  setPetCnt]  = useState(cached?.petCnt || {});
+  const [iFollow, setIFollow] = useState(cached?.iFollow || new Set()); // 我已关注的（用于粉丝页“回关”判断）
+  const [loading, setLoading] = useState(!cached);
   const [q,       setQ]       = useState("");
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
+    if (!followListCache.has(cacheKey)) setLoading(true); // 有缓存则不转圈，后台静默刷新
     (async () => {
       try {
         const rows = isFollowing ? await listFollowing(meId) : await listFollowers(meId);
@@ -678,6 +683,7 @@ function FollowListView({ mode, meId, onBack, onOpenProfile }) {
         ]);
         if (!alive) return;
         setPetCnt(cnt); setIFollow(fset);
+        followListCache.set(cacheKey, { list: rows, petCnt: cnt, iFollow: fset });
       } finally { if (alive) setLoading(false); }
     })();
     return () => { alive = false; };

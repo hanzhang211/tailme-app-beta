@@ -23,6 +23,9 @@ import { isFollowing } from "@/services/communityService";
 import { captureVideoThumbnail, fmtDuration } from "@/services/videoThumb";
 import UserProfile from "./UserProfile";
 
+// 私聊消息内存缓存（convId → 消息列表）：再次打开会话时秒显，后台静默刷新
+const pmMsgCache = new Map();
+
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#2A2520",
   sub:"#8A8178", light:"#D6D5D8", border:"#E4DED3",
@@ -46,8 +49,8 @@ function Avatar({ url, size = 38, onClick }) {
 
 export default function PrivateChatDetail({ meId, target, conversationId = null, onClose, onActivity }) {
   const [convId, setConvId]   = useState(conversationId);
-  const [msgs, setMsgs]       = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [msgs, setMsgs]       = useState(() => (conversationId && pmMsgCache.get(conversationId)) || []);
+  const [loading, setLoading] = useState(() => !(conversationId && pmMsgCache.has(conversationId)));
   const [err, setErr]         = useState(null);
   const [inp, setInp]         = useState("");
   const [sending, setSending] = useState(false);
@@ -79,7 +82,9 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
   /* 解析会话 → 加载历史 → 订阅 → 标记已读 */
   useEffect(() => {
     let alive = true;
-    setLoading(true); setErr(null); setMsgs([]);
+    setErr(null);
+    const hasCache = conversationId && pmMsgCache.has(conversationId);
+    if (!hasCache) { setLoading(true); setMsgs([]); } // 有缓存则保留旧消息、不转圈，后台静默刷新
     (async () => {
       try {
         let cid = conversationId;
@@ -101,12 +106,18 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
         const list = await listPrivateMessages(cid);
         if (!alive) return;
         setMsgs(list);
+        pmMsgCache.set(cid, list);
 
         markConversationRead(cid, meId).then(() => onActivity?.()).catch(() => {});
 
         const ch = subscribePrivateConversation(cid, (row) => {
           if (!alive) return;
-          setMsgs((prev) => prev.some((m) => m.id === row.id) ? prev : [...prev, row]);
+          setMsgs((prev) => {
+            if (prev.some((m) => m.id === row.id)) return prev;
+            const next = [...prev, row];
+            pmMsgCache.set(cid, next);
+            return next;
+          });
           if (row.sender_id !== meId) {
             markConversationRead(cid, meId).then(() => onActivity?.()).catch(() => {});
           }

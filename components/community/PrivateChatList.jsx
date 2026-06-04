@@ -13,6 +13,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { listConversations, subscribeMyInbox, unsubscribePrivate } from "@/services/privateChatService";
+
+// 会话列表内存缓存（meId → 列表）：群聊↔私聊切换时秒显，后台静默刷新
+const convCache = new Map();
 import { listFollowing, searchUsers } from "@/services/communityService";
 
 const C = {
@@ -45,15 +48,18 @@ function Avatar({ url, size = 48 }) {
 }
 
 export default function PrivateChatList({ meId, onOpen }) {
-  const [list, setList]       = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [list, setList]       = useState(() => convCache.get(meId) || []);
+  const [loading, setLoading] = useState(() => !convCache.has(meId)); // 有缓存则不转圈
   const [q, setQ]             = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const chRef = useRef(null);
 
   const load = () => {
     if (!meId) return;
-    listConversations(meId).then(setList).catch(() => {}).finally(() => setLoading(false));
+    listConversations(meId)
+      .then((rows) => { setList(rows); convCache.set(meId, rows); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {

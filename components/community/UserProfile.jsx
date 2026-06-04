@@ -26,13 +26,21 @@ const C = {
 };
 const PAGE = 10;
 
+// 用户主页头部信息内存缓存（userId → {user, counts, likes, pets}）：再次进入秒显
+const profileHeadCache = new Map();
+function cacheHead(id, patch) {
+  if (!id) return;
+  profileHeadCache.set(id, { ...(profileHeadCache.get(id) || {}), ...patch });
+}
+
 export default function UserProfile({ viewerId, userId, onClose }) {
   const isSelf = viewerId && viewerId === userId;
+  const headCache = profileHeadCache.get(userId);
 
-  const [user,   setUser]   = useState(null);
-  const [counts, setCounts] = useState({ following: 0, followers: 0 });
-  const [likes,  setLikes]  = useState(0);
-  const [pets,   setPets]   = useState([]);
+  const [user,   setUser]   = useState(headCache?.user   || null);
+  const [counts, setCounts] = useState(headCache?.counts || { following: 0, followers: 0 });
+  const [likes,  setLikes]  = useState(headCache?.likes  ?? 0);
+  const [pets,   setPets]   = useState(headCache?.pets   || []);
   const [following, setFollowing] = useState(false);
   const [busy,   setBusy]   = useState(false);
   const [loading, setLoading] = useState(true);
@@ -50,9 +58,12 @@ export default function UserProfile({ viewerId, userId, onClose }) {
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    // 切换用户时清空旧数据，避免串号
+    // 切换用户时清空旧帖子，避免串号
     setPosts([]); setLikedSet(new Set()); setHasMore(true);
-    setUser(null); setPets([]); setCounts({ following: 0, followers: 0 }); setLikes(0);
+    // 头部：有缓存则保留(秒显)，无缓存才清空
+    if (!profileHeadCache.has(userId)) {
+      setUser(null); setPets([]); setCounts({ following: 0, followers: 0 }); setLikes(0);
+    }
 
     // 1) 帖子优先：最先返回就渲染，不等头部信息/点赞态（一进去就有帖子）
     listMyPosts(userId, { limit: PAGE })
@@ -70,10 +81,10 @@ export default function UserProfile({ viewerId, userId, onClose }) {
       .catch(() => { if (alive) setLoading(false); });
 
     // 2) 头部信息并行加载，各自就绪各自渲染（不阻塞帖子）
-    getUserById(userId).then((u) => { if (alive) setUser(u); }).catch(() => {});
-    getFollowCounts(userId).then((c) => { if (alive) setCounts(c); }).catch(() => {});
-    getUserLikeTotal(userId).then((lk) => { if (alive) setLikes(lk); }).catch(() => {});
-    getUserPets(userId).then((ps) => { if (alive) setPets(ps || []); }).catch(() => {});
+    getUserById(userId).then((u) => { if (alive) { setUser(u); cacheHead(userId, { user: u }); } }).catch(() => {});
+    getFollowCounts(userId).then((c) => { if (alive) { setCounts(c); cacheHead(userId, { counts: c }); } }).catch(() => {});
+    getUserLikeTotal(userId).then((lk) => { if (alive) { setLikes(lk); cacheHead(userId, { likes: lk }); } }).catch(() => {});
+    getUserPets(userId).then((ps) => { if (alive) { setPets(ps || []); cacheHead(userId, { pets: ps || [] }); } }).catch(() => {});
     if (!isSelf && viewerId) isFollowing(viewerId, userId).then((f) => { if (alive) setFollowing(f); }).catch(() => {});
 
     return () => { alive = false; };
