@@ -25,6 +25,7 @@ import {
 import { checkUsername } from "@/services/contentFilter";
 import { formatPetAge, formatBirthday, PERSONALITIES, todayISO } from "@/services/petAge";
 import MapTab from "@/components/map/MapTab";
+import SocialTab from "@/components/social/SocialTab";
 import CommunityTab from "@/components/community/CommunityTab";
 import UserProfile from "@/components/community/UserProfile";
 import ProfileTab from "@/components/profile/ProfileTab";
@@ -99,14 +100,6 @@ const isHungry = (bt, dt) => {
   const [dh, dm] = dt.split(":").map(Number);
   return (m > bh * 60 + bm + 180 && m < dh * 60 + dm - 120) || m > dh * 60 + dm + 180;
 };
-
-const DOGS = [
-  { id:1, name:"Joy",    breed:"腊肠犬", age:"2岁", walk:"晚上 7:00", neut:true,  vacc:true,  likes:"小型犬",   char:"温柔粘人", av:"🌭", km:"0.3", owner:"Lucy" },
-  { id:2, name:"Momo",   breed:"柯基",   age:"1岁", walk:"下午 5:00", neut:false, vacc:true,  likes:"活泼狗狗", char:"活泼好动", av:"🍑", km:"0.5", owner:"小明"  },
-  { id:3, name:"花花",   breed:"柴犬",   age:"3岁", walk:"早上 8:00", neut:true,  vacc:true,  likes:"同品种",   char:"独立傲娇", av:"🦊", km:"0.8", owner:"晓雯"  },
-  { id:4, name:"Butter", breed:"金毛",   age:"4岁", walk:"下午 4:00", neut:true,  vacc:true,  likes:"所有狗狗", char:"超级友善", av:"☀️", km:"1.1", owner:"大伟"  },
-  { id:5, name:"雪球",   breed:"萨摩耶", age:"2岁", walk:"晚上 7:30", neut:false, vacc:true,  likes:"大型犬",   char:"开朗爱笑", av:"⛄", km:"1.5", owner:"阿强"  },
-];
 
 const AI_RES = {
   food:  { score:85, risk:"低", rc:"#4CAF50", txt:"食物搭配营养均衡，蛋白质含量适中。建议继续保持当前饮食，可适量补充益生菌。" },
@@ -1814,80 +1807,9 @@ function HomeNavCard({ icon, label, value, sub, valueSize = 26, bg, deco, onClic
 ══════════════════════════════════════════════════════════════ */
 
 /* ══════════════════════════════════════════════════════════════
-   SOCIAL TAB
+   SOCIAL TAB —— 已迁至 components/social/SocialTab.jsx
+   （真实附近狗狗 + 遛弯名片 + 邀请私聊；隐私走 RPC，不暴露经纬度）
 ══════════════════════════════════════════════════════════════ */
-function SocialTab() {
-  const [inv, setInv] = useState(new Set());
-
-  return (
-    <div style={{ height:"100%", overflowY:"auto", background:C.bg }}>
-      <div style={{ background:"white", padding:"52px 18px 16px" }}>
-        <div style={{ fontSize:20, fontWeight:800, color:C.text, display:"flex", alignItems:"center", gap:8 }}>
-          <PawIcon size={20} color="#E68645" /> 附近狗狗
-        </div>
-        <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>找到附近的狗友，一起遛弯</div>
-      </div>
-      <div style={{ margin:"12px 14px 0", background:C.tint, border:`1px solid #E5E7EB`,
-                    borderRadius:16, padding:"10px 14px", display:"flex", gap:8 }}>
-        <span style={{ fontSize:14 }}>ℹ️</span>
-        <div style={{ fontSize:11, color:C.sub, lineHeight:1.65 }}>
-          正式功能上线后需上传<span style={{ color:C.accent, fontWeight:600 }}>疫苗证明</span>和
-          <span style={{ color:C.accent, fontWeight:600 }}>狗证</span>，当前为 Demo 展示阶段。
-        </div>
-      </div>
-      <div style={{ padding:"12px 14px 88px" }}>
-        {DOGS.map((dog) => (
-          <div key={dog.id} style={{ ...cardStyle }}>
-            <div style={{ display:"flex", gap:12 }}>
-              <div style={{ width:60, height:60, borderRadius:18,
-                            background:`linear-gradient(135deg,${C.tint},#CDE9EE)`,
-                            display:"flex", alignItems:"center", justifyContent:"center",
-                            fontSize:32, flexShrink:0 }}>
-                {dog.av}
-              </div>
-              <div style={{ flex:1 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                  <div style={{ fontSize:16, fontWeight:800, color:C.text }}>{dog.name}</div>
-                  <div style={{ fontSize:11, color:C.sub }}>📍 {dog.km}km</div>
-                </div>
-                <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>{dog.breed} · {dog.age} · 主人：{dog.owner}</div>
-                <div style={{ fontSize:11, color:C.accent, fontWeight:600, marginTop:4 }}>⏰ {dog.walk} 遛弯</div>
-              </div>
-            </div>
-            <div style={{ display:"flex", gap:6, marginTop:12, flexWrap:"wrap" }}>
-              {[
-                { lbl:dog.neut ? "已绝育" : "未绝育", ok:dog.neut },
-                { lbl:dog.vacc ? "疫苗齐全" : "疫苗未齐", ok:dog.vacc },
-              ].map((b) => (
-                <span key={b.lbl} style={{ fontSize:11, background:b.ok?"#F0FFF4":"#FFF5F5",
-                                           color:b.ok?"#4CAF50":"#F44336", padding:"4px 10px",
-                                           borderRadius:20, fontWeight:600 }}>
-                  {b.ok ? "✓" : "✗"} {b.lbl}
-                </span>
-              ))}
-              <span style={{ fontSize:11, background:C.tint, color:C.accent, padding:"4px 10px", borderRadius:20 }}>
-                💝 {dog.likes}
-              </span>
-            </div>
-            <div style={{ fontSize:12, color:C.sub, marginTop:8 }}>🎭 性格：{dog.char}</div>
-            {inv.has(dog.id)
-              ? <div style={{ marginTop:12, padding:"11px 0", background:"#F0FFF4", borderRadius:14,
-                              textAlign:"center", fontSize:13, color:"#4CAF50", fontWeight:600 }}>
-                  ✅ 邀请已发送，等待对方主人同意
-                </div>
-              : <button onClick={() => setInv((p) => new Set([...p, dog.id]))}
-                  style={{ marginTop:12, width:"100%", padding:"12px 0", borderRadius:14,
-                           background:C.grad, color:"white", fontSize:13, fontWeight:700,
-                           border:"none", cursor:"pointer",
-                           display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-                  <PawIcon size={16} color="#FFFFFF" /> 邀请一起散步
-                </button>}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /* ══════════════════════════════════════════════════════════════
    APP SHELL
@@ -2035,7 +1957,7 @@ export default function AppRoot() {
   return shell(
     <>
       <div style={{ position:"absolute", top:0, left:0, right:0, bottom:60, overflow:"hidden" }}>
-        {tab === 0 && <SocialTab />}
+        {tab === 0 && <SocialTab user={user} pet={pet} />}
         {tab === 1 && <MapTab />}
         {tab === 2 && <HomeTab user={user} pet={pet} pets={pets} onPetUpdate={handlePetDataUpdated} onSwitchPet={setActivePet} />}
         {tab === 3 && <CommunityTab user={user} pet={pet} pets={pets} onUserUpdated={setUser} onOpenProfile={setProfileUserId} />}
