@@ -195,6 +195,7 @@ export default function AvatarGenerator({ user, pet, onSaved, onClose }) {
         {phase === PHASES.RESULT && aiUrl && (
           <ResultStep
             aiUrl={aiUrl}
+            petId={pet?.id}
             onUse={handleUse}
             onRegen={handleGenerate}
             onCancel={handleResetAll}
@@ -527,8 +528,24 @@ function Deco({ kind, style, delay = "0s", size = 16 }) {
   );
 }
 
-function ResultStep({ aiUrl, onUse, onRegen, onCancel, saveErr }) {
+function ResultStep({ aiUrl, petId, onUse, onRegen, onCancel, saveErr }) {
   const [saving, setSaving] = useState(false);
+  const [imgState, setImgState] = useState("loading"); // loading | ready | error
+
+  // 先 preload，完全加载好再淡入显示（避免从上往下逐行加载 / 白屏）
+  useEffect(() => {
+    if (!aiUrl) return;
+    setImgState("loading");
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => {
+      setImgState("ready");
+      try { if (petId) localStorage.setItem(`tailme_ai_result_cache_${petId}`, aiUrl); } catch {}
+    };
+    img.onerror = () => setImgState("error");
+    img.src = aiUrl;
+    return () => { img.onload = null; img.onerror = null; };
+  }, [aiUrl, petId]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -536,42 +553,93 @@ function ResultStep({ aiUrl, onUse, onRegen, onCancel, saveErr }) {
     finally { setSaving(false); }
   };
 
+  const useDisabled = saving || imgState !== "ready";
+
   return (
     <>
-      <div style={{ width:"100%", aspectRatio:"1", borderRadius:18, overflow:"hidden",
-                    background:C.tint, marginBottom:14,
-                    boxShadow:"0 6px 18px rgba(230,134,69,0.18)" }}>
-        <img src={aiUrl} alt=""
-             style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+      {/* 预览卡 */}
+      <div style={{ position:"relative", width:"100%", height:384, borderRadius:24, overflow:"hidden",
+                    background:"#FFFCF7", border:`1px solid ${C.border}`,
+                    boxShadow:"0 4px 16px rgba(0,0,0,0.05)", marginBottom:16,
+                    display:"flex", alignItems:"center", justifyContent:"center" }}>
+        {imgState === "error" ? (
+          <div style={{ textAlign:"center", padding:24 }}>
+            <div style={{ fontSize:34, marginBottom:8 }}>😿</div>
+            <div style={{ fontSize:13.5, color:C.sub }}>图片加载失败，请重新生成试试</div>
+          </div>
+        ) : (
+          <>
+            {/* 加载占位（shimmer + 爪印）*/}
+            {imgState === "loading" && (
+              <div style={{ position:"absolute", inset:0, background:C.tint,
+                            display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12 }}>
+                <div style={{ position:"absolute", top:0, bottom:0, left:0, width:"55%",
+                              background:"linear-gradient(100deg, transparent, rgba(255,255,255,0.5), transparent)",
+                              animation:"aiShimmer 1.8s ease-in-out infinite" }} />
+                <div style={{ animation:"aiFloat 2.2s ease-in-out infinite" }}><PawIcon size={40} /></div>
+                <div style={{ fontSize:12.5, color:C.sub }}>正在整理毛孩子的新头像…</div>
+              </div>
+            )}
+            {/* 加载完成淡入 */}
+            {imgState === "ready" && (
+              <img src={aiUrl} alt="AI 生成宠物形象" loading="eager" decoding="async"
+                style={{ width:"100%", height:"100%", objectFit:"contain", display:"block",
+                         animation:"aiResultIn .35s ease" }} />
+            )}
+          </>
+        )}
       </div>
-      <button onClick={handleSave} disabled={saving}
-        style={{ width:"100%", padding:"12px 0", borderRadius:14, fontSize:14, fontWeight:700,
-                 background:C.pri, color:"white", border:"none",
-                 cursor: saving ? "default" : "pointer", marginBottom:8,
-                 opacity: saving ? 0.75 : 1, transition:"opacity .15s" }}>
+
+      {/* 主按钮 */}
+      <button onClick={handleSave} disabled={useDisabled}
+        style={{ width:"100%", height:56, borderRadius:999, border:"none",
+                 background:C.pri, color:"white", fontSize:18, fontWeight:800, marginBottom:10,
+                 cursor: useDisabled ? "default" : "pointer",
+                 opacity: useDisabled ? 0.7 : 1, transition:"opacity .15s",
+                 boxShadow:"0 8px 18px rgba(230,134,69,0.32)" }}>
         {saving ? "保存中…" : "使用这个头像"}
       </button>
+
       {saveErr && (
         <div style={{ background:"#FFF0F0", color:"#D94040", borderRadius:12,
                       padding:"9px 14px", fontSize:12, lineHeight:1.5,
-                      marginBottom:8, textAlign:"center" }}>
+                      marginBottom:10, textAlign:"center" }}>
           ❌ {saveErr}
         </div>
       )}
-      <div style={{ display:"flex", gap:8 }}>
+
+      {/* 次按钮：重新生成 / 取消 */}
+      <div style={{ display:"flex", gap:10 }}>
         <button onClick={onRegen} disabled={saving}
-          style={{ flex:1, padding:"10px 0", borderRadius:14, fontSize:13, fontWeight:600,
-                   background:C.tint, color:C.text, border:"none", cursor:"pointer" }}>
-          🔁 重新生成
+          style={{ flex:1, height:52, borderRadius:16, border:"none", background:C.tint, color:C.text,
+                   fontSize:14, fontWeight:700, cursor: saving ? "default" : "pointer",
+                   display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+          <RefreshIcon /> 重新生成
         </button>
         <button onClick={onCancel} disabled={saving}
-          style={{ flex:1, padding:"10px 0", borderRadius:14, fontSize:13, fontWeight:600,
-                   background:"white", color:C.text, border:`1px solid ${C.border}`,
-                   cursor:"pointer" }}>
+          style={{ flex:1, height:52, borderRadius:16, background:"white", color:C.text,
+                   border:`1px solid ${C.border}`, fontSize:14, fontWeight:700,
+                   cursor: saving ? "default" : "pointer" }}>
           取消
         </button>
       </div>
+
+      <style>{`
+        @keyframes aiResultIn { from{opacity:0} to{opacity:1} }
+        @keyframes aiShimmer { 0%{transform:translateX(-180%)} 100%{transform:translateX(240%)} }
+        @keyframes aiFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
+      `}</style>
     </>
+  );
+}
+
+/* 刷新图标（重新生成）*/
+function RefreshIcon({ size = 17 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M20 11a8 8 0 1 0-.6 4" stroke="#2A2520" strokeWidth="1.9" strokeLinecap="round"/>
+      <path d="M20 4v6h-6" stroke="#2A2520" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
   );
 }
 
