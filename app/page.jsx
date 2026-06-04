@@ -1209,8 +1209,8 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
       <div style={{ background:H_BG, padding:"52px 20px 6px",
                     position:"relative", overflow:"hidden" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:22 }}>
-          <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
-            <Logo size={32} />
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <Logo size={52} />
             <div>
               <div style={{ fontSize:10, color:H_SUB, marginBottom:2, letterSpacing:0.5 }}>爪爪日记 TailMe</div>
               <div style={{ fontSize:20, fontWeight:800, color:C.text }}>嗨，{pet.name} 👋</div>
