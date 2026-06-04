@@ -1817,7 +1817,7 @@ function HomeNavCard({ icon, label, value, sub, valueSize = 26, bg, deco, onClic
    user_id 持久化至 localStorage("tailme_user_id")
 ══════════════════════════════════════════════════════════════ */
 const TABS = [
-  { icon:"🐾", label:"狗友" },
+  { icon:"🐾", label:"遛弯" },
   { label:"地图" },
   { home:true, label:"首页" },
   { label:"社群" },
@@ -1980,7 +1980,7 @@ export default function AppRoot() {
               </div>
             ) : (
               <div style={{ height:22, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                {t.label === "狗友"
+                {t.label === "遛弯"
                   ? <PawIcon size={20} color={tab===i ? "#E68645" : "#C5C8CE"} />
                   : t.label === "地图"
                     ? <MapIcon size={34} color={tab===i ? "#E68645" : "#C5C8CE"} />
