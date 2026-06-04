@@ -75,12 +75,15 @@ function imageCoverRatio(post) {
   return Math.max(0.55, Math.min(1.6, r));   // 限幅防极端
 }
 
+// 主 feed（推荐/最新）内存缓存：再次进入社群秒显，后台静默刷新（像小红书一样无加载）
+const feedCache = { posts: null, likedIds: null };
+
 export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
-  const [posts,    setPosts]    = useState([]);
-  const [likedSet, setLikedSet] = useState(new Set());
-  const [loading,  setLoading]  = useState(true);
+  const [posts,    setPosts]    = useState(() => feedCache.posts || []);
+  const [likedSet, setLikedSet] = useState(() => new Set(feedCache.likedIds || []));
+  const [loading,  setLoading]  = useState(() => !feedCache.posts); // 有缓存则不显示"加载中"
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore,  setHasMore]  = useState(true);
+  const [hasMore,  setHasMore]  = useState(() => feedCache.posts ? feedCache.posts.length >= PAGE_SIZE : true);
   const [err,      setErr]      = useState(null);
 
   const [composeOpen, setComposeOpen] = useState(false);
@@ -124,10 +127,11 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
         const list = await listPosts({ limit: PAGE_SIZE });
         if (!alive) return;
         setPosts(list);
+        feedCache.posts = list;                 // 缓存快照,下次进入秒显
         setHasMore(list.length === PAGE_SIZE);
         if (user?.id && list.length) {
           const liked = await getMyLikedPostIds(user.id, list.map((p) => p.id));
-          if (alive) setLikedSet(liked);
+          if (alive) { setLikedSet(liked); feedCache.likedIds = [...liked]; }
         }
       } catch (e) {
         if (alive) setErr(e.message);
@@ -166,6 +170,10 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
     }
     return () => { alive = false; };
   }, [user?.id]);
+
+  /* 同步缓存快照：发帖/删帖/点赞等改动后再进入也即时反映 */
+  useEffect(() => { if (posts.length) feedCache.posts = posts; }, [posts]);
+  useEffect(() => { feedCache.likedIds = [...likedSet]; }, [likedSet]);
 
   /* ── 分页加载更多 ─────────────────────────────────── */
   const loadMore = async () => {
