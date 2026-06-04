@@ -13,6 +13,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { listConversations, subscribeMyInbox, unsubscribePrivate } from "@/services/privateChatService";
+import { RowSkeleton } from "./ChatSkeleton";
 
 // 会话列表内存缓存（meId → 列表）：群聊↔私聊切换时秒显，后台静默刷新
 const convCache = new Map();
@@ -101,7 +102,7 @@ export default function PrivateChatList({ meId, onOpen }) {
       <div style={{ fontSize:13, fontWeight:800, color:C.text, margin:"4px 0 10px" }}>我的私聊</div>
 
       {loading ? (
-        <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>加载中…</div>
+        <RowSkeleton rows={5} />
       ) : filtered.length === 0 ? (
         <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"50px 24px", lineHeight:1.9 }}>
           {q.trim() ? "没找到相关聊天" : "还没有私聊，去社区认识新的毛孩子吧～"}

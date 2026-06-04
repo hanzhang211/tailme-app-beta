@@ -31,11 +31,16 @@ import PetAvatar from "@/components/PetAvatar";
 import BreedIcon from "@/components/icons/BreedIcon";
 import PrivateChatList from "./PrivateChatList";
 import PrivateChatDetail from "./PrivateChatDetail";
+import { MsgSkeleton, RowSkeleton } from "./ChatSkeleton";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
   sub:"#8A8074", light:"#D6D5D8", border:"#D6D5D8",
 };
+
+// 群聊内存缓存：房间列表 + 每个房间的消息，再次进入秒显，后台静默刷新
+const roomsCache = { list: null };
+const roomMsgCache = new Map();
 
 function fmtTime(iso) {
   if (!iso) return "";
@@ -62,10 +67,10 @@ export default function ChatRoom({ user, pet, pets = [] }) {
   const [section, setSection] = useState("group"); // group | private
   const [pmSel,   setPmSel]   = useState(null);     // 私聊详情：{ conversationId?, other }
 
-  const [rooms,        setRooms]        = useState([]);
+  const [rooms,        setRooms]        = useState(() => roomsCache.list || []);
   const [view,         setView]         = useState("lobby");   // lobby | more | room
   const [activeRoomId, setActiveRoomId] = useState(null);
-  const [loadingRooms, setLoadingRooms] = useState(true);
+  const [loadingRooms, setLoadingRooms] = useState(() => !roomsCache.list);
   const [errRooms,     setErrRooms]     = useState(null);
   const [moreQuery,    setMoreQuery]    = useState("");
 
@@ -114,8 +119,9 @@ export default function ChatRoom({ user, pet, pets = [] }) {
       try {
         const rs = await listChatRooms();
         setRooms(rs);
+        roomsCache.list = rs;
       } catch (e) {
-        setErrRooms(e.message);
+        if (!roomsCache.list) setErrRooms(e.message);
       } finally {
         setLoadingRooms(false);
       }
@@ -141,17 +147,19 @@ export default function ChatRoom({ user, pet, pets = [] }) {
   useEffect(() => {
     if (view !== "room" || !activeRoomId) return;
     let alive = true;
-    setLoadingMsgs(true);
     setErrMsgs(null);
-    setMsgs([]);
+    const cached = roomMsgCache.get(activeRoomId);
+    if (cached) { setMsgs(cached); setLoadingMsgs(false); }   // 有缓存先显示,不转圈
+    else { setMsgs([]); setLoadingMsgs(true); }
 
     (async () => {
       try {
         const list = await listMessages(activeRoomId);
         if (!alive) return;
         setMsgs(list);
+        roomMsgCache.set(activeRoomId, list);
       } catch (e) {
-        if (alive) setErrMsgs(e.message);
+        if (alive && !cached) setErrMsgs(e.message);
       } finally {
         if (alive) setLoadingMsgs(false);
       }
@@ -159,7 +167,12 @@ export default function ChatRoom({ user, pet, pets = [] }) {
 
     const channel = subscribeRoom(activeRoomId, (newMsg) => {
       if (!alive) return;
-      setMsgs((prev) => prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]);
+      setMsgs((prev) => {
+        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        const next = [...prev, newMsg];
+        roomMsgCache.set(activeRoomId, next);
+        return next;
+      });
     });
     channelRef.current = channel;
 
@@ -253,7 +266,7 @@ export default function ChatRoom({ user, pet, pets = [] }) {
      view: lobby
      ════════════════════════════════════════════════ */
   if (view === "lobby") {
-    if (loadingRooms) return <Center>加载中...</Center>;
+    if (loadingRooms) return <div style={{ padding:"8px 14px" }}><RowSkeleton rows={7} /></div>;
     if (errRooms)     return <Center color="#D94040">❌ {errRooms}</Center>;
     const myBreedSet = new Set(myBreeds.map((b) => b.breed));
     // 我加入的群聊：我发过言、非我的专属(品种)群、非全员房（全员房放“发现更多”入口）
@@ -436,7 +449,7 @@ export default function ChatRoom({ user, pet, pets = [] }) {
       <SubHeader title={roomDisplay(activeRoom)} onBack={backToLobby} />
 
       <div ref={scrollRef} style={{ flex:1, overflowY:"auto", padding:"12px 14px" }}>
-        {loadingMsgs && <div style={{ textAlign:"center", color:C.sub, fontSize:12 }}>加载中...</div>}
+        {loadingMsgs && msgs.length === 0 && <MsgSkeleton />}
         {errMsgs     && <div style={{ textAlign:"center", color:"#D94040", fontSize:12 }}>❌ {errMsgs}</div>}
         {!loadingMsgs && !errMsgs && msgs.length === 0 && (
           <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"40px 0" }}>

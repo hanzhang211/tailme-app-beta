@@ -25,6 +25,7 @@ import { captureVideoThumbnail, fmtDuration } from "@/services/videoThumb";
 import { avatarForBreed } from "@/services/breedAvatar";
 import { formatPetAge } from "@/services/petAge";
 import UserProfile from "./UserProfile";
+import { MsgSkeleton } from "./ChatSkeleton";
 
 // 私聊消息内存缓存（convId → 消息列表）：再次打开会话时秒显，后台静默刷新
 const pmMsgCache = new Map();
@@ -261,7 +262,7 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
 
       {/* 消息区 */}
       <div ref={scrollRef} style={{ flex:1, overflowY:"auto", padding:"16px 14px" }}>
-        {loading && <div style={{ textAlign:"center", color:C.sub, fontSize:12 }}>加载中…</div>}
+        {loading && msgs.length === 0 && <MsgSkeleton />}
         {err && <div style={{ textAlign:"center", color:"#E85D5D", fontSize:12, padding:"6px 0" }}>❌ {err}</div>}
         {!loading && !err && msgs.length === 0 && (
           <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"40px 0" }}>
