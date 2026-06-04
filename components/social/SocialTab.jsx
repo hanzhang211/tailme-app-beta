@@ -29,6 +29,7 @@ const C = {
   green:"#4CAF50", greenBg:"#EAF6EC", redBg:"#FCEDED", red:"#E07A6B",
 };
 const INVITE_TEXT = "你好呀，想和你一起遛狗～";
+const RADIUS_KM = 3;
 
 /* 圆角方形宠物头像（贴合参考图；带品种 emoji 兜底）*/
 function DogAvatar({ url, breed, petType, size = 72 }) {
@@ -62,7 +63,7 @@ function PawWhite({ size = 16 }) {
   );
 }
 
-export default function SocialTab({ user, pet, pets = [] }) {
+export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
   const [profile, setProfile]   = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [nearby, setNearby]     = useState([]);
@@ -121,7 +122,7 @@ export default function SocialTab({ user, pet, pets = [] }) {
         return;
       }
       await updateDogLocation({ userId: user.id, ...coords }).catch(() => {});
-      const list = await getNearbyDogFriends({ userId: user.id, ...coords });
+      const list = await getNearbyDogFriends({ userId: user.id, ...coords, radiusKm: RADIUS_KM });
       setNearby(list);
     } catch (e) {
       toast(e.message, "error");
@@ -147,7 +148,7 @@ export default function SocialTab({ user, pet, pets = [] }) {
         await setDogVisibility({ userId: user.id, visible: true, lat: coords.lat, lng: coords.lng });
         setProfile((p) => ({ ...(p || {}), is_visible: true, has_location: true }));
         setStaleNote(false);
-        const list = await getNearbyDogFriends({ userId: user.id, ...coords });
+        const list = await getNearbyDogFriends({ userId: user.id, ...coords, radiusKm: RADIUS_KM });
         setNearby(list);
         toast("距离可见已开启 🐾", "success");
       } else {
@@ -199,7 +200,7 @@ export default function SocialTab({ user, pet, pets = [] }) {
         <div style={{ fontSize:21, fontWeight:800, color:C.text, display:"flex", alignItems:"center", gap:8 }}>
           <PawOrange size={20} /> 附近狗狗
         </div>
-        <div style={{ fontSize:12.5, color:C.sub, marginTop:3 }}>发现 1km 内愿意一起遛弯的毛孩子</div>
+        <div style={{ fontSize:12.5, color:C.sub, marginTop:3 }}>发现 3km 内愿意一起遛弯的毛孩子</div>
       </div>
 
       {/* 状态卡 */}
@@ -222,7 +223,7 @@ export default function SocialTab({ user, pet, pets = [] }) {
             <div style={{ fontSize:11.5, color:C.sub, marginTop:3, lineHeight:1.6 }}>
               {visible
                 ? "仅展示大致距离，不显示具体位置，放心交友更安全～"
-                : "开启后，附近 1km 内的狗友可以看到你的遛弯名片"}
+                : "开启后，附近 3km 内的狗友可以看到你的遛弯名片"}
             </div>
           </div>
           <Toggle on={visible} busy={busyToggle} onClick={toggleVisible} />
@@ -244,7 +245,7 @@ export default function SocialTab({ user, pet, pets = [] }) {
       {/* 列表标题 + 刷新 */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                     padding:"16px 18px 6px" }}>
-        <span style={{ fontSize:11.5, color:C.sub }}>以下为 1km 内的狗狗伙伴</span>
+        <span style={{ fontSize:11.5, color:C.sub }}>以下为 3km 内的狗狗伙伴</span>
         <button onClick={() => refreshNearby(false)} disabled={!visible || loadingList}
           style={{ display:"flex", alignItems:"center", gap:4, background:"transparent", border:"none",
                    color: visible ? C.pri : C.light, fontSize:12, fontWeight:600,
@@ -283,7 +284,8 @@ export default function SocialTab({ user, pet, pets = [] }) {
 
         {/* 卡片列表 */}
         {visible && nearby.map((d) => (
-          <DogCard key={d.user_id} d={d} onInvite={() => handleInvite(d)} />
+          <DogCard key={d.user_id} d={d} onInvite={() => handleInvite(d)}
+            onOpenProfile={onOpenProfile ? () => onOpenProfile(d.user_id) : null} />
         ))}
       </div>
 
@@ -323,7 +325,7 @@ export default function SocialTab({ user, pet, pets = [] }) {
 }
 
 /* ── 单张狗友卡片 ── */
-function DogCard({ d, onInvite }) {
+function DogCard({ d, onInvite, onOpenProfile }) {
   const age = formatPetAge(d.pet_birthday) || (d.pet_age != null ? `${d.pet_age}岁` : null);
   const tags = [];
   tags.push({ lbl: d.neutered ? "已绝育" : "未绝育", ok: d.neutered });
@@ -332,7 +334,8 @@ function DogCard({ d, onInvite }) {
   return (
     <div style={{ background:"white", borderRadius:20, padding:16, marginBottom:12,
                   boxShadow:"0 2px 14px rgba(0,0,0,0.05)" }}>
-      <div style={{ display:"flex", gap:12 }}>
+      <div onClick={onOpenProfile || undefined}
+           style={{ display:"flex", gap:12, cursor: onOpenProfile ? "pointer" : "default" }}>
         <DogAvatar url={d.pet_avatar_url || d.pet_thumb_url} breed={d.pet_breed} petType={d.pet_type} size={72} />
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
