@@ -112,6 +112,9 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
   const sentinelRef   = useRef(null);
   const scrollRef     = useRef(null);
   const loadingMoreRef = useRef(false);
+  // 关注/同城是否已加载过：有缓存则切换时不再整屏转圈，仅后台静默刷新
+  const followLoadedRef = useRef(false);
+  const cityLoadedRef   = useRef(false);
 
   /* ── 首次加载 ─────────────────────────────────────── */
   useEffect(() => {
@@ -135,6 +138,32 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
     // 热门话题 + 推荐（非阻塞，失败静默）
     getHotTopics().then((t) => { if (alive) setHotTopics(t); }).catch(() => {});
     getRecommendedPosts().then((r) => { if (alive) setRecommend(r); }).catch(() => {});
+
+    // 预取「关注 / 同城」，让首次切换也秒开（非阻塞，失败静默）
+    if (user?.id) {
+      listFollowingPosts(user.id).then((list) => {
+        if (!alive) return;
+        setFollowPosts(list);
+        followLoadedRef.current = true;
+        if (list.length) {
+          getMyLikedPostIds(user.id, list.map((p) => p.id))
+            .then((liked) => { if (alive) setLikedSet((prev) => { const n = new Set(prev); liked.forEach((id) => n.add(id)); return n; }); })
+            .catch(() => {});
+        }
+      }).catch(() => {});
+    }
+    if (user?.city) {
+      listCityPosts(user.city).then((list) => {
+        if (!alive) return;
+        setCityPosts(list);
+        cityLoadedRef.current = true;
+        if (user?.id && list.length) {
+          getMyLikedPostIds(user.id, list.map((p) => p.id))
+            .then((liked) => { if (alive) setLikedSet((prev) => { const n = new Set(prev); liked.forEach((id) => n.add(id)); return n; }); })
+            .catch(() => {});
+        }
+      }).catch(() => {});
+    }
     return () => { alive = false; };
   }, [user?.id]);
 
@@ -201,11 +230,12 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
   useEffect(() => {
     if (feedTab !== "follow" || !user?.id) return;
     let alive = true;
-    setFollowLoading(true);
+    if (!followLoadedRef.current) setFollowLoading(true); // 有缓存则不整屏转圈，后台静默刷新
     listFollowingPosts(user.id)
       .then(async (list) => {
         if (!alive) return;
         setFollowPosts(list);
+        followLoadedRef.current = true;
         if (list.length) {
           const liked = await getMyLikedPostIds(user.id, list.map((p) => p.id));
           if (alive) setLikedSet((prev) => { const n = new Set(prev); liked.forEach((id) => n.add(id)); return n; });
@@ -221,11 +251,12 @@ export default function PostFeed({ user, pet, onUserUpdated, onOpenProfile }) {
   useEffect(() => {
     if (feedTab !== "city" || !user?.city) return;
     let alive = true;
-    setCityLoading(true);
+    if (!cityLoadedRef.current) setCityLoading(true); // 有缓存则不整屏转圈，后台静默刷新
     listCityPosts(user.city)
       .then(async (list) => {
         if (!alive) return;
         setCityPosts(list);
+        cityLoadedRef.current = true;
         if (user?.id && list.length) {
           const liked = await getMyLikedPostIds(user.id, list.map((p) => p.id));
           if (alive) setLikedSet((prev) => { const n = new Set(prev); liked.forEach((id) => n.add(id)); return n; });
