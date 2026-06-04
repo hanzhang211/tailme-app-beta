@@ -21,6 +21,7 @@ import {
 } from "@/services/privateChatService";
 import { isFollowing } from "@/services/communityService";
 import { captureVideoThumbnail, fmtDuration } from "@/services/videoThumb";
+import UserProfile from "./UserProfile";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#2A2520",
@@ -32,11 +33,12 @@ function fmtTime(iso) {
   return new Date(iso).toLocaleTimeString("zh", { hour: "2-digit", minute: "2-digit" });
 }
 
-function Avatar({ url, size = 38 }) {
+function Avatar({ url, size = 38, onClick }) {
   return (
-    <div style={{ width:size, height:size, borderRadius:"50%", background:C.tint, flexShrink:0,
+    <div onClick={onClick}
+      style={{ width:size, height:size, borderRadius:"50%", background:C.tint, flexShrink:0,
                   overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center",
-                  fontSize:size * 0.5 }}>
+                  fontSize:size * 0.5, cursor: onClick ? "pointer" : "default" }}>
       {url ? <img src={url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🐾"}
     </div>
   );
@@ -53,6 +55,8 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
   const [rel, setRel]         = useState({ mutual: false, loaded: false }); // 互相关注关系
   const [notice, setNotice]   = useState(null);
   const [playing, setPlaying] = useState(() => new Set());                  // 正在内联播放的视频消息 id
+  const [profileOpen, setProfileOpen] = useState(false);                    // 对方主页浮层
+  const openProfile = () => { if (target?.id) setProfileOpen(true); };
 
   const scrollRef  = useRef(null);
   const chRef      = useRef(null);
@@ -179,8 +183,8 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
         <button onClick={onClose}
           style={{ background:"transparent", border:"none", cursor:"pointer", fontSize:20,
                    color:C.text, padding:"2px 4px" }}>‹</button>
-        <Avatar url={target?.avatar_url} size={36} />
-        <div style={{ flex:1, minWidth:0 }}>
+        <Avatar url={target?.avatar_url} size={36} onClick={openProfile} />
+        <div onClick={openProfile} style={{ flex:1, minWidth:0, cursor:"pointer" }}>
           <div style={{ fontSize:15, fontWeight:800, color:C.text,
                         overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
             {target?.username || "毛孩子家长"}
@@ -207,7 +211,7 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
           return (
             <div key={m.id} style={{ display:"flex", gap:8, marginBottom:14,
                                      flexDirection: own ? "row-reverse" : "row" }}>
-              {!own && <Avatar url={target?.avatar_url} size={34} />}
+              {!own && <Avatar url={target?.avatar_url} size={34} onClick={openProfile} />}
               <div style={{ maxWidth:"72%", display:"flex", flexDirection:"column",
                             alignItems: own ? "flex-end" : "flex-start" }}>
                 {isVideo ? (
@@ -316,6 +320,11 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
           发送
         </button>
       </div>
+
+      {/* 点头像/名字 → 对方主页（覆盖层）*/}
+      {profileOpen && target?.id && (
+        <UserProfile viewerId={meId} userId={target.id} onClose={() => setProfileOpen(false)} />
+      )}
     </div>
   );
 }
