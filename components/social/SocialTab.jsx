@@ -32,20 +32,33 @@ const C = {
 const INVITE_TEXT = "你好呀，想和你一起遛狗～";
 const RADIUS_KM = 3;
 
-/* 圆角方形宠物头像（贴合参考图；带品种 emoji 兜底）*/
+/* 圆角方形宠物头像：品种 emoji 即时占位（永不空白）→ 真图加载完淡入 */
 function DogAvatar({ url, breed, petType, size = 72 }) {
+  const ref = useRef(null);
+  const [loaded, setLoaded] = useState(false);
   const [broken, setBroken] = useState(false);
-  useEffect(() => { setBroken(false); }, [url]);
-  if (url && !broken) {
-    return (
-      <img src={url} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)}
-        style={{ width:size, height:size, borderRadius:18, objectFit:"cover", flexShrink:0, background:C.tint }} />
-    );
-  }
+  useEffect(() => { setLoaded(false); setBroken(false); }, [url]);
+  // 命中缓存的图 onLoad 可能早于绑定 → complete 兜底，避免一直占位不显真图
+  useEffect(() => {
+    const img = ref.current;
+    if (img && img.complete && img.naturalWidth > 0) setLoaded(true);
+  }, [url]);
+  const showImg = url && !broken;
   return (
-    <div style={{ width:size, height:size, borderRadius:18, background:C.tint, flexShrink:0,
-                  display:"flex", alignItems:"center", justifyContent:"center", fontSize:Math.round(size*0.46) }}>
-      {avatarForBreed(breed, petType)}
+    <div style={{ position:"relative", width:size, height:size, borderRadius:18, overflow:"hidden",
+                  background:C.tint, flexShrink:0 }}>
+      {(!showImg || !loaded) && (
+        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center",
+                      justifyContent:"center", fontSize:Math.round(size*0.46) }}>
+          {avatarForBreed(breed, petType)}
+        </div>
+      )}
+      {showImg && (
+        <img ref={ref} src={url} alt="" loading="eager" decoding="async" fetchPriority="high"
+          onLoad={() => setLoaded(true)} onError={() => setBroken(true)}
+          style={{ position:"absolute", inset:0, width:size, height:size, objectFit:"cover",
+                   opacity: loaded ? 1 : 0, transition:"opacity .25s ease" }} />
+      )}
     </div>
   );
 }
@@ -103,6 +116,14 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
     })();
     return () => { alive = false; };
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* 列表到手即预加载所有头像（优先小图 thumb），用户滑到就已就绪 */
+  useEffect(() => {
+    nearby.forEach((d) => {
+      const u = d.pet_thumb_url || d.pet_avatar_url;
+      if (u) { const im = new Image(); im.src = u; }
+    });
+  }, [nearby]);
 
   /* ── 拉附近（需当前定位；拿不到则保留旧列表 + 提示）── */
   const refreshNearby = async (silent = false) => {
@@ -337,7 +358,7 @@ function DogCard({ d, onInvite, onOpenProfile }) {
                   boxShadow:"0 2px 14px rgba(0,0,0,0.05)" }}>
       <div onClick={onOpenProfile || undefined}
            style={{ display:"flex", gap:12, cursor: onOpenProfile ? "pointer" : "default" }}>
-        <DogAvatar url={d.pet_avatar_url || d.pet_thumb_url} breed={d.pet_breed} petType={d.pet_type} size={72} />
+        <DogAvatar url={d.pet_thumb_url || d.pet_avatar_url} breed={d.pet_breed} petType={d.pet_type} size={72} />
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
             <div style={{ display:"flex", alignItems:"center", gap:5, minWidth:0 }}>

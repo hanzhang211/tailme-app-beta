@@ -127,6 +127,8 @@ $$;
 --    · 半径内（默认 1km），按距离从近到远
 --    · 距离四舍五入到 0.1km
 -- ──────────────────────────────────────────────
+-- 注意：返回列有变更时不能用 CREATE OR REPLACE（改返回类型会报错），先 DROP
+DROP FUNCTION IF EXISTS nearby_dog_friends(uuid,double precision,double precision,double precision);
 CREATE OR REPLACE FUNCTION nearby_dog_friends(
   in_user_id uuid, in_lat double precision, in_lng double precision,
   in_radius_km double precision DEFAULT 1.0
@@ -135,7 +137,7 @@ RETURNS TABLE (
   user_id uuid, username text, owner_avatar_url text,
   pet_id uuid, pet_name text, pet_breed text,
   pet_gender text, pet_birthday date, pet_age numeric,
-  pet_avatar_url text,
+  pet_avatar_url text, pet_thumb_url text,
   neutered boolean, vaccinated boolean,
   walking_times text[], personalities text[],
   small_dog_preference text, big_dog_preference text, intro text,
@@ -146,7 +148,7 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
     u.id, u.username, u.avatar_url,
     pet.id, pet.name, pet.breed,
     pet.gender, pet.birthday, pet.age,
-    pet.ai_avatar_url,
+    pet.ai_avatar_url, pet.pet_avatar_thumb_url,
     pet.neutered, pet.vaccinated,
     p.walking_times, p.personalities,
     p.small_dog_preference, p.big_dog_preference, p.intro,
