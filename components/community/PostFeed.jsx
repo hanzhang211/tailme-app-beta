@@ -704,12 +704,12 @@ export function PostCard({ post, isLiked, onOpen, onToggleLike, onOpenTopic, onO
         </div>
         <button onClick={onToggleLike}
           style={{ background:"transparent", border:"none", cursor:"pointer",
-                   display:"flex", alignItems:"center", gap:4, flexShrink:0,
+                   display:"flex", alignItems:"center", gap:5, flexShrink:0,
                    color: isLiked ? "#E85D5D" : C.sub,
-                   fontSize:11, fontWeight: isLiked ? 700 : 500, padding:0 }}>
+                   fontSize:12.5, fontWeight: isLiked ? 700 : 500, padding:0 }}>
           <span key={isLiked ? "on" : "off"}
             style={{ display:"inline-flex", animation: isLiked ? "pawpop .2s ease" : "none" }}>
-            <PawLikeIcon filled={isLiked} size={20} />
+            <PawLikeIcon filled={isLiked} size={26} />
           </span>
           {post.like_count || 0}
         </button>
