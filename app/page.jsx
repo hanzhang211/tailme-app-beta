@@ -30,9 +30,9 @@ import CommunityTab from "@/components/community/CommunityTab";
 import { prefetchCommunityFeed } from "@/components/community/PostFeed";
 import UserProfile from "@/components/community/UserProfile";
 import ProfileTab from "@/components/profile/ProfileTab";
-import ExpensePage from "@/components/home/ExpensePage";
-import RecipePage  from "@/components/home/RecipePage";
-import HealthPage  from "@/components/home/HealthPage";
+import ExpensePage, { prefetchExpense } from "@/components/home/ExpensePage";
+import RecipePage,  { prefetchRecipes } from "@/components/home/RecipePage";
+import HealthPage,  { prefetchHealth }  from "@/components/home/HealthPage";
 import NewsPage, { NewsCover } from "@/components/home/NewsPage";
 import PetChatPage from "@/components/home/PetChatPage";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
@@ -784,6 +784,10 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     getMonthlyTotal(user.id).then((v) => { if (alive) setMonthExpense(v); }).catch(() => {});
     getTodayRecipe().then((r) => { if (alive) setTodayRecipe(r); }).catch(() => {});
     getLatestNews().then((n) => { if (alive) setLatestNews(n); }).catch(() => {});
+    // 后台预取记账/食谱/健康全量数据，点进子页时秒开有内容
+    prefetchExpense(user.id);
+    prefetchRecipes();
+    if (pet?.id) prefetchHealth(pet.id, user.id);
     return () => { alive = false; };
   }, [user?.id, subPage]);   // 从子页面返回时刷新
   // 年龄显示：优先用 birthday 计算（整数岁/月/日）；老数据回退到 pet.age

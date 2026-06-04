@@ -24,24 +24,25 @@ const card = {
   border: "1px solid rgba(255,255,255,0.55)",
 };
 
+// 食谱内存缓存（全局）：再次打开秒显，后台静默刷新
+const recipeCache = { list: null };
+export async function prefetchRecipes() {
+  if (recipeCache.list) return;
+  try { recipeCache.list = await listRecipes(); } catch {}
+}
+
 export default function RecipePage({ onBack }) {
-  const [list,    setList]    = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [list,    setList]    = useState(recipeCache.list || []);
+  const [loading, setLoading] = useState(!recipeCache.list); // 有缓存则不转圈
   const [err,     setErr]     = useState(null);
   const [detail,  setDetail]  = useState(null);
 
   useEffect(() => {
     let alive = true;
-    (async () => {
-      try {
-        const rs = await listRecipes();
-        if (alive) setList(rs);
-      } catch (e) {
-        if (alive) setErr(e.message);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
+    listRecipes()
+      .then((rs) => { if (alive) { setList(rs); recipeCache.list = rs; } })
+      .catch((e) => { if (alive && !recipeCache.list) setErr(e.message); })
+      .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, []);
 

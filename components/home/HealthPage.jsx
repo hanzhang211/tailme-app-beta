@@ -55,10 +55,24 @@ const typeIcon = (k) => {
 };
 
 /* ══════════════════════════════════════════════ */
+// 健康内存缓存（petId → {records, diseases}）：再次打开秒显，后台静默刷新
+const healthCache = {};
+export async function prefetchHealth(petId, userId) {
+  if (!petId || healthCache[petId]) return;
+  try {
+    const [rs, dis] = await Promise.all([
+      listHealthRecords(petId).catch(() => []),
+      listDiseaseRecords(null, userId).catch(() => []),
+    ]);
+    healthCache[petId] = { records: rs, diseases: dis };
+  } catch {}
+}
+
 export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }) {
-  const [records,    setRecords]    = useState([]);
-  const [diseases,   setDiseases]   = useState([]);
-  const [loading,    setLoading]    = useState(true);
+  const h0 = pet?.id ? healthCache[pet.id] : null;
+  const [records,    setRecords]    = useState(h0?.records || []);
+  const [diseases,   setDiseases]   = useState(h0?.diseases || []);
+  const [loading,    setLoading]    = useState(!h0);
   const [err,        setErr]        = useState(null);
 
   const [neutered,   setNeutered]   = useState(!!pet?.neutered);
@@ -82,14 +96,16 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
 
   const reload = async () => {
     if (!pet?.id) { setLoading(false); return; }
-    setLoading(true); setErr(null);
+    if (!healthCache[pet.id]) setLoading(true);
+    setErr(null);
     try {
       const [rs, dis] = await Promise.all([
         listHealthRecords(pet.id).catch(() => []),
         listDiseaseRecords(null, user?.id).catch(() => []),
       ]);
       setRecords(rs); setDiseases(dis);
-    } catch (e) { setErr(e.message); }
+      healthCache[pet.id] = { records: rs, diseases: dis };
+    } catch (e) { if (!healthCache[pet.id]) setErr(e.message); }
     finally { setLoading(false); }
   };
 

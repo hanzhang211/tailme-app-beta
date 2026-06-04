@@ -57,18 +57,32 @@ const fmtDate  = (d) => {
   return `${m}/${day}`;
 };
 
+// 记账内存缓存（userId → 数据）：再次打开秒显，后台静默刷新
+const expenseCache = {};
+export async function prefetchExpense(userId) {
+  if (!userId || expenseCache[userId]) return;
+  try {
+    const [items, mt, yt, cat] = await Promise.all([
+      listExpenses(userId), getMonthlyTotal(userId), getYearlyTotal(userId), getMonthlyByCategory(userId),
+    ]);
+    expenseCache[userId] = { list: items, monthTotal: mt, yearTotal: yt, byCategory: cat };
+  } catch {}
+}
+
 export default function ExpensePage({ user, pets, onBack, onAmountChanged }) {
-  const [list,       setList]       = useState([]);
-  const [monthTotal, setMonthTotal] = useState(0);
-  const [yearTotal,  setYearTotal]  = useState(0);
-  const [byCategory, setByCategory] = useState({});
-  const [loading,    setLoading]    = useState(true);
+  const c0 = user?.id ? expenseCache[user.id] : null;
+  const [list,       setList]       = useState(c0?.list || []);
+  const [monthTotal, setMonthTotal] = useState(c0?.monthTotal || 0);
+  const [yearTotal,  setYearTotal]  = useState(c0?.yearTotal || 0);
+  const [byCategory, setByCategory] = useState(c0?.byCategory || {});
+  const [loading,    setLoading]    = useState(!c0); // 有缓存则不转圈
   const [err,        setErr]        = useState(null);
   const [addOpen,    setAddOpen]    = useState(false);
 
   const reload = async () => {
     if (!user?.id) return;
-    setLoading(true); setErr(null);
+    if (!expenseCache[user.id]) setLoading(true);
+    setErr(null);
     try {
       const [items, mt, yt, cat] = await Promise.all([
         listExpenses(user.id),
@@ -77,7 +91,8 @@ export default function ExpensePage({ user, pets, onBack, onAmountChanged }) {
         getMonthlyByCategory(user.id),
       ]);
       setList(items); setMonthTotal(mt); setYearTotal(yt); setByCategory(cat);
-    } catch (e) { setErr(e.message); }
+      expenseCache[user.id] = { list: items, monthTotal: mt, yearTotal: yt, byCategory: cat };
+    } catch (e) { if (!expenseCache[user.id]) setErr(e.message); }
     finally { setLoading(false); }
   };
 
