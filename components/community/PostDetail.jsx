@@ -23,7 +23,6 @@ import {
 import PetAvatar from "@/components/PetAvatar";
 import PawLikeIcon from "@/components/icons/PawLikeIcon";
 import PetTrashIcon from "@/components/icons/PetTrashIcon";
-import EmptyCommentsDogCat from "@/components/illustrations/EmptyCommentsDogCat";
 import { fmtDuration } from "@/services/videoThumb";
 
 const C = {
@@ -520,7 +519,9 @@ export default function PostDetail({
 function CommentEmpty() {
   return (
     <div style={{ textAlign:"center", padding:"30px 0 26px" }}>
-      <EmptyCommentsDogCat className="w-44 h-auto mx-auto" />
+      <img src="/no-comments-nest.png" alt="暂无评论"
+        style={{ width:200, maxWidth:"66%", height:"auto", objectFit:"contain",
+                 display:"block", margin:"0 auto" }} />
       <div style={{ fontSize:14, fontWeight:700, color:C.text, marginTop:18 }}>这里还空着，快来抢个小窝吧</div>
     </div>
   );
