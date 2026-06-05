@@ -28,6 +28,7 @@ import PetAvatar       from "@/components/PetAvatar";
 import PawLikeIcon     from "@/components/icons/PawLikeIcon";
 import PetTrashIcon    from "@/components/icons/PetTrashIcon";
 import PetEditor       from "./PetEditor";
+import PetOnboarding   from "./PetOnboarding";
 import SettingsModal   from "./SettingsModal";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
 
@@ -85,7 +86,8 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [activeTab,   setActiveTab]   = useState("mine"); // mine | liked
   const [detailId,    setDetailId]    = useState(null);
-  const [editorPet,    setEditorPet]    = useState(undefined); // undefined=closed, null=add, obj=edit
+  const [editorPet,    setEditorPet]    = useState(undefined); // undefined=closed, obj=edit（仅编辑用）
+  const [addOpen,      setAddOpen]      = useState(false);     // 新增宠物：走 PetOnboarding 引导流程
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [avatarPet,    setAvatarPet]    = useState(null); // 当前生成头像的宠物，null=关闭
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false); // 用户头像选择弹窗
@@ -151,7 +153,19 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
       toast(`最多可以添加 ${PET_LIMIT} 位毛孩子哦`, "warn");
       return;
     }
-    setEditorPet(null);
+    setAddOpen(true);
+  };
+
+  // 引导流程完成（含跳过 AI）：加入列表 + 通知 AppRoot 同步首页 carousel
+  const onAddComplete = (saved) => {
+    if (saved) {
+      setPets((prev) => (prev.find((x) => x.id === saved.id)
+        ? prev.map((x) => (x.id === saved.id ? saved : x))
+        : [saved, ...prev]));
+      onPetUpdated?.(saved);
+      toast("毛孩子已加入 🐾", "success");
+    }
+    setAddOpen(false);
   };
 
   const handleEditPet = (p) => { setSettingsOpen(false); setEditorPet(p); };
@@ -475,6 +489,17 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
           onDeleted={onPetDeletedFromEditor}
           toast={toast}
         />
+      )}
+
+      {/* 新增宠物：全屏引导流程（与手机号验证后的流程一致） */}
+      {addOpen && (
+        <div style={{ position:"fixed", inset:0, zIndex:300, background:C.bg, overflowY:"auto" }}>
+          <PetOnboarding
+            userId={user?.id}
+            onComplete={onAddComplete}
+            onClose={() => setAddOpen(false)}
+          />
+        </div>
       )}
 
       {avatarPet && (
