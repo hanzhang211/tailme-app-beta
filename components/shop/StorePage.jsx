@@ -6,10 +6,11 @@
  */
 
 import BackButton from "@/components/icons/BackButton";
-import { getStore, listProductsByStore } from "@/services/shopMock";
+import { useShopData } from "./ShopDataContext";
 import { SC, ProductCard, ProductGrid, Tag, Stars } from "./ShopUI";
 
 export default function StorePage({ storeId, onBack, onOpenProduct }) {
+  const { getStore, listProductsByStore } = useShopData();
   const store = getStore(storeId);
   const products = store ? listProductsByStore(storeId) : [];
 
@@ -31,10 +32,10 @@ export default function StorePage({ storeId, onBack, onOpenProduct }) {
             {/* 店铺头部 */}
             <div style={{ background:"linear-gradient(135deg, #F7E9D6, #F2E2CE)", borderRadius:20,
                           padding:"18px 16px", display:"flex", alignItems:"center", gap:14 }}>
-              <div style={{ width:64, height:64, borderRadius:20, background:"#fff", flexShrink:0,
+              <div style={{ width:64, height:64, borderRadius:20, background:"#fff", flexShrink:0, overflow:"hidden",
                             display:"flex", alignItems:"center", justifyContent:"center", fontSize:34,
                             boxShadow:"0 2px 10px rgba(0,0,0,0.08)" }}>
-                {store.emoji}
+                {store.logo ? <img src={store.logo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : store.emoji}
               </div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:6 }}>

@@ -11,7 +11,8 @@
 
 import { useMemo, useState } from "react";
 import BackButton from "@/components/icons/BackButton";
-import { listProducts, getProduct, getStore, searchStores, ADDRESSES } from "@/services/shopMock";
+import { ADDRESSES } from "@/services/shopMock";
+import { ShopDataProvider, useShopData } from "./ShopDataContext";
 import {
   SC, SearchBar, CategoryGrid, ProductCard, ProductGrid, StoreCard, ShopStyles, CartButton,
 } from "./ShopUI";
@@ -27,7 +28,17 @@ const SORTS = [
   { key: "price",     label: "价格" },
 ];
 
-export default function ShopMall({ onClose, toast }) {
+export default function ShopMall(props) {
+  return (
+    <ShopDataProvider>
+      <ShopMallInner {...props} />
+    </ShopDataProvider>
+  );
+}
+
+function ShopMallInner({ onClose, toast }) {
+  const { getProduct } = useShopData();
+
   // 视图栈：底为 home
   const [stack, setStack] = useState([{ name: "home" }]);
   const top = stack[stack.length - 1];
@@ -41,12 +52,8 @@ export default function ShopMall({ onClose, toast }) {
   const [sort, setSort] = useState("recommend");
   const [priceDir, setPriceDir] = useState("asc"); // 价格排序方向：asc 低→高 / desc 高→低
 
-  // 购物车（mock，初始预置几件以贴合设计）
-  const [cart, setCart] = useState(() => [
-    { productId: "p1", qty: 1, selected: true },
-    { productId: "p4", qty: 1, selected: true },
-    { productId: "p3", qty: 1, selected: true },
-  ]);
+  // 购物车（用户加入的真实商品）
+  const [cart, setCart] = useState([]);
   const [addrId, setAddrId] = useState(() => (ADDRESSES.find((a) => a.isDefault) || ADDRESSES[0])?.id);
   const cartCount = cart.length;
 
@@ -106,13 +113,15 @@ export default function ShopMall({ onClose, toast }) {
 }
 
 function ShopHome({ cat, setCat, q, setQ, sort, setSort, priceDir, setPriceDir, cartCount, onBack, onOpenCart, onOpenProduct, onOpenStore }) {
+  const { listProducts, searchStores, getStore, loading } = useShopData();
+
   const products = useMemo(() => {
     let rows = listProducts({ categoryId: cat, q });
     if (sort === "sales") rows = [...rows].sort((a, b) => b.soldCount - a.soldCount);
     else if (sort === "price") rows = [...rows].sort((a, b) => priceDir === "asc" ? a.price - b.price : b.price - a.price);
     else if (sort === "new") rows = [...rows].reverse();
     return rows;
-  }, [cat, q, sort, priceDir]);
+  }, [cat, q, sort, priceDir, listProducts]);
 
   const onSortClick = (key) => {
     if (key === "price") {
@@ -124,7 +133,7 @@ function ShopHome({ cat, setCat, q, setQ, sort, setSort, priceDir, setPriceDir, 
     }
   };
 
-  const stores = useMemo(() => (q.trim() ? searchStores(q) : []), [q]);
+  const stores = useMemo(() => (q.trim() ? searchStores(q) : []), [q, searchStores]);
 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
@@ -175,10 +184,16 @@ function ShopHome({ cat, setCat, q, setQ, sort, setSort, priceDir, setPriceDir, 
         )}
 
         {/* 商品网格 */}
-        {products.length === 0 ? (
+        {loading ? (
+          <div style={{ textAlign:"center", color:SC.sub, fontSize:14, padding:"56px 20px" }}>
+            <div style={{ fontSize:32, marginBottom:8 }}>🐾</div>
+            正在加载商城好物…
+          </div>
+        ) : products.length === 0 ? (
           <div style={{ textAlign:"center", color:SC.sub, fontSize:14, padding:"56px 20px", lineHeight:2 }}>
             <div style={{ fontSize:40, marginBottom:8 }}>🐾</div>
-            没有找到相关商品<br />换个关键词或分类看看吧～
+            {q.trim() || cat !== "all" ? "没有找到相关商品" : "商城暂无在售商品"}<br />
+            {q.trim() || cat !== "all" ? "换个关键词或分类看看吧～" : "商家上架并通过审核后会显示在这里"}
           </div>
         ) : (
           <ProductGrid>

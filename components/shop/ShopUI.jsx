@@ -189,9 +189,9 @@ export function StoreCard({ store, onEnter, compact }) {
   return (
     <div style={{ display:"flex", alignItems:"center", gap:12, background:"#fff",
                   borderRadius:18, padding:"12px 14px", boxShadow: compact ? "none" : "0 2px 12px rgba(0,0,0,0.05)" }}>
-      <div style={{ width:44, height:44, borderRadius:14, background:SC.tint, flexShrink:0,
+      <div style={{ width:44, height:44, borderRadius:14, background:SC.tint, flexShrink:0, overflow:"hidden",
                     display:"flex", alignItems:"center", justifyContent:"center", fontSize:24 }}>
-        {store.emoji}
+        {store.logo ? <img src={store.logo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : store.emoji}
       </div>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>

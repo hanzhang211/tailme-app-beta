@@ -8,35 +8,28 @@
 
 import { useMemo, useState } from "react";
 import BackButton from "@/components/icons/BackButton";
-import { getProduct, getStore, listReviews, listProductsByStore, fmtSold } from "@/services/shopMock";
+import { fmtSold } from "@/services/shopMock";
+import { useShopData } from "./ShopDataContext";
 import { SC, ProductImage, Money, Tag, StoreCard, ReviewItem } from "./ShopUI";
 
 export default function ProductDetail({ productId, onBack, onOpenStore, onOpenProduct, onAddToCart, onBuyNow, toast }) {
+  const { getProduct, getStore, listProductsByStore, loading } = useShopData();
   const product = getProduct(productId);
   const store   = product ? getStore(product.storeId) : null;
-  const reviews = useMemo(() => (product ? listReviews(product.id) : []), [productId]);
+  const reviews = [];   // 真实评价系统暂未上线
   const recommend = useMemo(
     () => (product ? listProductsByStore(product.storeId, { excludeId: product.id, limit: 6 }) : []),
-    [productId]);
+    [product, listProductsByStore]);
 
-  // mock 多图：用商品 emoji + 几种色调拼出轮播
+  // 真实主图轮播：主图 + 轮播图；无图时用 emoji 占位
   const images = useMemo(() => {
     if (!product) return [];
-    const tones = [product.tone, "latte", "sage", "peach", "sky", "cream"];
-    return tones.slice(0, 6).map((t) => ({ emoji: product.emoji, tone: t }));
-  }, [productId]);
+    if (product.images?.length) return product.images.map((u) => ({ src: u }));
+    return [{ emoji: product.emoji, tone: product.tone }];
+  }, [product]);
   const [idx, setIdx] = useState(0);
   const [faved, setFaved] = useState(false);
   const toggleFav = () => { setFaved((v) => !v); tip(faved ? "已取消收藏" : "已收藏 ⭐"); };
-
-  const detailBlocks = useMemo(() => {
-    if (!product) return [];
-    return [
-      { title: "科学营养配比", sub: "助力毛孩子健康成长", emoji: product.emoji, tone: "cream" },
-      { title: "精选优质原料", sub: "看得见的安心好物", emoji: "🌿", tone: "sage" },
-      { title: "毛孩子都爱吃", sub: "适口性测试好评如潮", emoji: "🐾", tone: "peach" },
-    ];
-  }, [productId]);
 
   const tip = (m) => (toast ? toast(m, "info") : null);
 
@@ -44,7 +37,9 @@ export default function ProductDetail({ productId, onBack, onOpenStore, onOpenPr
     return (
       <div style={{ height:"100%", background:SC.bg, display:"flex", flexDirection:"column" }}>
         <Header onBack={onBack} />
-        <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", color:SC.sub }}>商品不存在</div>
+        <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", color:SC.sub }}>
+          {loading ? "加载中…" : "商品不存在或已下架"}
+        </div>
       </div>
     );
   }
@@ -64,7 +59,7 @@ export default function ProductDetail({ productId, onBack, onOpenStore, onOpenPr
                      scrollSnapType:"x mandatory" }} className="shop-noscroll">
             {images.map((im, i) => (
               <div key={i} style={{ flex:"0 0 100%", width:"100%", height:"100%", scrollSnapAlign:"center" }}>
-                <ProductImage emoji={im.emoji} toneId={im.tone} radius={0} />
+                <ProductImage src={im.src} emoji={im.emoji} toneId={im.tone} radius={0} />
               </div>
             ))}
           </div>
@@ -107,9 +102,12 @@ export default function ProductDetail({ productId, onBack, onOpenStore, onOpenPr
 
         {/* 评价 */}
         <Section>
-          <RowTitle title={`用户评价 (${product.soldCount > 1000 ? fmtSold(reviews.length * 437) : reviews.length})`}
-                    onMore={() => tip("查看全部评价（mock）")} />
-          {reviews.map((r) => <ReviewItem key={r.id} review={r} />)}
+          <RowTitle title={`用户评价 (${reviews.length})`} />
+          {reviews.length === 0 ? (
+            <div style={{ textAlign:"center", color:SC.sub, fontSize:13, padding:"18px 0 6px" }}>
+              还没有评价，快来抢沙发吧 🐾
+            </div>
+          ) : reviews.map((r) => <ReviewItem key={r.id} review={r} />)}
         </Section>
 
         {/* 店铺推荐 */}
@@ -122,7 +120,7 @@ export default function ProductDetail({ productId, onBack, onOpenStore, onOpenPr
                   style={{ flex:"0 0 116px", width:116, textAlign:"left", border:"none", background:"transparent",
                            cursor:"pointer", padding:0 }}>
                   <div style={{ width:116, height:116, borderRadius:14, overflow:"hidden" }}>
-                    <ProductImage emoji={p.emoji} toneId={p.tone} radius={0} />
+                    <ProductImage src={p.cover} emoji={p.emoji} toneId={p.tone} radius={0} />
                   </div>
                   <div style={{ fontSize:12, color:SC.text, marginTop:6, overflow:"hidden",
                                 textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.title}</div>
@@ -133,21 +131,25 @@ export default function ProductDetail({ productId, onBack, onOpenStore, onOpenPr
           </Section>
         )}
 
-        {/* 商品详情图 */}
+        {/* 商品详情 */}
         <Section>
           <RowTitle title="商品详情" />
-          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-            {detailBlocks.map((b, i) => (
-              <div key={i} style={{ position:"relative", width:"100%", aspectRatio:"16 / 9",
-                                    borderRadius:16, overflow:"hidden" }}>
-                <ProductImage emoji={b.emoji} toneId={b.tone} radius={0} />
-                <div style={{ position:"absolute", left:16, bottom:14 }}>
-                  <div style={{ fontSize:17, fontWeight:900, color:SC.text }}>{b.title}</div>
-                  <div style={{ fontSize:12.5, color:"#6B5F50", marginTop:2 }}>{b.sub}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+          {product.desc && (
+            <div style={{ fontSize:13.5, color:"#5C5247", lineHeight:1.75, whiteSpace:"pre-wrap", marginBottom: product.detailImages?.length ? 12 : 0 }}>
+              {product.desc}
+            </div>
+          )}
+          {product.detailImages?.length > 0 && (
+            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              {product.detailImages.map((u, i) => (
+                <img key={i} src={u} alt="" loading="lazy"
+                  style={{ width:"100%", borderRadius:16, display:"block" }} />
+              ))}
+            </div>
+          )}
+          {!product.desc && !product.detailImages?.length && (
+            <div style={{ textAlign:"center", color:SC.sub, fontSize:13, padding:"10px 0" }}>暂无更多详情</div>
+          )}
           <div style={{ textAlign:"center", color:SC.sub, fontSize:12, padding:"16px 0 4px" }}>—— 已经到底啦 🐾 ——</div>
         </Section>
       </div>

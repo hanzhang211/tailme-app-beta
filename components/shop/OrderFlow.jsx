@@ -8,7 +8,7 @@
 
 import { useMemo } from "react";
 import BackButton from "@/components/icons/BackButton";
-import { getProduct, getStore } from "@/services/shopMock";
+import { useShopData } from "./ShopDataContext";
 import { SC, ProductImage, Money, Check } from "./ShopUI";
 
 const fmt = (n) => (Number.isInteger(n) ? n : n.toFixed(1));
@@ -26,7 +26,8 @@ function TopBar({ title, onBack, right }) {
 
 /* ── 确认订单 ───────────────────────────────── */
 export function ConfirmOrder({ cart, address, onBack, onPickAddress, onSubmit }) {
-  const items = useMemo(() => cart.filter((x) => x.selected).map((x) => ({ ...x, product: getProduct(x.productId) })).filter((x) => x.product), [cart]);
+  const { getProduct, getStore } = useShopData();
+  const items = useMemo(() => cart.filter((x) => x.selected).map((x) => ({ ...x, product: getProduct(x.productId) })).filter((x) => x.product), [cart, getProduct]);
   const goods    = items.reduce((s, x) => s + x.product.price * x.qty, 0);
   const discount = items.reduce((s, x) => x.product.original ? s + (x.product.original - x.product.price) * x.qty : s, 0);
   const total    = goods; // 运费 0；合计 = 商品金额（已优惠为划线价口径）
@@ -39,7 +40,7 @@ export function ConfirmOrder({ cart, address, onBack, onPickAddress, onSubmit })
       map.get(it.product.storeId).items.push(it);
     });
     return [...map.values()];
-  }, [items]);
+  }, [items, getStore]);
 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:SC.bg }}>
@@ -72,7 +73,7 @@ export function ConfirmOrder({ cart, address, onBack, onPickAddress, onSubmit })
             {its.map((it) => (
               <div key={it.productId} style={{ display:"flex", gap:11, padding:"12px 0", borderBottom:`1px solid #F4EEE4` }}>
                 <div style={{ width:64, height:64, borderRadius:12, overflow:"hidden", flexShrink:0 }}>
-                  <ProductImage emoji={it.product.emoji} toneId={it.product.tone} radius={0} />
+                  <ProductImage src={it.product.cover} emoji={it.product.emoji} toneId={it.product.tone} radius={0} />
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:13, fontWeight:700, color:SC.text, lineHeight:1.35,

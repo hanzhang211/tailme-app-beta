@@ -7,10 +7,11 @@
 
 import { useMemo, useState } from "react";
 import BackButton from "@/components/icons/BackButton";
-import { getProduct, getStore } from "@/services/shopMock";
+import { useShopData } from "./ShopDataContext";
 import { SC, ProductImage, Money, Check, Stepper } from "./ShopUI";
 
 export default function CartPage({ cart, onBack, onSetQty, onToggleItem, onToggleStore, onToggleAll, onRemove, onCheckout, onOpenProduct }) {
+  const { getProduct, getStore } = useShopData();
   const [editStores, setEditStores] = useState(() => new Set());
   const toggleEdit = (sid) =>
     setEditStores((s) => { const n = new Set(s); n.has(sid) ? n.delete(sid) : n.add(sid); return n; });
@@ -23,7 +24,7 @@ export default function CartPage({ cart, onBack, onSetQty, onToggleItem, onToggl
       map.get(p.storeId).items.push({ ...it, product: p });
     });
     return [...map.values()];
-  }, [cart]);
+  }, [cart, getProduct, getStore]);
 
   const selItems   = cart.filter((x) => x.selected);
   const selCount   = selItems.length;
@@ -81,7 +82,7 @@ export default function CartPage({ cart, onBack, onSetQty, onToggleItem, onToggl
                   <Check on={it.selected} onClick={() => onToggleItem(it.productId)} />
                   <button onClick={() => onOpenProduct?.(it.productId)}
                     style={{ width:74, height:74, borderRadius:12, overflow:"hidden", flexShrink:0, border:"none", padding:0, cursor:"pointer" }}>
-                    <ProductImage emoji={it.product.emoji} toneId={it.product.tone} radius={0} />
+                    <ProductImage src={it.product.cover} emoji={it.product.emoji} toneId={it.product.tone} radius={0} />
                   </button>
                   <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:5 }}>
                     <div style={{ fontSize:13.5, fontWeight:700, color:SC.text, lineHeight:1.35,
