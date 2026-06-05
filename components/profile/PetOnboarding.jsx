@@ -50,6 +50,30 @@ const ErrBox = ({ msg }) =>
     </div>
   ) : null;
 
+// 标题前小图标（同一套实心橙色视觉语言）
+function PawIcon({ size = 15, color = OB.pri }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true" style={{ display:"block" }}>
+      <ellipse cx="6" cy="8" rx="2" ry="2.6" />
+      <ellipse cx="10.5" cy="5" rx="2.2" ry="3" />
+      <ellipse cx="14.5" cy="5" rx="2.2" ry="3" />
+      <ellipse cx="19" cy="8" rx="2" ry="2.6" />
+      <path d="M 7 14 Q 5 18, 8 21 Q 12.5 23, 17 21 Q 20 18, 18 14 Q 16 11.5, 12.5 11.5 Q 9 11.5, 7 14 Z" />
+    </svg>
+  );
+}
+function PillIcon({ size = 15, color = OB.pri }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" style={{ display:"block" }}>
+      <rect x="2.5" y="7.5" width="19" height="9" rx="4.5" fill={color} />
+      <line x1="12" y1="8.4" x2="12" y2="15.6" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+const IconLabel = ({ icon, children }) => (
+  <span style={{ display:"inline-flex", alignItems:"center", gap:6 }}>{icon}{children}</span>
+);
+
 export default function PetOnboarding({ userId, onComplete, onClose }) {
   const [step, setStep] = useState(1);
   const [f, setF] = useState({
@@ -238,7 +262,7 @@ export default function PetOnboarding({ userId, onComplete, onClose }) {
       case 5: return (<>
         <div style={H}>健康信息补充一下 🩺</div>
         <div style={Sub}>这些信息会帮助健康提醒更准确</div>
-        <Label>🐱 是否绝育</Label>
+        <Label><IconLabel icon={<PawIcon />}>是否绝育</IconLabel></Label>
         <div style={{ display:"flex", gap:12, marginBottom:18 }}>
           {[["yes","已绝育"],["no","未绝育"]].map(([v, label]) => {
             const on = f.neutered === v;
@@ -251,7 +275,7 @@ export default function PetOnboarding({ userId, onComplete, onClose }) {
             );
           })}
         </div>
-        <Label>🛡️ 疫苗是否齐全</Label>
+        <Label><IconLabel icon={<PillIcon />}>疫苗是否齐全</IconLabel></Label>
         <div style={{ display:"flex", gap:12 }}>
           {[["yes","已完成"],["no","暂未完成"]].map(([v, label]) => {
             const on = f.vaccinated === v;
