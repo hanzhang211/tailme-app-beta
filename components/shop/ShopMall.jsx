@@ -37,6 +37,7 @@ export default function ShopMall({ onClose, toast }) {
   const [cat, setCat]   = useState("all");
   const [q, setQ]       = useState("");
   const [sort, setSort] = useState("recommend");
+  const [priceDir, setPriceDir] = useState("asc"); // 价格排序方向：asc 低→高 / desc 高→低
 
   return (
     <div style={{ position:"fixed", inset:0, zIndex:300, background:SC.bg }}>
@@ -52,6 +53,7 @@ export default function ShopMall({ onClose, toast }) {
       ) : (
         <ShopHome
           cat={cat} setCat={setCat} q={q} setQ={setQ} sort={sort} setSort={setSort}
+          priceDir={priceDir} setPriceDir={setPriceDir}
           onBack={back}
           onOpenProduct={(id) => push({ name: "product", id })}
           onOpenStore={(id) => push({ name: "store", id })} />
@@ -60,14 +62,24 @@ export default function ShopMall({ onClose, toast }) {
   );
 }
 
-function ShopHome({ cat, setCat, q, setQ, sort, setSort, onBack, onOpenProduct, onOpenStore }) {
+function ShopHome({ cat, setCat, q, setQ, sort, setSort, priceDir, setPriceDir, onBack, onOpenProduct, onOpenStore }) {
   const products = useMemo(() => {
     let rows = listProducts({ categoryId: cat, q });
     if (sort === "sales") rows = [...rows].sort((a, b) => b.soldCount - a.soldCount);
-    else if (sort === "price") rows = [...rows].sort((a, b) => a.price - b.price);
+    else if (sort === "price") rows = [...rows].sort((a, b) => priceDir === "asc" ? a.price - b.price : b.price - a.price);
     else if (sort === "new") rows = [...rows].reverse();
     return rows;
-  }, [cat, q, sort]);
+  }, [cat, q, sort, priceDir]);
+
+  const onSortClick = (key) => {
+    if (key === "price") {
+      // 首次点击：低→高；之后每次点击切换方向
+      if (sort !== "price") { setSort("price"); setPriceDir("asc"); }
+      else setPriceDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSort(key);
+    }
+  };
 
   const stores = useMemo(() => (q.trim() ? searchStores(q) : []), [q]);
 
@@ -94,11 +106,14 @@ function ShopHome({ cat, setCat, q, setQ, sort, setSort, onBack, onOpenProduct, 
                       borderBottom:`1px solid ${SC.border}`, marginBottom:14 }}>
           {SORTS.map((s) => {
             const on = sort === s.key;
+            const isPrice = s.key === "price";
             return (
-              <button key={s.key} onClick={() => setSort(s.key)}
-                style={{ background:"transparent", border:"none", cursor:"pointer", padding:0,
+              <button key={s.key} onClick={() => onSortClick(s.key)}
+                style={{ display:"flex", alignItems:"center", gap:4,
+                         background:"transparent", border:"none", cursor:"pointer", padding:0,
                          fontSize:14, fontWeight: on ? 900 : 600, color: on ? SC.pri : SC.sub }}>
-                {s.label}{s.key === "price" ? " ⇅" : ""}
+                {s.label}
+                {isPrice && <PriceArrows active={on} dir={priceDir} />}
               </button>
             );
           })}
@@ -132,5 +147,22 @@ function ShopHome({ cat, setCat, q, setQ, sort, setSort, onBack, onOpenProduct, 
         )}
       </div>
     </div>
+  );
+}
+
+/* 价格排序的上下箭头：低→高时上箭头橙色高亮，高→低时下箭头橙色高亮，未选中均为灰 */
+function PriceArrows({ active, dir }) {
+  const ON = SC.pri, OFF = "#C7BEB0";
+  const up   = active && dir === "asc"  ? ON : OFF;
+  const down = active && dir === "desc" ? ON : OFF;
+  return (
+    <span style={{ display:"inline-flex", flexDirection:"column", alignItems:"center", lineHeight:0, gap:1 }}>
+      <svg width="9" height="6" viewBox="0 0 10 6" aria-hidden="true">
+        <path d="M5 0 L10 6 H0 Z" fill={up} />
+      </svg>
+      <svg width="9" height="6" viewBox="0 0 10 6" aria-hidden="true">
+        <path d="M5 6 L0 0 H10 Z" fill={down} />
+      </svg>
+    </span>
   );
 }
