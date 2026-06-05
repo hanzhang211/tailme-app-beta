@@ -99,8 +99,7 @@ export default function PetOnboarding({ userId, onComplete, onClose }) {
         ? await updatePet(savedPet.id, mapFields())
         : await savePetProfile({ ...f, personality: personalities.join("、") }, userId);
       setSavedPet(p);
-      setStep(7);
-      setShowGen(true);
+      setStep(7);   // 落到「完成」页，由用户点「生成专属形象」再打开 AI 生成
     } catch (err) {
       setError(err.message || "保存失败，请重试");
     } finally { setSaving(false); }
