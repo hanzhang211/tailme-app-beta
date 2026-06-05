@@ -8,7 +8,8 @@
  */
 
 export default function CategoryIcon({ name, size = 32 }) {
-  const p = { width: size, height: size, viewBox: "0 0 40 40", fill: "none",
+  // viewBox 收紧到艺术内容区（裁掉四周留白），让图标在底块里更撑满
+  const p = { width: size, height: size, viewBox: "5 5 30 30", fill: "none",
               xmlns: "http://www.w3.org/2000/svg", "aria-hidden": true };
   switch (name) {
     case "dogfood": // 狗粮袋 + 爪

@@ -111,7 +111,7 @@ export function CategoryGrid({ active, onPick }) {
                              alignItems:"center", justifyContent:"center", transition:"all .15s",
                              background: on ? "#FBE3CE" : "#F6ECDD",
                              border: on ? `1.6px solid ${SC.pri}` : "1.6px solid transparent" }}>
-                <CategoryIcon name={c.key} size={32} />
+                <CategoryIcon name={c.key} size={46} />
               </span>
               <span style={{ fontSize:12.5, fontWeight: on ? 800 : 600, color: on ? SC.pri : SC.text }}>
                 {c.name}
