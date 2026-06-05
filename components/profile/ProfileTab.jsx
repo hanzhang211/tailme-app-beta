@@ -29,6 +29,7 @@ import PawLikeIcon     from "@/components/icons/PawLikeIcon";
 import PetTrashIcon    from "@/components/icons/PetTrashIcon";
 import BackButton      from "@/components/icons/BackButton";
 import BgCropModal      from "./BgCropModal";
+import ShopMall         from "@/components/shop/ShopMall";
 import PetEditor       from "./PetEditor";
 import PetOnboarding   from "./PetOnboarding";
 import SettingsModal   from "./SettingsModal";
@@ -79,6 +80,18 @@ function FansStatIcon() {
     </svg>
   );
 }
+function ShopBagIcon({ size = 30 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5.5 8.5h13l-1 11.2a1.6 1.6 0 0 1-1.6 1.5H8.1a1.6 1.6 0 0 1-1.6-1.5L5.5 8.5z"
+            fill={C.pri}/>
+      <path d="M8.4 8.5V7.2a3.6 3.6 0 0 1 7.2 0v1.3" stroke={C.pri} strokeWidth="1.9"
+            strokeLinecap="round" fill="none"/>
+      <circle cx="9.4" cy="12" r="1" fill="#fff"/>
+      <circle cx="14.6" cy="12" r="1" fill="#fff"/>
+    </svg>
+  );
+}
 
 export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, onPetDeleted, onUserUpdated, onOpenProfile, onLogout }) {
   const [pets,        setPets]        = useState([]);
@@ -99,6 +112,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   const [bgAspect, setBgAspect] = useState(1.95);                   // 裁剪比例 = 背景条 宽/高
   const [bgPreview, setBgPreview] = useState(null);                 // 裁剪后本地预览（秒显，无需刷新）
   const [contactOpen, setContactOpen]   = useState(false);          // 联系我们
+  const [shopOpen, setShopOpen]         = useState(false);          // 宠物商城浮层
   const bgFileRef = useRef();
 
   // 关注/粉丝
@@ -471,7 +485,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
             </div>
           </div>
 
-          {/* 统计卡片：获赞 ｜ 关注 ｜ 粉丝 */}
+          {/* 统计卡片：获赞 ｜ 关注 ｜ 粉丝 ｜ 商城 */}
           <div style={{ padding:"12px 14px 0" }}>
             <div style={{ display:"flex", background:"white", borderRadius:24, padding:"18px 0",
                           boxShadow:"0 2px 14px rgba(0,0,0,0.05)" }}>
@@ -479,13 +493,18 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
                 { label:"获赞", val: stats.totalLikes,        icon:<PawLikeIcon filled color="#E68645" size={20} />, onClick: null },
                 { label:"关注", val: followCounts.following,  icon:<UsersStatIcon />, onClick: () => setFollowView("following") },
                 { label:"粉丝", val: followCounts.followers,  icon:<FansStatIcon />,  onClick: () => setFollowView("followers") },
+                { label:"商城", entry:true,                   icon:<ShopBagIcon size={30} />, onClick: () => setShopOpen(true) },
               ].map((s, i) => (
                 <div key={s.label} onClick={s.onClick || undefined}
                   style={{ flex:1, textAlign:"center", cursor: s.onClick ? "pointer" : "default",
                            borderLeft: i > 0 ? `1px solid ${C.border}` : "none" }}>
-                  <div style={{ fontSize:24, fontWeight:800, color:C.text, lineHeight:1.1 }}>{s.val}</div>
-                  <div style={{ display:"flex", justifyContent:"center", margin:"7px 0 5px", height:20 }}>{s.icon}</div>
-                  <div style={{ fontSize:12, color:C.sub }}>{s.label}</div>
+                  {s.entry ? (
+                    <div style={{ height:58, display:"flex", alignItems:"center", justifyContent:"center" }}>{s.icon}</div>
+                  ) : (<>
+                    <div style={{ fontSize:24, fontWeight:800, color:C.text, lineHeight:1.1 }}>{s.val}</div>
+                    <div style={{ display:"flex", justifyContent:"center", margin:"7px 0 5px", height:20 }}>{s.icon}</div>
+                  </>)}
+                  <div style={{ fontSize:12, color: s.entry ? C.pri : C.sub, fontWeight: s.entry ? 700 : 400 }}>{s.label}</div>
                 </div>
               ))}
             </div>
@@ -513,6 +532,9 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
           toast={toast}
         />
       )}
+
+      {/* 宠物商城（全屏浮层） */}
+      {shopOpen && <ShopMall onClose={() => setShopOpen(false)} toast={toast} />}
 
       {/* 背景图裁剪取景 */}
       {bgFile && (
