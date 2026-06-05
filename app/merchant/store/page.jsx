@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getUserById } from "@/services/supabaseService";
-import { saveStore } from "@/services/merchantService";
+import { saveStore, getMyStore } from "@/services/merchantService";
 import MerchantShell, { useMerchant } from "@/components/merchant/MerchantShell";
 import StoreFormFields from "@/components/merchant/StoreFormFields";
 import { MC, Card, Btn, Banner, SectionTitle, StatusBadge, useToast } from "@/components/merchant/ui";
@@ -24,14 +24,23 @@ export default function StoreRoute() {
   useEffect(() => {
     const uid = typeof window !== "undefined" ? localStorage.getItem(LS_KEY) : null;
     if (!uid) { router.replace("/merchant/login"); return; }
-    getUserById(uid)
-      .then((u) => {
+    (async () => {
+      try {
+        const u = await getUserById(uid);
         if (!u) { router.replace("/merchant/login"); return; }
-        if (u.role === "admin") { router.replace("/merchant/login"); return; }
+        if (u.role === "admin") { router.replace("/merchant/login"); return; } // admin 与商家分开
         setMe(u);
-        setPhase(u.role === "merchant" ? "merchant" : "enroll");
-      })
-      .catch(() => router.replace("/merchant/login"));
+        if (u.role === "merchant") {
+          // 已是商家：有店铺 → 管理；无店铺（如 SQL 直接授予）→ 创建店铺
+          const s = await getMyStore(uid);
+          setPhase(s ? "merchant" : "enroll");
+          return;
+        }
+        setPhase("enroll"); // 普通用户：申请入驻
+      } catch {
+        router.replace("/merchant/login");
+      }
+    })();
   }, [router]);
 
   if (phase === "loading") {

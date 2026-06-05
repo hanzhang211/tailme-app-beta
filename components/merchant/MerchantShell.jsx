@@ -52,6 +52,8 @@ export default function MerchantShell({ active, children }) {
         if (!u || u.role !== "merchant") { setStatus("redirecting"); router.replace("/merchant/login"); return; }
         setMe(u);
         const s = await getMyStore(uid);
+        // 已是商家但还没建店铺（如通过 SQL 直接授予 merchant）→ 去创建店铺
+        if (!s) { setStatus("redirecting"); router.replace("/merchant/store"); return; }
         setStore(s);
         setStatus("ok");
       } catch {

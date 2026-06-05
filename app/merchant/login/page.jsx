@@ -110,7 +110,14 @@ export default function MerchantLogin() {
             <>
               <div style={{ fontSize: 17, fontWeight: 800, color: MC.ink, marginBottom: 12 }}>成为 TailMe 商家</div>
               {me?.role === "admin" ? (
-                <Banner tone="warn">当前账号是管理员，请使用 <a href="/admin" style={{ color: MC.priDark, fontWeight: 800 }}>管理员后台</a>。</Banner>
+                <>
+                  <Banner tone="warn">当前账号是管理员，无法入驻为商家。请使用 <a href="/admin" style={{ color: MC.priDark, fontWeight: 800 }}>管理员后台</a>；如需测试商家流程，请换一个手机号登录。</Banner>
+                  <div style={{ marginTop: 16 }}>
+                    <Btn full variant="ghost" onClick={() => { localStorage.removeItem(LS_KEY); setMe(null); setPhone(""); setCode(""); setErr(""); setPhase("phone"); }}>
+                      用其他手机号登录 →
+                    </Btn>
+                  </div>
+                </>
               ) : (
                 <>
                   <Banner tone="info">
