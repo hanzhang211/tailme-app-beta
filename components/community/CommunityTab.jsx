@@ -57,7 +57,7 @@ export default function CommunityTab({ user, pet, pets = [], onUserUpdated, onOp
                          boxShadow: on ? "0 4px 12px rgba(230,134,69,0.32)" : "none",
                          transition:"all .15s" }}>
                 {t.isChat
-                  ? <ChatIcon size={17} color={on ? "#fff" : C.text} />
+                  ? <ChatIcon size={22} color={on ? "#fff" : C.text} />
                   : <span style={{ fontSize:15 }}>{t.emoji}</span>}
                 {t.label}
               </button>

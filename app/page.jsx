@@ -2036,7 +2036,7 @@ export default function AppRoot() {
                   : t.label === "地图"
                     ? <MapIcon size={34} color={tab===i ? "#E68645" : "#C5C8CE"} />
                     : t.label === "社群"
-                      ? <ChatIcon size={34} color={tab===i ? "#E68645" : "#C5C8CE"} />
+                      ? <ChatIcon size={42} color={tab===i ? "#E68645" : "#C5C8CE"} />
                       : t.label === "我的"
                         ? <ProfileIcon size={20} color={tab===i ? "#E68645" : "#C5C8CE"} />
                         : <span style={{ fontSize:20, lineHeight:1,
