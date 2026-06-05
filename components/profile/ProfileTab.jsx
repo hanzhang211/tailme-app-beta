@@ -28,6 +28,7 @@ import PetAvatar       from "@/components/PetAvatar";
 import PawLikeIcon     from "@/components/icons/PawLikeIcon";
 import PetTrashIcon    from "@/components/icons/PetTrashIcon";
 import BackButton      from "@/components/icons/BackButton";
+import BgCropModal      from "./BgCropModal";
 import PetEditor       from "./PetEditor";
 import PetOnboarding   from "./PetOnboarding";
 import SettingsModal   from "./SettingsModal";
@@ -94,6 +95,9 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false); // 用户头像选择弹窗
   const [editNameOpen, setEditNameOpen] = useState(false);          // 编辑用户名弹窗
   const [bgUploading, setBgUploading]   = useState(false);          // 背景图上传中
+  const [bgFile, setBgFile]   = useState(null);                     // 待裁剪的原图（打开裁剪弹窗）
+  const [bgAspect, setBgAspect] = useState(1.95);                   // 裁剪比例 = 背景条 宽/高
+  const [bgPreview, setBgPreview] = useState(null);                 // 裁剪后本地预览（秒显，无需刷新）
   const [contactOpen, setContactOpen]   = useState(false);          // 联系我们
   const bgFileRef = useRef();
 
@@ -215,18 +219,36 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
     } catch (e) { toast(e.message, "error"); }
   };
 
-  /* ── 上传个人主页背景图 ─────────────────────────── */
-  const handleBackgroundUpload = async (e) => {
+  /* ── 选图：先进入裁剪取景，比例与背景条一致 ─────── */
+  const handleBackgroundPick = (e) => {
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f || bgUploading || !user?.id) return;
+    // 背景条为 100%宽 × 200高（最大宽 430），按当前设备宽度算比例 → 所见即所得
+    setBgAspect(Math.min(typeof window !== "undefined" ? window.innerWidth : 390, 430) / 200);
+    setBgFile(f);
+  };
+
+  /* ── 裁剪确定：本地预览秒显 + 上传裁好的小图 + 即时更新 ── */
+  const handleBackgroundCropped = async (blob) => {
+    setBgFile(null);
+    if (!blob || !user?.id) return;
+    const previewUrl = URL.createObjectURL(blob);
+    setBgPreview(previewUrl);          // 立刻显示，无需刷新
     setBgUploading(true);
     try {
-      const url = await uploadProfileBackground(f, user.id);
+      const file = new File([blob], `bg-${Date.now()}.jpg`, { type: "image/jpeg" });
+      const url = await uploadProfileBackground(file, user.id);
       const updated = await updateUserBackground(user.id, url);
       onUserUpdated?.(updated);
+      // 预载远程图，加载好再切换、避免闪烁
+      await new Promise((res) => { const im = new Image(); im.onload = res; im.onerror = res; im.src = url; });
+      setBgPreview(null);
+      URL.revokeObjectURL(previewUrl);
       toast("背景已更新 ✨", "success");
     } catch (err) {
+      setBgPreview(null);
+      URL.revokeObjectURL(previewUrl);
       toast(err.message || "背景上传失败，请重试", "error");
     } finally {
       setBgUploading(false);
@@ -344,8 +366,8 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
         <>
           {/* 顶部背景图（可上传）+ 更换背景 / 编辑资料 */}
           <div style={{ position:"relative", width:"100%", height:200, overflow:"hidden" }}>
-            {user?.profile_background_url ? (
-              <img src={user.profile_background_url} alt="" loading="lazy"
+            {(bgPreview || user?.profile_background_url) ? (
+              <img src={bgPreview || user.profile_background_url} alt=""
                 style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />
             ) : (
               <>
@@ -402,7 +424,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
                 编辑资料
               </button>
             </div>
-            <input ref={bgFileRef} type="file" accept="image/*" onChange={handleBackgroundUpload} style={{ display:"none" }} />
+            <input ref={bgFileRef} type="file" accept="image/*" onChange={handleBackgroundPick} style={{ display:"none" }} />
           </div>
 
           {/* 用户卡：头像叠在背景下方 */}
@@ -490,6 +512,13 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
           onDeleted={onPetDeletedFromEditor}
           toast={toast}
         />
+      )}
+
+      {/* 背景图裁剪取景 */}
+      {bgFile && (
+        <BgCropModal file={bgFile} aspect={bgAspect}
+          onCancel={() => setBgFile(null)}
+          onConfirm={handleBackgroundCropped} />
       )}
 
       {/* 新增宠物：全屏引导流程（与手机号验证后的流程一致） */}
