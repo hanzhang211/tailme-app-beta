@@ -309,10 +309,7 @@ function PhoneLogin({ onLogin }) {
         ) : (
           <>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-              <button onClick={() => { setStep(1); setCode(""); setError(null); }}
-                style={{ background:"transparent", border:"none", fontSize:18, cursor:"pointer", color:P_SUB }}>
-                ←
-              </button>
+              <BackButton onClick={() => { setStep(1); setCode(""); setError(null); }} size={32} />
               <div style={{ fontSize:18, fontWeight:700, color:C.text }}>输入验证码</div>
             </div>
             <div style={{ fontSize:12, color:P_SUB, marginBottom:22 }}>

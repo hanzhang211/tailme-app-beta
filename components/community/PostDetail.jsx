@@ -24,6 +24,7 @@ import PetAvatar from "@/components/PetAvatar";
 import PawLikeIcon from "@/components/icons/PawLikeIcon";
 import PetTrashIcon from "@/components/icons/PetTrashIcon";
 import EmptyCommentsDogCat from "@/components/illustrations/EmptyCommentsDogCat";
+import BackButton from "@/components/icons/BackButton";
 import { ChevronLeft } from "lucide-react";
 import { fmtDuration } from "@/services/videoThumb";
 
@@ -279,11 +280,7 @@ export default function PostDetail({
         {/* 头部 */}
         <div style={{ padding:"12px 16px", background:"white", borderBottom:`1px solid ${C.border}`,
                       display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
-          <button onClick={onClose}
-            style={{ background:"transparent", border:"none", fontSize:18, color:C.text,
-                     cursor:"pointer", padding:"4px 6px" }}>
-            ←
-          </button>
+          <BackButton onClick={onClose} size={34} />
           <div onClick={() => { if (onOpenProfile && post?.user_id) { onOpenProfile(post.user_id); onClose?.(); } }}
             style={{ display:"flex", alignItems:"center", gap:10, flex:1, minWidth:0,
                      cursor: (onOpenProfile && post?.user_id) ? "pointer" : "default" }}>
