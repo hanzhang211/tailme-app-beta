@@ -10,10 +10,11 @@
  *  - 隐藏 / 恢复 / 删除
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   getAdminStats,
   getUserById,
+  getOrCreateUserByPhone,
 } from "@/services/supabaseService";
 import {
   listFlagged,
@@ -65,9 +66,10 @@ export default function AdminPage() {
   const [authStatus, setAuthStatus] = useState("loading"); // loading|ok|denied|nologin
   const [me, setMe]                 = useState(null);
 
-  useEffect(() => {
+  const checkAuth = useCallback(() => {
     const uid = typeof window !== "undefined" ? localStorage.getItem(LS_KEY) : null;
-    if (!uid) { setAuthStatus("nologin"); return; }
+    if (!uid) { setMe(null); setAuthStatus("nologin"); return; }
+    setAuthStatus("loading");
     getUserById(uid)
       .then((u) => {
         setMe(u);
@@ -76,17 +78,102 @@ export default function AdminPage() {
       .catch(() => setAuthStatus("denied"));
   }, []);
 
+  useEffect(() => { checkAuth(); }, [checkAuth]);
+
+  const switchAccount = () => {
+    if (typeof window !== "undefined") localStorage.removeItem(LS_KEY);
+    setMe(null);
+    setAuthStatus("nologin");
+  };
+
   if (authStatus === "loading") {
     return <Centered>正在校验权限...</Centered>;
   }
-  if (authStatus === "nologin") {
-    return <Centered>请先登录主 app 才能访问 Admin。<a href="/" style={{ color:C.pri, marginLeft:8 }}>前往登录 →</a></Centered>;
-  }
-  if (authStatus === "denied") {
-    return <Centered>❌ 你的账号没有 Admin 权限。</Centered>;
+  if (authStatus === "nologin" || authStatus === "denied") {
+    return <AdminLogin onLoggedIn={checkAuth} denied={authStatus === "denied"} me={me} onSwitch={switchAccount} />;
   }
 
-  return <AdminMain me={me} />;
+  return <AdminMain me={me} onSwitch={switchAccount} />;
+}
+
+/* ── Admin 手机号登录 / 切换账号 ─────────────────────────── */
+function AdminLogin({ onLoggedIn, denied, me, onSwitch }) {
+  const [step, setStep]   = useState(1); // 1=手机号 2=验证码
+  const [phone, setPhone] = useState("");
+  const [code, setCode]   = useState("");
+  const [busy, setBusy]   = useState(false);
+  const [err, setErr]     = useState("");
+  const isValidPhone = /^1[3-9]\d{9}$/.test(phone.trim());
+
+  const verify = async () => {
+    setErr("");
+    if (code.trim() !== "123456") { setErr("验证码错误（MVP 固定测试码：123456）"); return; }
+    setBusy(true);
+    try {
+      const user = await getOrCreateUserByPhone(phone.trim());
+      localStorage.setItem(LS_KEY, user.id);
+      onLoggedIn();
+    } catch (e) {
+      setErr(e.message || "登录失败");
+    } finally { setBusy(false); }
+  };
+
+  const inputStyle = {
+    width:"100%", borderRadius:12, padding:"11px 13px", fontSize:14, marginBottom:12,
+    border:`1.5px solid ${C.border}`, background:"#fff", color:C.text, outline:"none",
+    boxSizing:"border-box", fontFamily:"inherit",
+  };
+  const btnStyle = (on) => ({
+    width:"100%", padding:"12px 0", borderRadius:12, fontSize:14, fontWeight:700, border:"none",
+    background: on ? C.pri : C.light, color:"#fff", cursor: on ? "pointer" : "default",
+  });
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center",
+                  padding:20, fontFamily:"-apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif" }}>
+      <div style={{ width:"100%", maxWidth:380 }}>
+        <div style={{ textAlign:"center", marginBottom:20 }}>
+          <div style={{ fontSize:34 }}>🛠</div>
+          <div style={{ fontSize:20, fontWeight:800, color:C.text, marginTop:4 }}>TailMe 管理员后台</div>
+        </div>
+        <div style={{ background:C.card, borderRadius:18, padding:24, border:`1px solid ${C.border}`,
+                      boxShadow:"0 2px 14px rgba(0,0,0,0.05)" }}>
+          {denied && me && (
+            <div style={{ background:C.err, color:C.errT, border:`1px solid ${C.errT}`, borderRadius:12,
+                          padding:"10px 14px", fontSize:12.5, marginBottom:16, lineHeight:1.6 }}>
+              账号 {me.username || me.phone} 没有管理员权限。请切换到管理员手机号登录。
+            </div>
+          )}
+          {step === 1 ? (
+            <>
+              <div style={{ fontSize:16, fontWeight:800, color:C.text, marginBottom:14 }}>管理员登录</div>
+              <input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                placeholder="请输入手机号" inputMode="numeric" maxLength={11} style={inputStyle} />
+              {err && <div style={{ color:C.errT, fontSize:12.5, marginBottom:10 }}>{err}</div>}
+              <button onClick={() => { setErr(""); isValidPhone ? setStep(2) : setErr("请输入正确的手机号"); }}
+                disabled={!isValidPhone} style={btnStyle(isValidPhone)}>获取验证码</button>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize:16, fontWeight:800, color:C.text, marginBottom:6 }}>输入验证码</div>
+              <div style={{ fontSize:12, color:C.sub, marginBottom:14 }}>已发送至 +86 {phone}（测试码 123456）</div>
+              <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="请输入 6 位验证码" inputMode="numeric" maxLength={6} style={inputStyle} />
+              {err && <div style={{ color:C.errT, fontSize:12.5, marginBottom:10 }}>{err}</div>}
+              <button onClick={verify} disabled={busy} style={btnStyle(!busy)}>{busy ? "登录中…" : "登录"}</button>
+              <button onClick={() => { setStep(1); setCode(""); setErr(""); }}
+                style={{ width:"100%", marginTop:12, background:"none", border:"none", color:C.sub, fontSize:12.5, cursor:"pointer" }}>
+                ← 重新输入手机号
+              </button>
+            </>
+          )}
+        </div>
+        <div style={{ textAlign:"center", marginTop:14 }}>
+          <a href="/" style={{ color:C.sub, fontSize:12.5, textDecoration:"none" }}>← 返回 TailMe App</a>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function Centered({ children }) {
@@ -100,7 +187,7 @@ function Centered({ children }) {
 }
 
 /* ────────────────────────────────────────────────────────── */
-function AdminMain({ me }) {
+function AdminMain({ me, onSwitch }) {
   const [stats, setStats]       = useState(null);
   const [fatalError, setFatal]  = useState(null);
   const [loading, setLoad]      = useState(true);
@@ -140,8 +227,15 @@ function AdminMain({ me }) {
         <div style={{ fontSize:12, opacity:0.85, marginTop:4 }}>
           {loading ? "查询中..." : fatalError ? "连接失败" : `实时数据 · ${queriedAt}`}
         </div>
-        <div style={{ fontSize:11, opacity:0.75, marginTop:8 }}>
-          管理员：{me?.username || me?.phone}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:8, gap:10 }}>
+          <div style={{ fontSize:11, opacity:0.75 }}>
+            管理员：{me?.username || me?.phone}
+          </div>
+          <button onClick={onSwitch}
+            style={{ padding:"5px 12px", borderRadius:10, fontSize:11.5, fontWeight:700, cursor:"pointer",
+                     background:"rgba(255,255,255,0.18)", color:"#fff", border:"1px solid rgba(255,255,255,0.35)" }}>
+            切换手机号
+          </button>
         </div>
       </div>
 
