@@ -26,6 +26,8 @@ export default function ProductDetail({ productId, onBack, onOpenStore, onOpenPr
     return tones.slice(0, 6).map((t) => ({ emoji: product.emoji, tone: t }));
   }, [productId]);
   const [idx, setIdx] = useState(0);
+  const [faved, setFaved] = useState(false);
+  const toggleFav = () => { setFaved((v) => !v); tip(faved ? "已取消收藏" : "已收藏 ⭐"); };
 
   const detailBlocks = useMemo(() => {
     if (!product) return [];
@@ -76,10 +78,11 @@ export default function ProductDetail({ productId, onBack, onOpenStore, onOpenPr
         <Section flush>
           <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12 }}>
             <Money value={product.price} size={26} />
-            <button onClick={() => tip("已加入收藏 ⭐")}
+            <button onClick={toggleFav}
               style={{ background:"transparent", border:"none", cursor:"pointer", display:"flex",
-                       flexDirection:"column", alignItems:"center", gap:2, color:SC.sub, flexShrink:0 }}>
-              <span style={{ fontSize:20, lineHeight:1 }}>☆</span>
+                       flexDirection:"column", alignItems:"center", gap:3, flexShrink:0,
+                       color: faved ? SC.pri : SC.sub }}>
+              <StarIcon filled={faved} color={faved ? SC.pri : SC.sub} size={20} />
               <span style={{ fontSize:10 }}>收藏</span>
             </button>
           </div>
@@ -149,27 +152,62 @@ export default function ProductDetail({ productId, onBack, onOpenStore, onOpenPr
         </Section>
       </div>
 
-      {/* 底部操作栏 */}
-      <div style={{ flexShrink:0, display:"flex", alignItems:"center", gap:10, background:"#fff",
-                    borderTop:`1px solid ${SC.border}`, padding:"10px 14px calc(10px + env(safe-area-inset-bottom))" }}>
-        <button onClick={() => tip("正在为你接入店铺客服…")}
-          style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2, background:"transparent",
-                   border:"none", cursor:"pointer", color:SC.sub, flexShrink:0, padding:"0 6px" }}>
-          <span style={{ fontSize:18, lineHeight:1 }}>💬</span>
-          <span style={{ fontSize:10 }}>联系店铺</span>
-        </button>
-        <button onClick={() => (onAddToCart ? onAddToCart(product.id) : tip("已加入购物车 🛒"))}
-          style={{ flex:1, padding:"13px 0", borderRadius:999, fontSize:15, fontWeight:800, cursor:"pointer",
-                   background:"#FBE3CE", color:SC.pri, border:`1.5px solid ${SC.pri}` }}>
-          加入购物车
-        </button>
+      {/* 底部操作栏：联系店铺 · 收藏 · 加入购物车 · 立即购买 */}
+      <div style={{ flexShrink:0, display:"flex", alignItems:"center", gap:6, background:"#fff",
+                    borderTop:`1px solid ${SC.border}`, padding:"9px 12px calc(9px + env(safe-area-inset-bottom))" }}>
+        <ActionItem icon={<ChatLineIcon color={SC.sub} />} label="联系店铺"
+          onClick={() => tip("正在为你接入店铺客服…")} />
+        <ActionItem icon={<StarIcon filled={faved} color={faved ? SC.pri : SC.sub} />} label="收藏"
+          color={faved ? SC.pri : SC.sub} onClick={toggleFav} />
+        <ActionItem icon={<CartLineIcon color={SC.pri} />} label="加入购物车" color={SC.pri}
+          onClick={() => (onAddToCart ? onAddToCart(product.id) : tip("已加入购物车 🛒"))} />
         <button onClick={() => (onBuyNow ? onBuyNow(product.id) : tip("下单功能开发中 ✨"))}
-          style={{ flex:1, padding:"13px 0", borderRadius:999, fontSize:15, fontWeight:800, cursor:"pointer",
+          style={{ flex:1, marginLeft:6, padding:"13px 0", borderRadius:999, fontSize:15, fontWeight:800, cursor:"pointer",
                    background:SC.pri, color:"#fff", border:"none", boxShadow:"0 4px 14px rgba(230,134,69,0.35)" }}>
           立即购买
         </button>
       </div>
     </div>
+  );
+}
+
+/* 底部操作项：竖排 图标 + 文字 */
+function ActionItem({ icon, label, color = SC.sub, onClick }) {
+  return (
+    <button onClick={onClick}
+      style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3,
+               background:"transparent", border:"none", cursor:"pointer", flexShrink:0, padding:"2px 8px", color }}>
+      {icon}
+      <span style={{ fontSize:10.5, fontWeight:600, lineHeight:1 }}>{label}</span>
+    </button>
+  );
+}
+
+/* 线性图标（圆角风格，与 TailMe 一致） */
+function ChatLineIcon({ size = 22, color = "#8A8074" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16H10l-4 3.2V16H6.5A2.5 2.5 0 0 1 4 13.5z"
+            stroke={color} strokeWidth="1.7" strokeLinejoin="round" />
+      <circle cx="9" cy="10" r="1" fill={color} /><circle cx="12" cy="10" r="1" fill={color} /><circle cx="15" cy="10" r="1" fill={color} />
+    </svg>
+  );
+}
+function StarIcon({ size = 22, color = "#8A8074", filled }) {
+  const d = "M12 3.6l2.45 4.96 5.47.8-3.96 3.86.93 5.45L12 16.1l-4.89 2.57.93-5.45L4.08 9.36l5.47-.8z";
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? color : "none"} aria-hidden="true">
+      <path d={d} stroke={color} strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+function CartLineIcon({ size = 22, color = "#8A8074" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3.5 5H6l2.1 9.4a1.6 1.6 0 0 0 1.56 1.25h7.2a1.6 1.6 0 0 0 1.56-1.2L20.2 8H6.6"
+            stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="10" cy="19.4" r="1.5" fill={color} /><circle cx="17.4" cy="19.4" r="1.5" fill={color} />
+    </svg>
   );
 }
 
