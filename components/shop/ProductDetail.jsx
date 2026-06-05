@@ -11,7 +11,7 @@ import BackButton from "@/components/icons/BackButton";
 import { getProduct, getStore, listReviews, listProductsByStore, fmtSold } from "@/services/shopMock";
 import { SC, ProductImage, Money, Tag, StoreCard, ReviewItem } from "./ShopUI";
 
-export default function ProductDetail({ productId, onBack, onOpenStore, onOpenProduct, toast }) {
+export default function ProductDetail({ productId, onBack, onOpenStore, onOpenProduct, onAddToCart, onBuyNow, toast }) {
   const product = getProduct(productId);
   const store   = product ? getStore(product.storeId) : null;
   const reviews = useMemo(() => (product ? listReviews(product.id) : []), [productId]);
@@ -158,12 +158,12 @@ export default function ProductDetail({ productId, onBack, onOpenStore, onOpenPr
           <span style={{ fontSize:18, lineHeight:1 }}>💬</span>
           <span style={{ fontSize:10 }}>联系店铺</span>
         </button>
-        <button onClick={() => tip("已加入购物车 🛒")}
+        <button onClick={() => (onAddToCart ? onAddToCart(product.id) : tip("已加入购物车 🛒"))}
           style={{ flex:1, padding:"13px 0", borderRadius:999, fontSize:15, fontWeight:800, cursor:"pointer",
-                   background:SC.peachBtn || "#FBE3CE", color:SC.pri, border:`1.5px solid ${SC.pri}` }}>
+                   background:"#FBE3CE", color:SC.pri, border:`1.5px solid ${SC.pri}` }}>
           加入购物车
         </button>
-        <button onClick={() => tip("下单功能开发中，敬请期待 ✨")}
+        <button onClick={() => (onBuyNow ? onBuyNow(product.id) : tip("下单功能开发中 ✨"))}
           style={{ flex:1, padding:"13px 0", borderRadius:999, fontSize:15, fontWeight:800, cursor:"pointer",
                    background:SC.pri, color:"#fff", border:"none", boxShadow:"0 4px 14px rgba(230,134,69,0.35)" }}>
           立即购买

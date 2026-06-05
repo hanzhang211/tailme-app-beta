@@ -11,12 +11,14 @@
 
 import { useMemo, useState } from "react";
 import BackButton from "@/components/icons/BackButton";
-import { listProducts, getStore, searchStores } from "@/services/shopMock";
+import { listProducts, getProduct, getStore, searchStores, ADDRESSES } from "@/services/shopMock";
 import {
-  SC, SearchBar, CategoryGrid, ProductCard, ProductGrid, StoreCard, ShopStyles,
+  SC, SearchBar, CategoryGrid, ProductCard, ProductGrid, StoreCard, ShopStyles, CartButton,
 } from "./ShopUI";
 import ProductDetail from "./ProductDetail";
 import StorePage from "./StorePage";
+import CartPage from "./CartPage";
+import { ConfirmOrder, AddressPicker, PaySuccess } from "./OrderFlow";
 
 const SORTS = [
   { key: "recommend", label: "推荐" },
@@ -39,22 +41,63 @@ export default function ShopMall({ onClose, toast }) {
   const [sort, setSort] = useState("recommend");
   const [priceDir, setPriceDir] = useState("asc"); // 价格排序方向：asc 低→高 / desc 高→低
 
+  // 购物车（mock，初始预置几件以贴合设计）
+  const [cart, setCart] = useState(() => [
+    { productId: "p1", qty: 1, selected: true },
+    { productId: "p4", qty: 1, selected: true },
+    { productId: "p3", qty: 1, selected: true },
+  ]);
+  const [addrId, setAddrId] = useState(() => (ADDRESSES.find((a) => a.isDefault) || ADDRESSES[0])?.id);
+  const cartCount = cart.length;
+
+  const addToCart = (productId, qty = 1) => setCart((c) => {
+    const i = c.findIndex((x) => x.productId === productId);
+    if (i >= 0) { const n = [...c]; n[i] = { ...n[i], qty: n[i].qty + qty, selected: true }; return n; }
+    return [...c, { productId, qty, selected: true }];
+  });
+  const setQty       = (id, q) => setCart((c) => c.map((x) => x.productId === id ? { ...x, qty: Math.max(1, q) } : x));
+  const removeItems  = (ids)   => setCart((c) => c.filter((x) => !ids.includes(x.productId)));
+  const toggleItem   = (id)    => setCart((c) => c.map((x) => x.productId === id ? { ...x, selected: !x.selected } : x));
+  const toggleAll    = (val)   => setCart((c) => c.map((x) => ({ ...x, selected: val })));
+  const toggleStore  = (sid, val) => setCart((c) => c.map((x) => getProduct(x.productId)?.storeId === sid ? { ...x, selected: val } : x));
+  const buyNow = (id) => { addToCart(id); setCart((c) => c.map((x) => ({ ...x, selected: x.productId === id }))); push({ name: "confirm" }); };
+  const submitOrder = () => { removeItems(cart.filter((x) => x.selected).map((x) => x.productId)); setStack([{ name: "home" }, { name: "success" }]); };
+
   return (
     <div style={{ position:"fixed", inset:0, zIndex:300, background:SC.bg }}>
       <ShopStyles />
       {top.name === "product" ? (
         <ProductDetail productId={top.id} toast={toast}
           onBack={back}
+          onAddToCart={(id) => { addToCart(id); toast?.("已加入购物车 🛒", "success"); }}
+          onBuyNow={buyNow}
           onOpenStore={(id) => push({ name: "store", id })}
           onOpenProduct={(id) => push({ name: "product", id })} />
       ) : top.name === "store" ? (
         <StorePage storeId={top.id} onBack={back}
           onOpenProduct={(id) => push({ name: "product", id })} />
+      ) : top.name === "cart" ? (
+        <CartPage cart={cart} onBack={back}
+          onSetQty={setQty} onToggleItem={toggleItem} onToggleStore={toggleStore}
+          onToggleAll={toggleAll} onRemove={removeItems}
+          onCheckout={() => push({ name: "confirm" })}
+          onOpenProduct={(id) => push({ name: "product", id })} />
+      ) : top.name === "confirm" ? (
+        <ConfirmOrder cart={cart} address={ADDRESSES.find((a) => a.id === addrId)}
+          onBack={back} onPickAddress={() => push({ name: "address" })} onSubmit={submitOrder} />
+      ) : top.name === "address" ? (
+        <AddressPicker addresses={ADDRESSES} selectedId={addrId}
+          onPick={(id) => { setAddrId(id); pop(); }} onBack={back}
+          onNew={() => toast?.("新建地址功能开发中 ✨", "info")} />
+      ) : top.name === "success" ? (
+        <PaySuccess onHome={() => setStack([{ name: "home" }])}
+          onViewOrder={() => toast?.("订单详情开发中，敬请期待 ✨", "info")} />
       ) : (
         <ShopHome
           cat={cat} setCat={setCat} q={q} setQ={setQ} sort={sort} setSort={setSort}
-          priceDir={priceDir} setPriceDir={setPriceDir}
+          priceDir={priceDir} setPriceDir={setPriceDir} cartCount={cartCount}
           onBack={back}
+          onOpenCart={() => push({ name: "cart" })}
           onOpenProduct={(id) => push({ name: "product", id })}
           onOpenStore={(id) => push({ name: "store", id })} />
       )}
@@ -62,7 +105,7 @@ export default function ShopMall({ onClose, toast }) {
   );
 }
 
-function ShopHome({ cat, setCat, q, setQ, sort, setSort, priceDir, setPriceDir, onBack, onOpenProduct, onOpenStore }) {
+function ShopHome({ cat, setCat, q, setQ, sort, setSort, priceDir, setPriceDir, cartCount, onBack, onOpenCart, onOpenProduct, onOpenStore }) {
   const products = useMemo(() => {
     let rows = listProducts({ categoryId: cat, q });
     if (sort === "sales") rows = [...rows].sort((a, b) => b.soldCount - a.soldCount);
@@ -90,7 +133,7 @@ function ShopHome({ cat, setCat, q, setQ, sort, setSort, priceDir, setPriceDir, 
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
           <BackButton onClick={onBack} size={36} />
           <div style={{ flex:1, textAlign:"center", fontSize:18, fontWeight:900, color:SC.text }}>宠物商城</div>
-          <div style={{ width:36 }} />
+          <CartButton count={cartCount} onClick={onOpenCart} />
         </div>
         <SearchBar value={q} onChange={setQ} onSubmit={() => {}} />
       </div>

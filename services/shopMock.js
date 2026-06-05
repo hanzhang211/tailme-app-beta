@@ -48,6 +48,16 @@ export const GRID_CATEGORIES = [
   { id: "litter",  name: "猫砂",   key: "litter" },
 ];
 
+// 收货地址（mock）
+export const ADDRESSES = [
+  { id: "a1", name: "小可爱", phone: "188****8888", tag: "家",
+    addr: "广东省深圳市南山区科技园北区 xx 栋 xx 室", isDefault: true },
+  { id: "a2", name: "宠友",   phone: "139****1234", tag: "公司",
+    addr: "广东省广州市天河区天河路 xx 号 xx 座" },
+  { id: "a3", name: "麻麻",   phone: "0755-12345678", tag: "学校",
+    addr: "广东省深圳市福田区莲花街道 xx 中心 xx 楼" },
+];
+
 export const STORES = [
   { id: "s1", name: "TailMe 官方旗舰店", emoji: "🐾", official: true,
     desc: "TailMe 官方 · 全价粮与智能宠物用品", productCount: 125, fans: "3.6万", rating: 4.9 },

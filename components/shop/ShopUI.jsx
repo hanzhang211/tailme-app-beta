@@ -234,6 +234,59 @@ export function ReviewItem({ review }) {
   );
 }
 
+/* 圆形勾选框 */
+export function Check({ on, size = 21, onClick }) {
+  return (
+    <button onClick={onClick} aria-label="选择"
+      style={{ width:size, height:size, borderRadius:"50%", flexShrink:0, padding:0, cursor:"pointer",
+               border: on ? "none" : "1.8px solid #CFC6B8", background: on ? SC.pri : "#fff",
+               display:"flex", alignItems:"center", justifyContent:"center" }}>
+      {on && (
+        <svg width={size * 0.62} height={size * 0.62} viewBox="0 0 24 24" fill="none">
+          <path d="M5 12.5 L10 17 L19 7" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+/* 数量步进器 −  n  + */
+export function Stepper({ value, onDec, onInc }) {
+  const b = { width:28, height:26, border:"none", background:"#fff", cursor:"pointer",
+              display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, color:SC.text, lineHeight:1 };
+  return (
+    <div style={{ display:"flex", alignItems:"center", borderRadius:8, overflow:"hidden", border:`1px solid ${SC.border}` }}>
+      <button onClick={onDec} style={{ ...b, borderRight:`1px solid ${SC.border}` }}>−</button>
+      <span style={{ minWidth:30, textAlign:"center", fontSize:13, fontWeight:700, color:SC.text }}>{value}</span>
+      <button onClick={onInc} style={{ ...b, borderLeft:`1px solid ${SC.border}`, color:SC.pri }}>+</button>
+    </div>
+  );
+}
+
+/* 右上角购物车按钮 + 角标 */
+export function CartButton({ count = 0, onClick }) {
+  return (
+    <button onClick={onClick} aria-label="购物车"
+      style={{ position:"relative", width:42, height:42, borderRadius:"50%", border:"none", background:"#fff",
+               boxShadow:"0 2px 10px rgba(0,0,0,0.12)", cursor:"pointer", flexShrink:0,
+               display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3.5 5H6l2.1 10.6a1.5 1.5 0 0 0 1.5 1.2h8.2a1.5 1.5 0 0 0 1.5-1.2L21 8.2H6.6"
+              stroke={SC.pri} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="10" cy="20.2" r="1.5" fill={SC.pri} />
+        <circle cx="18" cy="20.2" r="1.5" fill={SC.pri} />
+      </svg>
+      {count > 0 && (
+        <span style={{ position:"absolute", top:-3, right:-3, minWidth:19, height:19, padding:"0 4px",
+                       borderRadius:999, background:SC.pri, color:"#fff", fontSize:11, fontWeight:800,
+                       lineHeight:"19px", textAlign:"center", border:"2px solid #fff", boxSizing:"border-box" }}>
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
+    </button>
+  );
+}
+
 /* 双列网格容器 */
 export function ProductGrid({ children }) {
   return (
