@@ -14,7 +14,7 @@ export default function StorePage({ storeId, onBack, onOpenProduct }) {
   const products = store ? listProductsByStore(storeId) : [];
 
   return (
-    <div style={{ minHeight:"100%", background:SC.bg, display:"flex", flexDirection:"column" }}>
+    <div style={{ height:"100%", background:SC.bg, display:"flex", flexDirection:"column" }}>
       {/* 顶栏 */}
       <div style={{ flexShrink:0, display:"flex", alignItems:"center", gap:10, background:"#fff",
                     borderBottom:`1px solid ${SC.border}`, padding:"52px 14px 12px" }}>

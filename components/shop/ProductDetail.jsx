@@ -42,7 +42,7 @@ export default function ProductDetail({ productId, onBack, onOpenStore, onOpenPr
 
   if (!product) {
     return (
-      <div style={{ minHeight:"100%", background:SC.bg, display:"flex", flexDirection:"column" }}>
+      <div style={{ height:"100%", background:SC.bg, display:"flex", flexDirection:"column" }}>
         <Header onBack={onBack} />
         <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", color:SC.sub }}>商品不存在</div>
       </div>
@@ -50,7 +50,7 @@ export default function ProductDetail({ productId, onBack, onOpenStore, onOpenPr
   }
 
   return (
-    <div style={{ minHeight:"100%", background:SC.bg, display:"flex", flexDirection:"column" }}>
+    <div style={{ height:"100%", background:SC.bg, display:"flex", flexDirection:"column" }}>
       <Header onBack={onBack} onShare={() => tip("分享链接已复制 ✨")} />
 
       <div style={{ flex:1, overflowY:"auto", paddingBottom:80 }}>
