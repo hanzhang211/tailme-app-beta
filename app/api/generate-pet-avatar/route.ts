@@ -121,10 +121,11 @@ async function callReplicate(photoUrl: string, token: string, petType?: string) 
 }
 
 // 抠图去背景，输出透明 PNG URL。
-// 用 bria/remove-background（官方模型，热池快、毛发边缘质量高）替代原来的
-// 851-labs/background-remover（社区 BiRefNet，冷启动慢）——只为提速，质量持平/更好。
-// 官方模型可直接用 /v1/models/<owner>/<name>/predictions + Prefer:wait，无需 version hash。
-const REMBG_MODEL = "bria/remove-background";
+// 用 men1scus/birefnet 抠图：和原来 851-labs 同为 BiRefNet 算法（质量同级），
+// 但跑在 A100、~2s、约 $0.0025/张 —— 比 bria 便宜约 10 倍，速度/质量基本不变。
+// 走 /v1/models/<owner>/<name>/predictions 取最新版本（无需 version hash）。
+// 输入用 { image }，输出透明 PNG；若该端点/参数不兼容，外层 try/catch 会回退原图。
+const REMBG_MODEL = "men1scus/birefnet";
 async function callRembg(imageUrl: string, token: string) {
   const resp = await fetch(
     `https://api.replicate.com/v1/models/${REMBG_MODEL}/predictions`,
