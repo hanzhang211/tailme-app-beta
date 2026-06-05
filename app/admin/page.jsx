@@ -31,6 +31,7 @@ import {
   adminDeleteNews,
 } from "@/services/petNewsService";
 import { avatarForBreed } from "@/services/breedAvatar";
+import { StoreReviewManager, ProductReviewManager } from "@/components/admin/MerchantReviews";
 
 const C = {
   pri:    "#E68645",
@@ -216,8 +217,18 @@ function AdminMain({ me }) {
           </>
         )}
 
+        {/* 商家资质审核 */}
+        <StoreReviewManager adminId={me?.id} />
+
+        {/* 商品审核 */}
+        <div style={{ marginTop:16 }}>
+          <ProductReviewManager adminId={me?.id} />
+        </div>
+
         {/* 内容审核 */}
-        <FlaggedModeration adminId={me?.id} />
+        <div style={{ marginTop:16 }}>
+          <FlaggedModeration adminId={me?.id} />
+        </div>
 
         {/* 食谱管理 */}
         <div style={{ marginTop:16 }}>
