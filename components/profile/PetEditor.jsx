@@ -32,6 +32,13 @@ export default function PetEditor({ pet, userId, onClose, onSaved, onDeleted, to
     neutered:    pet ? (pet.neutered    ? "yes" : "no") : "",
     vaccinated:  pet ? (pet.vaccinated  ? "yes" : "no") : "",
   });
+  // 性格多选：把已存的「、/，/,」分隔字符串解析成数组，保存时再拼回
+  const [personalities, setPersonalities] = useState(() =>
+    (pet?.personality || "").split(/[、,，\/]/).map((s) => s.trim()).filter(Boolean));
+  const togglePer = (p) =>
+    setPersonalities((arr) =>
+      arr.includes(p) ? arr.filter((x) => x !== p) : (arr.length >= 6 ? arr : [...arr, p]));
+
   const breedList = f.pet_type === "cat" ? CAT_BREEDS : DOG_BREEDS;
   const setType = (t) => setF((p) => ({ ...p, pet_type: t, breed: "" }));
   const upd = (k, v) => setF((p) => ({ ...p, [k]: v }));
@@ -69,7 +76,7 @@ export default function PetEditor({ pet, userId, onClose, onSaved, onDeleted, to
           birthday:    f.birthday    || null,
           weight:      f.weight      ? parseFloat(f.weight) : null,
           gender:      f.gender      || null,
-          personality: f.personality || null,
+          personality: personalities.join("、") || null,
           neutered:    f.neutered    === "yes",
           vaccinated:  f.vaccinated  === "yes",
         };
@@ -88,7 +95,7 @@ export default function PetEditor({ pet, userId, onClose, onSaved, onDeleted, to
         toast?.("已保存 ✨", "success");
         onSaved?.(updated);
       } else {
-        const saved = await savePetProfile(f, userId);
+        const saved = await savePetProfile({ ...f, personality: personalities.join("、") }, userId);
         toast?.("毛孩子已加入 🐾", "success");
         onSaved?.(saved);
       }
@@ -183,11 +190,11 @@ export default function PetEditor({ pet, userId, onClose, onSaved, onDeleted, to
             </div>
           </div>
 
-          <Field label="性格 ✨">
+          <Field label="性格 ✨（可多选）">
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
               {PERSONALITIES.map((p) => (
-                <ChipBtn key={p} on={f.personality === p} onClick={() => upd("personality", p)}>
-                  {p}
+                <ChipBtn key={p} on={personalities.includes(p)} onClick={() => togglePer(p)}>
+                  {personalities.includes(p) ? "✓ " : ""}{p}
                 </ChipBtn>
               ))}
             </div>
