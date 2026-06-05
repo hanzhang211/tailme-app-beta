@@ -51,7 +51,7 @@ const ErrBox = ({ msg }) =>
   ) : null;
 
 // 标题前小图标（同一套实心橙色视觉语言）
-function PawIcon({ size = 15, color = OB.pri }) {
+function PawIcon({ size = 20, color = OB.pri }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true" style={{ display:"block" }}>
       <ellipse cx="6" cy="8" rx="2" ry="2.6" />
@@ -62,7 +62,7 @@ function PawIcon({ size = 15, color = OB.pri }) {
     </svg>
   );
 }
-function PillIcon({ size = 15, color = OB.pri }) {
+function PillIcon({ size = 20, color = OB.pri }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" style={{ display:"block" }}>
       <rect x="2.5" y="7.5" width="19" height="9" rx="4.5" fill={color} />
