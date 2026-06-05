@@ -8,7 +8,8 @@
  * 导出：SC(配色)、ProductImage、Money、Tag、Stars、SearchBar、CategoryChips、ProductCard、StoreCard、ReviewItem
  */
 
-import { TONES, CATEGORIES, fmtSold } from "@/services/shopMock";
+import { TONES, CATEGORIES, GRID_CATEGORIES, fmtSold } from "@/services/shopMock";
+import CategoryIcon from "./CategoryIcon";
 
 export const SC = {
   bg:"#EEE9E1", card:"#FFFFFF", tint:"#F2E5DA", pri:"#E68645",
@@ -94,7 +95,36 @@ export function SearchGlyph({ size = 16, color = "#8A8074" }) {
   );
 }
 
-/* 横向滑动分类 */
+/* 固定 2×5 分类宫格（白色大圆角容器，无横向滚动）—— 与设计稿一致 */
+export function CategoryGrid({ active, onPick }) {
+  return (
+    <div style={{ background:"#fff", borderRadius:22, padding:"18px 8px 12px",
+                  boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", rowGap:16 }}>
+        {GRID_CATEGORIES.map((c) => {
+          const on = active === c.id;
+          return (
+            <button key={c.id} onClick={() => onPick(c.id)}
+              style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8,
+                       background:"transparent", border:"none", cursor:"pointer", padding:0 }}>
+              <span style={{ width:52, height:52, borderRadius:16, display:"flex",
+                             alignItems:"center", justifyContent:"center", transition:"all .15s",
+                             background: on ? "#FBE3CE" : "#F6ECDD",
+                             border: on ? `1.6px solid ${SC.pri}` : "1.6px solid transparent" }}>
+                <CategoryIcon name={c.key} size={32} />
+              </span>
+              <span style={{ fontSize:12.5, fontWeight: on ? 800 : 600, color: on ? SC.pri : SC.text }}>
+                {c.name}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* 横向滑动分类（旧版，保留以备用） */
 export function CategoryChips({ active, onPick }) {
   return (
     <div style={{ display:"flex", gap:10, overflowX:"auto", padding:"2px 0 2px", WebkitOverflowScrolling:"touch" }}

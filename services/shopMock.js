@@ -34,6 +34,20 @@ export const CATEGORIES = [
   { id: "travel",  name: "出行用品", emoji: "🎒" },
 ];
 
+// 商城首页固定 2×5 宫格分类（顺序严格按设计稿；key 用于匹配 SVG 图标）
+export const GRID_CATEGORIES = [
+  { id: "dogfood", name: "狗粮",   key: "dogfood" },
+  { id: "catfood", name: "猫粮",   key: "catfood" },
+  { id: "snack",   name: "零食",   key: "snack" },
+  { id: "feeder",  name: "喂食器", key: "feeder" },
+  { id: "deworm",  name: "驱虫药", key: "deworm" },
+  { id: "leash",   name: "牵引绳", key: "leash" },
+  { id: "toy",     name: "玩具",   key: "toy" },
+  { id: "clean",   name: "清洁护理", key: "clean" },
+  { id: "health",  name: "保健品", key: "health" },
+  { id: "litter",  name: "猫砂",   key: "litter" },
+];
+
 export const STORES = [
   { id: "s1", name: "TailMe 官方旗舰店", emoji: "🐾", official: true,
     desc: "TailMe 官方 · 全价粮与智能宠物用品", productCount: 125, fans: "3.6万", rating: 4.9 },

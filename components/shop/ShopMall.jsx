@@ -13,7 +13,7 @@ import { useMemo, useState } from "react";
 import BackButton from "@/components/icons/BackButton";
 import { listProducts, getStore, searchStores } from "@/services/shopMock";
 import {
-  SC, SearchBar, CategoryChips, ProductCard, ProductGrid, StoreCard, ShopStyles,
+  SC, SearchBar, CategoryGrid, ProductCard, ProductGrid, StoreCard, ShopStyles,
 } from "./ShopUI";
 import ProductDetail from "./ProductDetail";
 import StorePage from "./StorePage";
@@ -84,9 +84,9 @@ function ShopHome({ cat, setCat, q, setQ, sort, setSort, onBack, onOpenProduct, 
       </div>
 
       <div style={{ flex:1, overflowY:"auto", padding:"6px 14px 28px" }}>
-        {/* 分类（横滑） */}
-        <div style={{ margin:"6px 0 12px" }}>
-          <CategoryChips active={cat} onPick={setCat} />
+        {/* 分类（固定 2×5 宫格；再次点击已选分类即取消筛选） */}
+        <div style={{ margin:"6px 0 14px" }}>
+          <CategoryGrid active={cat} onPick={(id) => setCat((c) => (c === id ? "all" : id))} />
         </div>
 
         {/* 排序 */}
