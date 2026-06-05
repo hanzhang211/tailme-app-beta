@@ -120,22 +120,23 @@ async function callReplicate(photoUrl: string, token: string, petType?: string) 
   return String(url);
 }
 
-// 调 851-labs/background-remover 抠图，输出透明 PNG URL
-// 851-labs 是社区模型，必须用 /v1/predictions + version hash（不能用 official 端点）
-const REMBG_VERSION = "a029dff38972b5fda4ec5d75d7d1cd25aeff621d2cf4946a41055d7db66b80bc";
+// 抠图去背景，输出透明 PNG URL。
+// 用 bria/remove-background（官方模型，热池快、毛发边缘质量高）替代原来的
+// 851-labs/background-remover（社区 BiRefNet，冷启动慢）——只为提速，质量持平/更好。
+// 官方模型可直接用 /v1/models/<owner>/<name>/predictions + Prefer:wait，无需 version hash。
+const REMBG_MODEL = "bria/remove-background";
 async function callRembg(imageUrl: string, token: string) {
   const resp = await fetch(
-    `https://api.replicate.com/v1/predictions`,
+    `https://api.replicate.com/v1/models/${REMBG_MODEL}/predictions`,
     {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
         "Content-Type":  "application/json",
-        "Prefer":        "wait=60",
+        "Prefer":        "wait=55",
       },
       body: JSON.stringify({
-        version: REMBG_VERSION,
-        input: { image: imageUrl, background_type: "rgba" },
+        input: { image: imageUrl },
       }),
     }
   );
@@ -149,9 +150,9 @@ async function callRembg(imageUrl: string, token: string) {
     prediction.status !== "succeeded" &&
     prediction.status !== "failed" &&
     prediction.status !== "canceled" &&
-    Date.now() - start < 60_000
+    Date.now() - start < 55_000
   ) {
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 1200));
     const poll = await fetch(
       `https://api.replicate.com/v1/predictions/${prediction.id}`,
       { headers: { "Authorization": `Bearer ${token}` } }
