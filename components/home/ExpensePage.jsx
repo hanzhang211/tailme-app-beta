@@ -13,6 +13,7 @@ import {
 } from "@/services/petExpenseService";
 import { AccountingIcon } from "@/components/icons/HomeModuleIcons";
 import PetTrashIcon from "@/components/icons/PetTrashIcon";
+import BackButton from "@/components/icons/BackButton";
 import {
   PawPrint, Calendar, ChevronLeft, ChevronRight,
   Syringe, ShieldCheck, Stethoscope, BriefcaseMedical,
@@ -112,11 +113,7 @@ export default function ExpensePage({ user, pets, onBack, onAmountChanged }) {
       {/* ── Header ── */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                     padding:"52px 16px 14px" }}>
-        <button onClick={onBack}
-          style={{ width:40, height:40, borderRadius:999,
-                   background:"rgba(255,255,255,0.6)", border:"none", cursor:"pointer",
-                   fontSize:22, color:TEXT, display:"flex", alignItems:"center",
-                   justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>‹</button>
+        <BackButton onClick={onBack} />
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
           <AccountingIcon size={60} color={TEXT} />
           <span style={{ fontSize:17, fontWeight:800, color:TEXT }}>宠物记账</span>

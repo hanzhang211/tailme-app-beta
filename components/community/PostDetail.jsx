@@ -24,6 +24,7 @@ import PetAvatar from "@/components/PetAvatar";
 import PawLikeIcon from "@/components/icons/PawLikeIcon";
 import PetTrashIcon from "@/components/icons/PetTrashIcon";
 import EmptyCommentsDogCat from "@/components/illustrations/EmptyCommentsDogCat";
+import { ChevronLeft } from "lucide-react";
 import { fmtDuration } from "@/services/videoThumb";
 
 const C = {
@@ -672,7 +673,7 @@ function ImmersiveVideo({
         <div style={{ position:"absolute", top:46, left:14, right:14, zIndex:5,
                       display:"flex", alignItems:"flex-start", justifyContent:"space-between" }}>
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-            <TopBtn onClick={onClose}>‹</TopBtn>
+            <TopBtn onClick={onClose}><ChevronLeft size={22} strokeWidth={2.6} /></TopBtn>
             <div style={{ display:"flex", alignItems:"center", gap:5, alignSelf:"flex-start",
                           background:"rgba(0,0,0,0.35)", color:"white", fontSize:12, fontWeight:700,
                           padding:"5px 11px", borderRadius:999,

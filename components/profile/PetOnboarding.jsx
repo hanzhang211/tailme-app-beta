@@ -24,6 +24,7 @@ import { DOG_BREEDS, CAT_BREEDS } from "@/services/breedAvatar";
 import { Mars, Venus } from "lucide-react";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
 import BreedIcon from "@/components/icons/BreedIcon";
+import BackButton from "@/components/icons/BackButton";
 import WheelDatePicker from "@/components/ui/WheelDatePicker";
 
 const OB = {
@@ -313,10 +314,9 @@ export default function PetOnboarding({ userId, onComplete, onClose }) {
       {/* 顶部导航 + 进度条 */}
       <div style={{ padding:"14px 16px 0" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", height:36 }}>
-          <button onClick={back} aria-label="返回"
-            style={{ width:36, height:36, border:"none", background:"transparent",
-                     cursor: canBack ? "pointer" : "default", fontSize:24, lineHeight:1,
-                     color: canBack ? OB.text : "transparent", padding:0 }}>‹</button>
+          {canBack
+            ? <BackButton onClick={back} size={36} />
+            : <div style={{ width:36, height:36 }} />}
           <div style={{ fontSize:16, fontWeight:800, color:OB.text }}>添加宠物</div>
           <div style={{ fontSize:13, fontWeight:700, color:OB.sub, minWidth:36, textAlign:"right" }}>{step}/{TOTAL_OB_STEPS}</div>
         </div>

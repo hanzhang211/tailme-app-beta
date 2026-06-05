@@ -27,6 +27,7 @@ import PostDetail      from "@/components/community/PostDetail";
 import PetAvatar       from "@/components/PetAvatar";
 import PawLikeIcon     from "@/components/icons/PawLikeIcon";
 import PetTrashIcon    from "@/components/icons/PetTrashIcon";
+import BackButton      from "@/components/icons/BackButton";
 import PetEditor       from "./PetEditor";
 import PetOnboarding   from "./PetOnboarding";
 import SettingsModal   from "./SettingsModal";
@@ -585,9 +586,7 @@ function SubBack({ title, onBack, right }) {
   return (
     <div style={{ display:"flex", alignItems:"center", gap:10, padding:"52px 16px 12px",
                   background:"white", borderBottom:`1px solid ${C.border}` }}>
-      <button onClick={onBack}
-        style={{ width:34, height:34, borderRadius:999, background:C.bg, border:`1px solid ${C.border}`,
-                 cursor:"pointer", fontSize:18, color:C.text }}>‹</button>
+      <BackButton onClick={onBack} size={34} />
       <div style={{ flex:1, fontSize:16, fontWeight:800, color:C.text }}>{title}</div>
       {right}
     </div>
@@ -659,9 +658,7 @@ function ContactView({ onBack, toast }) {
       {/* 顶栏 */}
       <div style={{ display:"flex", alignItems:"center", gap:10, padding:"52px 16px 12px",
                     background:"white", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
-        <button onClick={onBack}
-          style={{ width:34, height:34, borderRadius:999, background:C.bg, border:`1px solid ${C.border}`,
-                   cursor:"pointer", fontSize:18, color:C.text }}>‹</button>
+        <BackButton onClick={onBack} size={34} />
         <div style={{ fontSize:16, fontWeight:800, color:C.text }}>联系我们</div>
       </div>
 
@@ -730,9 +727,7 @@ function FollowListView({ mode, meId, onBack, onOpenProfile }) {
     <div style={{ position:"absolute", inset:0, zIndex:120, background:C.bg, display:"flex", flexDirection:"column" }}>
       <div style={{ display:"flex", alignItems:"center", gap:10, padding:"52px 16px 12px",
                     background:"white", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
-        <button onClick={onBack}
-          style={{ width:34, height:34, borderRadius:999, background:C.bg, border:`1px solid ${C.border}`,
-                   cursor:"pointer", fontSize:18, color:C.text }}>‹</button>
+        <BackButton onClick={onBack} size={34} />
         <div style={{ fontSize:16, fontWeight:800, color:C.text }}>{isFollowing ? "我的关注" : "我的粉丝"}</div>
       </div>
 

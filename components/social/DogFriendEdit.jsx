@@ -17,6 +17,7 @@ import {
   WALKING_TIMES, PERSONALITY_TAGS, SMALL_DOG_OPTIONS, BIG_DOG_OPTIONS,
 } from "@/services/dogFriendService";
 import PetAvatar from "@/components/PetAvatar";
+import BackButton from "@/components/icons/BackButton";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#2A2520",
@@ -99,10 +100,7 @@ export default function DogFriendEdit({ user, pet, pets = [], profile, onClose, 
 
         {/* 顶部栏 */}
         <div style={{ padding:"52px 16px 12px", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
-          <button onClick={onClose}
-            style={{ width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.7)", border:"none",
-                     cursor:"pointer", color:C.text, fontSize:22, display:"flex", alignItems:"center",
-                     justifyContent:"center", flexShrink:0 }}>‹</button>
+          <BackButton onClick={onClose} />
           <div style={{ flex:1, textAlign:"center", fontSize:18, fontWeight:800, color:C.text }}>我的遛弯名片</div>
           <div style={{ width:40, flexShrink:0 }} />
         </div>

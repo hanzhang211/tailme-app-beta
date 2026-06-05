@@ -22,6 +22,7 @@ import {
 } from "@/services/communityService";
 import { makeImageVariants } from "@/services/imageCompress";
 import { captureVideoThumbnail, fmtDuration } from "@/services/videoThumb";
+import BackButton from "@/components/icons/BackButton";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#2A2520",
@@ -329,11 +330,7 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
         {/* ── 顶部栏 ── */}
         <div style={{ padding:"52px 16px 14px", display:"flex", alignItems:"center", gap:10,
                       flexShrink:0, position:"relative", zIndex:2 }}>
-          <button onClick={handleCancel} disabled={isPublishing}
-            style={{ width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.7)",
-                     border:"none", cursor: isPublishing ? "default" : "pointer", color:C.text,
-                     fontSize:22, display:"flex", alignItems:"center", justifyContent:"center",
-                     flexShrink:0 }}>‹</button>
+          <BackButton onClick={handleCancel} disabled={isPublishing} />
           <div style={{ flex:1, textAlign:"center", fontSize:18, fontWeight:800, color:C.text }}>
             发布帖子
           </div>
@@ -628,10 +625,7 @@ function TopicSelect({ onClose, onPick, toast }) {
                   display:"flex", flexDirection:"column", animation:"page-in .2s ease-out" }}>
       {/* 顶部栏 */}
       <div style={{ padding:"52px 16px 12px", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
-        <button onClick={onClose}
-          style={{ width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.7)",
-                   border:"none", cursor:"pointer", color:C.text, fontSize:22,
-                   display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>‹</button>
+        <BackButton onClick={onClose} />
         <div style={{ flex:1, textAlign:"center", fontSize:18, fontWeight:800, color:C.text }}>选择话题</div>
         <div style={{ width:40, flexShrink:0 }} />
       </div>

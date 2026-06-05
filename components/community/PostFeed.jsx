@@ -21,6 +21,7 @@ import { getMyLocation, reverseGeoCity } from "@/services/amapService";
 import { updateUserCity } from "@/services/supabaseService";
 import PetAvatar  from "@/components/PetAvatar";
 import PawLikeIcon from "@/components/icons/PawLikeIcon";
+import BackButton from "@/components/icons/BackButton";
 import PostCompose from "./PostCompose";
 import PostDetail  from "./PostDetail";
 
@@ -791,10 +792,7 @@ function TopicView({ tag, loading, colL, colR, likedSet, onBack, onOpenPost, onT
   return (
     <div>
       <div style={{ padding:"14px 14px 6px", display:"flex", alignItems:"center", gap:10 }}>
-        <button onClick={onBack}
-          style={{ width:34, height:34, borderRadius:999, flexShrink:0,
-                   background:"white", border:`1px solid ${C.border}`, cursor:"pointer",
-                   fontSize:18, color:C.text, display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
+        <BackButton onClick={onBack} size={34} />
         <div style={{ minWidth:0 }}>
           <div style={{ fontSize:18, fontWeight:800, color:C.pri,
                         overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}># {tag}</div>

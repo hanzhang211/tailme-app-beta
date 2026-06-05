@@ -11,6 +11,7 @@ import { RecipeIcon } from "@/components/icons/HomeModuleIcons";
 import {
   Camera, ChevronLeft, Leaf, Soup, HeartPulse, Lightbulb,
 } from "lucide-react";
+import BackButton from "@/components/icons/BackButton";
 
 const BG   = "#F4ECD9";
 const PRI  = "#E68645";
@@ -55,11 +56,7 @@ export default function RecipePage({ onBack }) {
       {/* ── Header ── */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                     padding:"52px 16px 14px" }}>
-        <button onClick={onBack}
-          style={{ width:40, height:40, borderRadius:999,
-                   background:"rgba(255,255,255,0.6)", border:"none", cursor:"pointer",
-                   fontSize:22, color:TEXT, display:"flex", alignItems:"center",
-                   justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>‹</button>
+        <BackButton onClick={onBack} />
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
           <RecipeIcon size={60} color={TEXT} />
           <span style={{ fontSize:17, fontWeight:800, color:TEXT }}>宠物食谱</span>

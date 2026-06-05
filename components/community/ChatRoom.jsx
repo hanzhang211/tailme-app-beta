@@ -29,6 +29,7 @@ import {
 import { avatarForBreed } from "@/services/breedAvatar";
 import PetAvatar from "@/components/PetAvatar";
 import BreedIcon from "@/components/icons/BreedIcon";
+import BackButton from "@/components/icons/BackButton";
 import PrivateChatList from "./PrivateChatList";
 import PrivateChatDetail from "./PrivateChatDetail";
 import { MsgSkeleton, RowSkeleton } from "./ChatSkeleton";
@@ -548,9 +549,7 @@ function SubHeader({ title, onBack }) {
     <div style={{ display:"flex", alignItems:"center", gap:10,
                   background:"white", borderBottom:`1px solid ${C.border}`,
                   padding:"10px 14px", flexShrink:0 }}>
-      <button onClick={onBack}
-        style={{ background:"transparent", border:"none", cursor:"pointer",
-                 fontSize:18, color:C.text, padding:"2px 6px" }}>‹</button>
+      <BackButton onClick={onBack} size={36} />
       <div style={{ fontSize:15, fontWeight:700, color:C.text }}>{title}</div>
     </div>
   );

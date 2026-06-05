@@ -19,6 +19,7 @@ import PostDetail from "./PostDetail";
 import PrivateChatDetail from "./PrivateChatDetail";
 import { avatarForBreed } from "@/services/breedAvatar";
 import { formatPetAge } from "@/services/petAge";
+import BackButton from "@/components/icons/BackButton";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
@@ -143,11 +144,9 @@ export default function UserProfile({ viewerId, userId, onClose }) {
   return (
     <div style={{ position:"absolute", inset:0, zIndex:120, background:C.bg }}>
       {/* 返回（浮于顶部，始终可见）*/}
-      <button onClick={onClose}
-        style={{ position:"absolute", top:50, left:14, zIndex:6, width:36, height:36, borderRadius:"50%",
-                 background:"rgba(255,255,255,0.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)",
-                 border:"none", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", cursor:"pointer",
-                 fontSize:20, color:C.text, display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
+      <BackButton onClick={onClose}
+        style={{ position:"absolute", top:50, left:14, zIndex:6,
+                 background:"rgba(255,255,255,0.92)", boxShadow:"0 2px 8px rgba(0,0,0,0.15)" }} />
 
       <div ref={scrollRef} style={{ height:"100%", overflowY:"auto" }}>
         {/* 顶部背景图（该用户自定义；无则米白渐变 + 淡爪印）*/}

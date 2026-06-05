@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { listNews } from "@/services/petNewsService";
+import BackButton from "@/components/icons/BackButton";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
@@ -51,9 +52,7 @@ export default function NewsPage({ onBack }) {
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                     padding:"52px 16px 12px", background:"white",
                     borderBottom:`1px solid ${C.border}` }}>
-        <button onClick={onBack}
-          style={{ background:"transparent", border:"none", cursor:"pointer",
-                   fontSize:22, color:C.text, padding:"2px 6px" }}>‹</button>
+        <BackButton onClick={onBack} />
         <div style={{ fontSize:17, fontWeight:800, color:C.text }}>📰 活动推送</div>
         <div style={{ width:36 }} />
       </div>

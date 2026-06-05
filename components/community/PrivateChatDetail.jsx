@@ -26,6 +26,7 @@ import { avatarForBreed } from "@/services/breedAvatar";
 import { formatPetAge } from "@/services/petAge";
 import UserProfile from "./UserProfile";
 import { MsgSkeleton } from "./ChatSkeleton";
+import BackButton from "@/components/icons/BackButton";
 
 // 私聊消息内存缓存（convId → 消息列表）：再次打开会话时秒显，后台静默刷新
 const pmMsgCache = new Map();
@@ -246,9 +247,7 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
       {/* 顶栏 */}
       <div style={{ display:"flex", alignItems:"center", gap:10, padding:"52px 14px 12px",
                     background:"white", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
-        <button onClick={onClose}
-          style={{ background:"transparent", border:"none", cursor:"pointer", fontSize:20,
-                   color:C.text, padding:"2px 4px" }}>‹</button>
+        <BackButton onClick={onClose} size={36} />
         <Avatar url={target?.avatar_url} size={36} onClick={openProfile} />
         <div onClick={openProfile} style={{ flex:1, minWidth:0, cursor:"pointer" }}>
           <div style={{ fontSize:15, fontWeight:800, color:C.text,

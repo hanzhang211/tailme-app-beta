@@ -41,6 +41,7 @@ import PetAvatar from "@/components/PetAvatar";
 import MapIcon from "@/components/MapIcon";
 import ChatIcon from "@/components/ChatIcon";
 import { AccountingIcon, RecipeIcon, HealthIcon } from "@/components/icons/HomeModuleIcons";
+import BackButton from "@/components/icons/BackButton";
 import {
   Sparkles, ChevronRight, PawPrint, Heart, CalendarDays, Scale, Venus, Mars,
   Utensils, Settings, Sun, Moon, MoonStar, CheckCircle, Clock, Calculator, Lightbulb,
@@ -826,10 +827,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
         {/* Header */}
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                       padding:"52px 16px 10px", background:H_BG }}>
-          <button onClick={() => setSubPage(null)}
-            style={{ width:40, height:40, borderRadius:999, background:"rgba(255,255,255,0.6)",
-                     border:"none", cursor:"pointer", fontSize:22, color:C.text,
-                     display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
+          <BackButton onClick={() => setSubPage(null)} />
           <span style={{ fontSize:17, fontWeight:800, color:C.text }}>喂食计划</span>
           <button onClick={doSaveAndBack}
             style={{ height:36, padding:"0 18px", borderRadius:999, cursor:"pointer",
