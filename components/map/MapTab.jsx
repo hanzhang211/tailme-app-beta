@@ -15,13 +15,13 @@ import {
   getMyLocation, loadMapSDK, searchPetPOI,
   getCoords, fmtDist, fmtTel, openNavigation,
 } from "@/services/amapService";
-import { FRIENDLY_CATEGORIES, listPartners } from "@/services/facilityMock";
+import { FRIENDLY_CATEGORIES } from "@/services/facilityMock";
 import { typeInfo, riskInfo, distanceMeters } from "@/services/warningTypes";
 import { listApprovedWarnings } from "@/services/warningService";
 import { listFriendlyReports } from "@/services/friendlyService";
 import MapIcon from "@/components/MapIcon";
 import {
-  FacilityTopTabs, FacilityCategoryChips, FriendlyPlaceCard,
+  FacilityTopTabs, FacilityCategoryChips,
   WarningDetail, FriendlyDetail,
 } from "./FacilityParts";
 import DangerReportForm from "./DangerReportForm";
@@ -45,8 +45,6 @@ const ME_MARKER = `
   </div>`;
 const poiMarker = (icon) =>
   `<div style="width:32px;height:32px;border-radius:50%;background:#E68645;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,0.4)">${icon}</div>`;
-const partnerMarker = () =>
-  `<div style="width:36px;height:36px;border-radius:50%;background:#E68645;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;box-shadow:0 4px 10px rgba(230,134,69,0.55)">🐾</div>`;
 // 带文字 label 的 marker（友好/警示大地图用），anchor=bottom-center
 const labelMarker = (text, color, lead = "") =>
   `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer">
@@ -105,11 +103,6 @@ export default function MapTab() {
   }, [allPois, facilityCat]); // eslint-disable-line
 
   const baseLoc = location || { lng: 121.4737, lat: 31.2304 };
-  const partners = useMemo(
-    () => listPartners(facilityCat).map((p) => {
-      const lng = baseLoc.lng + p.offset[0], lat = baseLoc.lat + p.offset[1];
-      return { ...p, lng, lat, location: `${lng},${lat}` };
-    }), [facilityCat, baseLoc.lng, baseLoc.lat]);
 
   const withDist = (rows) => (rows || []).map((r) => ({
     ...r,
@@ -177,7 +170,6 @@ export default function MapTab() {
     };
 
     if (tab === "facility") {
-      partners.forEach((p) => addCircle(p.lng, p.lat, partnerMarker(), () => { setSelPoi(null); mapRef.current?.setCenter(new AMap.LngLat(p.lng, p.lat)); }, 120));
       (pois || []).slice(0, 60).forEach((poi) => {
         const c = getCoords(poi.location); if (!c) return;
         addCircle(c.lng, c.lat, poiMarker(facilityCatObj.icon), () => { setSelPoi(poi); mapRef.current?.setCenter(new AMap.LngLat(c.lng, c.lat)); });
@@ -195,9 +187,18 @@ export default function MapTab() {
           () => { setSelWarning(r); mapRef.current?.setCenter(new AMap.LngLat(r.longitude, r.latitude)); });
       });
     }
-  }, [tab, partners, pois, fris, warns, facilityCatObj.icon]);
 
-  const switchTab = (t) => { setTab(t); setSelPoi(null); setSelWarning(null); setSelFriendly(null); };
+    // 大地图（友好/警示）：自动缩放到所有标记，避免点位远离当前定位而“看不到”
+    if (tab !== "facility" && mksRef.current.length > 0) {
+      try { mapRef.current.setFitView(mksRef.current, false, [80, 80, 80, 80], 16); } catch {}
+    }
+  }, [tab, pois, fris, warns, facilityCatObj.icon]);
+
+  const switchTab = (t) => {
+    setTab(t); setSelPoi(null); setSelWarning(null); setSelFriendly(null);
+    if (t === "friendly") setFriVer((v) => v + 1);   // 切到该 Tab 时刷新，确保看到最新审核通过的点
+    if (t === "warning") setWarnVer((v) => v + 1);
+  };
   const recenter = () => { if (mapRef.current && window.AMap && location) mapRef.current.setCenter(new window.AMap.LngLat(location.lng, location.lat)); };
   const onSearchPick = (p) => { setShowSearch(false); if (mapRef.current && window.AMap) { mapRef.current.setCenter(new window.AMap.LngLat(p.lng, p.lat)); mapRef.current.setZoom(16); } };
 
@@ -299,18 +300,15 @@ export default function MapTab() {
           <div style={{ fontSize: 11.5, color: C.sub, marginBottom: 10, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, minHeight: 20 }}>
             {poiLoading
               ? <><span style={{ animation: "tm-spin 1s linear infinite", display: "inline-block" }}>⟳</span> 搜索附近宠物设施...</>
-              : <><span style={{ color: C.accent }}>●</span> 共发现 {partners.length + (pois?.length || 0)} 个宠物设施</>}
+              : <><span style={{ color: C.accent }}>●</span> 共发现 {pois?.length || 0} 个宠物设施</>}
           </div>
-          {partners.map((p) => (
-            <FriendlyPlaceCard key={p.id} place={p} onNavigate={(pl) => openNavigation({ name: pl.name, location: pl.location })} />
-          ))}
           {poiErr && (
             <div style={{ background: C.err, border: `1.5px solid ${C.errT}44`, borderRadius: 16, padding: "12px 14px", marginBottom: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: C.errT, marginBottom: 6 }}>❌ POI 搜索失败</div>
               <div style={{ fontSize: 11, color: C.errT, lineHeight: 1.6, wordBreak: "break-all", whiteSpace: "pre-wrap" }}>{poiErr}</div>
             </div>
           )}
-          {!poiLoading && !poiErr && (pois?.length ?? 0) === 0 && partners.length === 0 && (
+          {!poiLoading && !poiErr && (pois?.length ?? 0) === 0 && (
             <EmptyState cat={facilityCatObj} hasOthers={(allPois?.length ?? 0) > 0} />
           )}
           {(pois || []).map((poi) => (
