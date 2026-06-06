@@ -93,8 +93,9 @@ export default function FriendlyReportForm({ location, onClose, onSubmitted }) {
             <button onClick={() => setStep("place")} style={{ background: "none", border: "none", color: C.pri, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>重选</button>
           </div>
 
-          <Label>地点名称</Label>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={40} placeholder="例如：暖爪咖啡（富阳店）" style={{ ...inputStyle, marginBottom: 18 }} />
+          <Label>标题</Label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={30} placeholder="例如：暖爪咖啡可进店" style={{ ...inputStyle, marginBottom: 6 }} />
+          <div style={{ fontSize: 11, color: C.sub, marginBottom: 18 }}>地图上显示前 6 个字，点开看完整</div>
 
           <Label>友好服务</Label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>

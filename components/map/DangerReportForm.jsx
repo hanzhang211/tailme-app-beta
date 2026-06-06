@@ -8,7 +8,6 @@
 
 import { useState } from "react";
 import BackButton from "@/components/icons/BackButton";
-import { WARNING_GROUPS, typeInfo } from "@/services/warningTypes";
 import { submitWarning, uploadWarningImage } from "@/services/warningService";
 import PlacePicker from "./PlacePicker";
 
@@ -21,9 +20,7 @@ const LS_KEY = "tailme_user_id";
 export default function DangerReportForm({ location, onClose, onSubmitted }) {
   const [step, setStep] = useState("place");   // place | details | done
   const [place, setPlace] = useState(null);    // { placeName, address, lat, lng }
-  const [groupId, setGroupId] = useState(WARNING_GROUPS[0].id);
-  const [eventType, setEventType] = useState(WARNING_GROUPS[0].types[0].id);
-  const [otherText, setOtherText] = useState("");
+  const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [contact, setContact] = useState("");
   const [anonymous, setAnonymous] = useState(true);
@@ -31,11 +28,6 @@ export default function DangerReportForm({ location, onClose, onSubmitted }) {
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-
-  const group = WARNING_GROUPS.find((g) => g.id === groupId) || WARNING_GROUPS[0];
-  const isOther = eventType === "other";
-
-  const pickGroup = (gid) => { setGroupId(gid); setEventType((WARNING_GROUPS.find((x) => x.id === gid)).types[0].id); };
 
   const pickImages = async (e) => {
     const files = Array.from(e.target.files || []).slice(0, 5 - images.length);
@@ -51,15 +43,15 @@ export default function DangerReportForm({ location, onClose, onSubmitted }) {
 
   const submit = async () => {
     setErr("");
-    if (isOther && !otherText.trim()) { setErr("请补充「其他」的简短说明"); return; }
+    if (!title.trim()) { setErr("请填写标题"); return; }
     if (!desc.trim()) { setErr("请填写事件描述"); return; }
     setBusy(true);
     try {
       const uid = (typeof window !== "undefined" && localStorage.getItem(LS_KEY)) || null;
       await submitWarning({
         reporterUserId: uid,
-        title: isOther ? otherText.trim() : typeInfo(eventType).label,
-        eventType, eventTypeOther: isOther ? otherText.trim() : null,
+        title: title.trim(),
+        eventType: "other",      // 用户不再选类型；由 admin 审核时归类 + 设风险等级
         description: desc.trim(), placeName: place?.placeName || null, address: place?.address || null,
         latitude: place?.lat ?? location?.lat ?? null, longitude: place?.lng ?? location?.lng ?? null,
         images, contactInfo: contact.trim() || null, anonymous,
@@ -104,25 +96,13 @@ export default function DangerReportForm({ location, onClose, onSubmitted }) {
             <button onClick={() => setStep("place")} style={{ background: "none", border: "none", color: C.pri, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>重选</button>
           </div>
 
-          <Label>事件类型</Label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-            {WARNING_GROUPS.map((g) => {
-              const on = groupId === g.id;
-              return <button key={g.id} onClick={() => pickGroup(g.id)}
-                style={{ padding: "8px 13px", borderRadius: 999, fontSize: 13, fontWeight: on ? 800 : 600, cursor: "pointer",
-                         border: `1.5px solid ${on ? C.danger : C.border}`, background: on ? C.danger : "#fff", color: on ? "#fff" : C.text }}>{g.icon} {g.label}</button>;
-            })}
+          <Label>标题</Label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={30}
+            placeholder="给这个警示起个标题，如：路口车流快、绿化带有毒饵"
+            style={{ ...inputStyle, marginBottom: 6 }} />
+          <div style={{ fontSize: 11, color: C.sub, marginBottom: 18 }}>
+            地图上显示前 6 个字，点开看完整 · 类型与风险等级由平台审核时判定
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: isOther ? 10 : 18 }}>
-            {group.types.map((t) => {
-              const on = eventType === t.id;
-              return <button key={t.id} onClick={() => setEventType(t.id)}
-                style={{ padding: "7px 13px", borderRadius: 999, fontSize: 12.5, fontWeight: on ? 800 : 600, cursor: "pointer",
-                         border: `1.5px solid ${on ? C.pri : C.border}`, background: on ? C.tint : "#fff", color: on ? C.pri : C.sub }}>{t.label}</button>;
-            })}
-          </div>
-          {isOther && <input value={otherText} onChange={(e) => setOtherText(e.target.value)} maxLength={30}
-            placeholder="请简短补充是什么风险" style={{ ...inputStyle, marginBottom: 18 }} />}
 
           <Label>事件描述</Label>
           <div style={{ position: "relative", marginBottom: 18 }}>

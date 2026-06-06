@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { adminListWarnings, adminReviewWarning } from "@/services/warningAdminService";
+import { adminListFriendly, adminEditFriendlyTitle, adminDeleteFriendly } from "@/services/friendlyAdminService";
 import { WARNING_GROUPS, typeInfo, riskInfo, maskUserId, fmtAgo, RISK_LEVELS } from "@/services/warningTypes";
 
 const C = {
@@ -190,6 +191,59 @@ function ReviewRow({ report, adminId, open, onToggle, onDone }) {
           <Btn tone="err" disabled={busy} onClick={() => act("delete")}>删除</Btn>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── 友好地点管理（改标题 / 删除）─────────────────────── */
+export function FriendlyManager({ adminId }) {
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const reload = async () => {
+    if (!adminId) return;
+    setLoading(true); setErr(null);
+    try { setList(await adminListFriendly(adminId, "approved")); }
+    catch (e) { setErr(e.message); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { reload(); }, [adminId]); // eslint-disable-line
+
+  const editTitle = async (r) => {
+    const title = prompt("修改标题（地图显示前 6 个字）：", r.title || "");
+    if (title == null || !title.trim()) return;
+    try { await adminEditFriendlyTitle({ adminId, id: r.id, title: title.trim() }); reload(); }
+    catch (e) { alert(e.message); }
+  };
+  const del = async (r) => {
+    if (!confirm("删除这个友好地点？")) return;
+    try { await adminDeleteFriendly({ adminId, id: r.id }); reload(); }
+    catch (e) { alert(e.message); }
+  };
+
+  return (
+    <div style={{ background: C.card, borderRadius: 18, padding: "16px 14px", border: `1px solid ${C.border}`, boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
+      <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 2 }}>🐾 友好地点管理</div>
+      <div style={{ fontSize: 11, color: C.sub, marginBottom: 12 }}>用户提交即展示 · admin 可改标题（防止过长）或删除</div>
+      {loading && <div style={{ textAlign: "center", color: C.sub, fontSize: 12, padding: 20 }}>加载中...</div>}
+      {err && <div style={{ color: C.errT, fontSize: 12, padding: 6 }}>❌ {err}</div>}
+      {!loading && !err && list.length === 0 && <div style={{ textAlign: "center", color: C.sub, fontSize: 13, padding: 24 }}>暂无友好地点</div>}
+      {list.map((r) => (
+        <div key={r.id} style={{ background: C.bg, borderRadius: 12, padding: "11px 12px", marginBottom: 8, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ width: 40, height: 40, borderRadius: 10, background: C.tint, flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+            {r.images?.[0] ? <img src={r.images[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "🐾"}
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title || r.place_name}</div>
+            <div style={{ fontSize: 11, color: C.sub, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              📍 {r.address || r.place_name || "—"} · {maskUserId(r.reporter_user_id)} · {fmtAgo(r.created_at)}
+            </div>
+          </div>
+          <button onClick={() => editTitle(r)} style={{ padding: "6px 10px", borderRadius: 10, fontSize: 11.5, fontWeight: 700, background: C.tint, color: "#9C5A00", border: "none", cursor: "pointer" }}>改标题</button>
+          <button onClick={() => del(r)} style={{ padding: "6px 10px", borderRadius: 10, fontSize: 11.5, fontWeight: 700, background: "#FFE2E2", color: C.errT, border: "none", cursor: "pointer" }}>删除</button>
+        </div>
+      ))}
     </div>
   );
 }

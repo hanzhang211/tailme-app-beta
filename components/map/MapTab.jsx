@@ -35,6 +35,8 @@ const C = {
 };
 
 const esc = (s) => String(s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// 地图 label 最多显示 6 个字，超出省略；完整标题在详情里看
+const short6 = (s) => { const t = String(s || ""); return t.length > 6 ? t.slice(0, 6) + "…" : t; };
 
 const ME_MARKER = `
   <div style="position:relative;width:26px;height:26px;display:flex;align-items:center;justify-content:center">
@@ -183,13 +185,13 @@ export default function MapTab() {
     } else if (tab === "friendly") {
       fris.forEach((r) => {
         if (r.latitude == null || r.longitude == null) return;
-        addLabel(r.longitude, r.latitude, labelMarker(r.title || r.place_name || "友好地点", C.pri, "🐾 "),
+        addLabel(r.longitude, r.latitude, labelMarker(short6(r.title || r.place_name || "友好地点"), C.pri, "🐾 "),
           () => { setSelFriendly(r); mapRef.current?.setCenter(new AMap.LngLat(r.longitude, r.latitude)); });
       });
     } else {
       warns.forEach((r) => {
         if (r.latitude == null || r.longitude == null) return;
-        addLabel(r.longitude, r.latitude, labelMarker(r.admin_title || r.title || typeInfo(r.event_type).label, riskInfo(r.risk_level).pin),
+        addLabel(r.longitude, r.latitude, labelMarker(short6(r.admin_title || r.title || typeInfo(r.event_type).label), riskInfo(r.risk_level).pin),
           () => { setSelWarning(r); mapRef.current?.setCenter(new AMap.LngLat(r.longitude, r.latitude)); });
       });
     }
