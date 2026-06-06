@@ -33,6 +33,7 @@ import {
 } from "@/services/petNewsService";
 import { avatarForBreed } from "@/services/breedAvatar";
 import { StoreReviewManager, ProductReviewManager } from "@/components/admin/MerchantReviews";
+import { DangerReviewManager } from "@/components/admin/DangerReviews";
 
 const C = {
   pri:    "#E68645",
@@ -317,6 +318,11 @@ function AdminMain({ me, onSwitch }) {
         {/* 商品审核 */}
         <div style={{ marginTop:16 }}>
           <ProductReviewManager adminId={me?.id} />
+        </div>
+
+        {/* 危险提醒（避雷）审核 */}
+        <div style={{ marginTop:16 }}>
+          <DangerReviewManager />
         </div>
 
         {/* 内容审核 */}
