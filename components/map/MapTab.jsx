@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * components/map/MapTab.jsx — 宠物设施地图（友好地图 / 避雷地图 双模式）
+ * components/map/MapTab.jsx — 宠物设施地图（友好地图 / 宠物警示 双模式）
  *
  * 双 Key 架构（不变）：
  *   轨道 A（地图）: getMyLocation → loadMapSDK → new AMap.Map → 渲染底图
@@ -9,7 +9,7 @@
  *
  * 在此之上新增「主模式切换」：
  *   友好地图 = 真实 POI（不破坏）+ 合作商户(mock)
- *   避雷地图 = 危险提醒(mock，仅展示 approved)，含上报入口与详情
+ *   宠物警示 = 真实警示数据(仅展示 approved)，含上报入口与详情
  * 切换不跳页，只换 pins / 分类 chips / 统计 / 列表。
  */
 
@@ -19,11 +19,12 @@ import {
   getCoords, fmtDist, fmtTel, openNavigation,
 } from "@/services/amapService";
 import { FRIENDLY_CATEGORIES, listPartners } from "@/services/facilityMock";
-import { DANGER_CATEGORIES, listDangerReports } from "@/services/dangerMock";
+import { WARNING_FILTERS, typeGroupId, riskInfo, distanceMeters } from "@/services/warningTypes";
+import { listApprovedWarnings } from "@/services/warningService";
 import MapIcon from "@/components/MapIcon";
 import {
   FacilityModeSwitch, FacilityCategoryChips, FriendlyPlaceCard,
-  DangerReportCard, DangerUploadEntry, DangerDetail,
+  WarningCard, WarningUploadEntry, WarningDetail,
 } from "./FacilityParts";
 import DangerReportForm from "./DangerReportForm";
 
@@ -44,8 +45,8 @@ const poiMarker = (icon) =>
   `<div style="width:32px;height:32px;border-radius:50%;background:#E68645;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,0.4)">${icon}</div>`;
 const partnerMarker = () =>
   `<div style="width:36px;height:36px;border-radius:50%;background:#E68645;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;box-shadow:0 4px 10px rgba(230,134,69,0.55)">🐾</div>`;
-const dangerMarker = () =>
-  `<div style="width:34px;height:34px;border-radius:50%;background:#D9542B;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;box-shadow:0 3px 9px rgba(217,84,43,0.55)">❗</div>`;
+const warnMarker = (color = "#E0552A") =>
+  `<div style="width:34px;height:34px;border-radius:50%;background:${color};border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:#fff;cursor:pointer;box-shadow:0 3px 9px rgba(192,57,43,0.5)">!</div>`;
 
 /* ════════════════════════════════════════════════════════ */
 export default function MapTab() {
@@ -62,13 +63,27 @@ export default function MapTab() {
   const [poiErr, setPoiErr] = useState(null);
 
   /* ── 模式 / 分类 / 选中 ─────────────────────────────── */
-  const [mode, setMode] = useState("friendly");          // friendly | danger
+  const [mode, setMode] = useState("friendly");          // friendly | warning
   const [friendlyCat, setFriendlyCat] = useState("all");
-  const [dangerCat, setDangerCat] = useState("all");
+  const [warningCat, setWarningCat] = useState("all");   // all + 6 大类
   const [selPoi, setSelPoi] = useState(null);
-  const [selDanger, setSelDanger] = useState(null);
+  const [selWarning, setSelWarning] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [dangerVer, setDangerVer] = useState(0);          // 上报后刷新
+
+  /* 宠物警示真实数据（仅 approved）*/
+  const [warnings, setWarnings] = useState(null);
+  const [warnLoading, setWarnLoading] = useState(false);
+  const [warnVer, setWarnVer] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    setWarnLoading(true);
+    listApprovedWarnings()
+      .then((rows) => { if (alive) setWarnings(rows); })
+      .catch(() => { if (alive) setWarnings([]); })
+      .finally(() => { if (alive) setWarnLoading(false); });
+    return () => { alive = false; };
+  }, [warnVer]);
 
   const friendlyCatObj = FRIENDLY_CATEGORIES.find((c) => c.id === friendlyCat) || FRIENDLY_CATEGORIES[0];
 
@@ -79,20 +94,28 @@ export default function MapTab() {
     return allPois.filter(friendlyCatObj.poiTest);
   }, [allPois, friendlyCat]); // eslint-disable-line
 
-  /* 坐标基准（mock 偏移叠加用户定位 → 始终落在可视区域） */
   const baseLoc = location || { lng: 121.4737, lat: 31.2304 };
+
+  /* 合作商户（mock，偏移叠加定位） */
   const partners = useMemo(
     () => listPartners(friendlyCat).map((p) => {
       const lng = baseLoc.lng + p.offset[0], lat = baseLoc.lat + p.offset[1];
       return { ...p, lng, lat, location: `${lng},${lat}` };
     }),
     [friendlyCat, baseLoc.lng, baseLoc.lat]);
-  const dangers = useMemo(
-    () => listDangerReports(dangerCat).map((r) => {
-      const lng = baseLoc.lng + r.offset[0], lat = baseLoc.lat + r.offset[1];
-      return { ...r, lng, lat };
-    }),
-    [dangerCat, baseLoc.lng, baseLoc.lat, dangerVer]);
+
+  /* 警示：真实坐标 + 按大类过滤 + 计算距离 */
+  const warns = useMemo(() => {
+    if (!warnings) return [];
+    return warnings
+      .filter((r) => warningCat === "all" || typeGroupId(r.event_type) === warningCat)
+      .map((r) => ({
+        ...r,
+        _distance: (r.latitude != null && r.longitude != null)
+          ? distanceMeters({ lat: baseLoc.lat, lng: baseLoc.lng }, { lat: r.latitude, lng: r.longitude })
+          : null,
+      }));
+  }, [warnings, warningCat, baseLoc.lat, baseLoc.lng]);
 
   /* ── 初始化（只跑一次）─────────────────────────────── */
   useEffect(() => {
@@ -162,15 +185,18 @@ export default function MapTab() {
         });
       });
     } else {
-      dangers.forEach((r) => add(r.lng, r.lat, dangerMarker(), () => {
-        setSelDanger(r);
-        mapRef.current?.setCenter(new AMap.LngLat(r.lng, r.lat));
-      }));
+      warns.forEach((r) => {
+        if (r.latitude == null || r.longitude == null) return;
+        add(r.longitude, r.latitude, warnMarker(riskInfo(r.risk_level).pin), () => {
+          setSelWarning(r);
+          mapRef.current?.setCenter(new AMap.LngLat(r.longitude, r.latitude));
+        });
+      });
     }
-  }, [mode, partners, pois, dangers, friendlyCatObj.icon]);
+  }, [mode, partners, pois, warns, friendlyCatObj.icon]);
 
   /* 切换模式：清空选中 */
-  const switchMode = (m) => { setMode(m); setSelPoi(null); setSelDanger(null); };
+  const switchMode = (m) => { setMode(m); setSelPoi(null); setSelWarning(null); };
 
   const friendlyCount = (partners.length) + (pois?.length || 0);
 
@@ -185,7 +211,7 @@ export default function MapTab() {
           <MapIcon size={40} color={C.pri} />
           <span style={{ fontSize: 20, fontWeight: 800, color: C.text }}>宠物设施地图</span>
         </div>
-        <div style={{ fontSize: 12, color: C.sub, marginTop: 2 }}>查看附近宠物友好设施与危险提醒</div>
+        <div style={{ fontSize: 12, color: C.sub, marginTop: 2 }}>查看附近宠物友好设施与宠物警示</div>
         <div style={{ fontSize: 11.5, color: C.sub, marginTop: 5 }}>
           {locating ? "正在定位..." :
             location?.source === "gps"
@@ -207,8 +233,8 @@ export default function MapTab() {
           <FacilityCategoryChips categories={FRIENDLY_CATEGORIES} activeId={friendlyCat}
             onPick={(id) => { setFriendlyCat(id); setSelPoi(null); }} />
         ) : (
-          <FacilityCategoryChips categories={DANGER_CATEGORIES} activeId={dangerCat}
-            onPick={(id) => { setDangerCat(id); setSelDanger(null); }} accent={C.danger} />
+          <FacilityCategoryChips categories={WARNING_FILTERS} activeId={warningCat}
+            onPick={(id) => { setWarningCat(id); setSelWarning(null); }} accent={C.danger} />
         )}
       </div>
 
@@ -238,8 +264,8 @@ export default function MapTab() {
           </div>
         )}
 
-        {/* 避雷模式：地图内悬浮上报按钮 */}
-        {mode === "danger" && mapPhase === "ready" && (
+        {/* 宠物警示模式：地图内悬浮上报按钮 */}
+        {mode === "warning" && mapPhase === "ready" && (
           <button onClick={() => setShowForm(true)}
             style={{ position: "absolute", right: 12, bottom: 12, zIndex: 6, display: "flex",
                      flexDirection: "column", alignItems: "center", gap: 1, width: 54, height: 54,
@@ -283,8 +309,10 @@ export default function MapTab() {
             ) : (
               <><span style={{ color: C.accent }}>●</span> 共发现 {friendlyCount} 个宠物友好设施</>
             )
+          ) : warnLoading && warnings == null ? (
+            <><span style={{ animation: "tm-spin 1s linear infinite", display: "inline-block" }}>⟳</span> 加载宠物警示...</>
           ) : (
-            <><span style={{ color: C.danger }}>●</span> 共发现 {dangers.length} 条避雷提醒</>
+            <><span style={{ color: C.danger }}>●</span> 共发现 {warns.length} 条宠物警示</>
           )}
         </div>
 
@@ -320,23 +348,26 @@ export default function MapTab() {
           </>
         )}
 
-        {/* ── 避雷地图 ───────────────────────────────── */}
-        {mode === "danger" && (
+        {/* ── 宠物警示 ───────────────────────────────── */}
+        {mode === "warning" && (
           <>
-            <DangerUploadEntry onClick={() => setShowForm(true)} />
-            {dangers.length === 0 ? (
+            <WarningUploadEntry onClick={() => setShowForm(true)} />
+            {warns.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 24px", color: C.sub }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🐾</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 8 }}>附近暂无避雷提醒</div>
-                <div style={{ fontSize: 12, lineHeight: 1.7 }}>发现危险地点？点上方「上报危险地点」帮助其他宠物家长</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 8 }}>
+                  {warnLoading ? "加载中…" : "附近暂无宠物警示"}
+                </div>
+                <div style={{ fontSize: 12, lineHeight: 1.7 }}>发现风险地点？点上方「上报宠物警示」帮助其他宠物家长</div>
               </div>
-            ) : dangers.map((r) => (
-              <DangerReportCard key={r.id} report={r} selected={selDanger?.id === r.id}
+            ) : warns.map((r) => (
+              <WarningCard key={r.id} report={r} selected={selWarning?.id === r.id}
                 onSelect={() => {
-                  setSelDanger(r);
-                  if (mapRef.current && window.AMap) mapRef.current.setCenter(new window.AMap.LngLat(r.lng, r.lat));
+                  setSelWarning(r);
+                  if (r.latitude != null && mapRef.current && window.AMap)
+                    mapRef.current.setCenter(new window.AMap.LngLat(r.longitude, r.latitude));
                 }}
-                onView={() => setSelDanger(r)} />
+                onView={() => setSelWarning(r)} />
             ))}
           </>
         )}
@@ -344,13 +375,13 @@ export default function MapTab() {
 
       {/* 友好 POI 详情 */}
       {selPoi && <PoiDetail poi={selPoi} onClose={() => setSelPoi(null)} />}
-      {/* 避雷详情 */}
-      {selDanger && <DangerDetail report={selDanger} onClose={() => setSelDanger(null)} />}
+      {/* 宠物警示详情 */}
+      {selWarning && <WarningDetail report={selWarning} onClose={() => setSelWarning(null)} />}
       {/* 上报页面 */}
       {showForm && (
         <DangerReportForm location={location}
           onClose={() => setShowForm(false)}
-          onSubmitted={() => setDangerVer((v) => v + 1)} />
+          onSubmitted={() => setWarnVer((v) => v + 1)} />
       )}
 
       <style>{`

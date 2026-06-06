@@ -320,9 +320,9 @@ function AdminMain({ me, onSwitch }) {
           <ProductReviewManager adminId={me?.id} />
         </div>
 
-        {/* 危险提醒（避雷）审核 */}
+        {/* 宠物警示审核 */}
         <div style={{ marginTop:16 }}>
-          <DangerReviewManager />
+          <DangerReviewManager adminId={me?.id} />
         </div>
 
         {/* 内容审核 */}
