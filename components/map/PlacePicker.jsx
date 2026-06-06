@@ -48,6 +48,7 @@ export default function PlacePicker({ location, onPick, placeholder = "搜索门
         <button onClick={() => onPick({
           placeName: location.city ? `${location.city}（我的位置）` : "我的当前位置",
           address: location.city || "我的当前位置", lat: location.lat, lng: location.lng,
+          current: true,
         })}
           style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, background: "transparent",
                    border: "none", cursor: "pointer", padding: "12px 4px", marginTop: 4 }}>

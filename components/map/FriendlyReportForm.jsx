@@ -74,7 +74,7 @@ export default function FriendlyReportForm({ location, onClose, onSubmitted }) {
         <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px 30px" }}>
           <div style={{ fontSize: 13, color: C.sub, marginBottom: 12 }}>先选择友好地点</div>
           <PlacePicker location={location} placeholder="搜索门店、小区或地址"
-            onPick={(p) => { setPlace(p); setTitle(p.placeName || ""); setStep("details"); }} />
+            onPick={(p) => { setPlace(p); if (!p.current) setTitle(p.placeName || ""); setStep("details"); }} />
         </div>
       </Shell>
     );

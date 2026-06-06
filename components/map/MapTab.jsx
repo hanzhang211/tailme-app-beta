@@ -328,7 +328,7 @@ export default function MapTab() {
       {showWarnForm && <DangerReportForm location={location} onClose={() => setShowWarnForm(false)} onSubmitted={() => setWarnVer((v) => v + 1)} />}
 
       {showSearch && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 70, background: "rgba(26,16,6,0.4)", display: "flex", alignItems: "flex-end" }}
+        <div style={{ position: "fixed", inset: 0, zIndex: 1600, background: "rgba(26,16,6,0.4)", display: "flex", alignItems: "flex-end" }}
           onClick={(e) => e.target === e.currentTarget && setShowSearch(false)}>
           <div style={{ width: "100%", background: "#fff", borderRadius: "22px 22px 0 0", padding: "16px 16px 30px", maxHeight: "76%", overflowY: "auto", animation: "tm-up .22s ease-out" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -399,7 +399,7 @@ function PoiDetail({ poi, onClose }) {
   const type = poi.type?.split(";").slice(-1)[0] ?? "";
   const addr = poi.address || [poi.pname, poi.cityname, poi.adname].filter(Boolean).join("") || "";
   return (
-    <div style={{ position: "absolute", inset: 0, zIndex: 60, background: "rgba(26,16,6,0.44)", display: "flex", alignItems: "flex-end" }}
+    <div style={{ position: "fixed", inset: 0, zIndex: 1500, background: "rgba(26,16,6,0.44)", display: "flex", alignItems: "flex-end" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div style={{ width: "100%", background: "#fff", borderRadius: "22px 22px 0 0", padding: "0 0 44px", boxSizing: "border-box", maxHeight: "74%", overflowY: "auto", animation: "tm-up .22s ease-out" }}>
         <div style={{ width: 40, height: 4, borderRadius: 4, background: "#E0D4C8", margin: "14px auto 18px" }} />

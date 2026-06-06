@@ -253,7 +253,7 @@ export function FriendlyDetail({ report, onClose, onNavigate }) {
   if (!report) return null;
   const perks = FRIENDLY_PERKS.filter((p) => report[p.key]);
   return (
-    <div style={{ position: "absolute", inset: 0, zIndex: 60, background: "rgba(26,16,6,0.44)", display: "flex", alignItems: "flex-end" }}
+    <div style={{ position: "fixed", inset: 0, zIndex: 1500, background: "rgba(26,16,6,0.44)", display: "flex", alignItems: "flex-end" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div style={{ width: "100%", background: "#fff", borderRadius: "22px 22px 0 0", padding: "0 0 40px", maxHeight: "80%", overflowY: "auto", animation: "tm-up .22s ease-out" }}>
         <div style={{ width: 40, height: 4, borderRadius: 4, background: "#E0D4C8", margin: "14px auto 12px" }} />
