@@ -1,10 +1,8 @@
 /**
- * services/warningService.js
- * 「宠物警示」用户端数据层（Supabase，anon）。
- *  - listApprovedWarnings：地图只读 status='approved'（RLS 也强制）
- *  - submitWarning：写入 status='pending'（用户不可设风险等级/状态）
- *  - uploadWarningImage：压缩后传到 pet-warning-reports bucket，返回 public url
- * 审核 / 改风险等级 / 改标题 一律走 /api/admin/warning-reviews（service_role）。
+ * services/friendlyService.js
+ * 「友好地图」用户上报地点数据层（Supabase，anon）。
+ *  - v1：用户提交即 status='approved' 直接展示（保留 status 字段，便于日后改审核制）。
+ *  - 图片复用 pet-warning-reports bucket（friendly/ 前缀）。
  */
 
 import { supabase } from "@/lib/supabase";
@@ -13,22 +11,22 @@ import { compressImage } from "@/services/imageCompress";
 const BUCKET = "pet-warning-reports";
 function sb() { if (!supabase) throw new Error("Supabase 未初始化"); return supabase; }
 
-export async function listApprovedWarnings() {
+export async function listFriendlyReports() {
   const { data, error } = await sb()
-    .from("pet_warning_reports")
+    .from("pet_friendly_reports")
     .select("*")
     .eq("status", "approved")
-    .order("reviewed_at", { ascending: false, nullsFirst: false });
+    .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data || [];
 }
 
-export async function uploadWarningImage(file, userId = "anon") {
+export async function uploadFriendlyImage(file, userId = "anon") {
   if (!file) throw new Error("缺少文件");
   if (!file.type?.startsWith("image/")) throw new Error("请选择图片");
   if (file.size > 10 * 1024 * 1024) throw new Error("图片不能超过 10MB");
   const compressed = await compressImage(file, { maxDim: 1600, quality: 0.82 });
-  const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
+  const path = `friendly/${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
   const { error } = await sb().storage.from(BUCKET)
     .upload(path, compressed, { cacheControl: "86400", upsert: false, contentType: "image/jpeg" });
   if (error) throw new Error(`上传失败: ${error.message}`);
@@ -37,24 +35,26 @@ export async function uploadWarningImage(file, userId = "anon") {
   return pub.publicUrl;
 }
 
-export async function submitWarning(payload) {
+export async function submitFriendly(payload) {
   const row = {
     reporter_user_id: payload.reporterUserId || null,
-    title:            payload.title || null,
-    event_type:       payload.eventType,
-    event_type_other: payload.eventTypeOther || null,
+    title:            payload.title || payload.placeName || "宠物友好地点",
     description:      payload.description || null,
     place_name:       payload.placeName || null,
     address:          payload.address || null,
     latitude:         payload.latitude ?? null,
     longitude:        payload.longitude ?? null,
     images:           payload.images || [],
+    has_water_bowl:   !!payload.hasWaterBowl,
+    has_food_bowl:    !!payload.hasFoodBowl,
+    allow_pet_inside: !!payload.allowPetInside,
+    good_for_rest:    !!payload.goodForRest,
     contact_info:     payload.contactInfo || null,
     anonymous:        payload.anonymous !== false,
-    status:           "pending",
+    status:           "approved",     // v1：直接展示
   };
-  // 不要 .select() 返回：SELECT 策略只允许 approved，返回新插入的 pending 行会触发 RLS。
-  const { error } = await sb().from("pet_warning_reports").insert(row);
+  // status=approved，returning 行可被 SELECT 策略读取，可安全 .select()
+  const { data, error } = await sb().from("pet_friendly_reports").insert(row).select().single();
   if (error) throw new Error(error.message);
-  return { ...row, status: "pending" };
+  return data;
 }

@@ -11,7 +11,7 @@
  *   WarningDetail        宠物警示详情底部弹层（脱敏用户号）
  */
 
-import { fmtDist } from "@/services/amapService";
+import { fmtDist, openNavigation } from "@/services/amapService";
 import { typeInfo, riskInfo, reporterLabel, fmtAgo } from "@/services/warningTypes";
 
 const C = {
@@ -21,7 +21,36 @@ const C = {
 
 const warnTitle = (r) => r.admin_title || r.title || typeInfo(r.event_type).label;
 
-/* ── 主模式切换：友好地图 / 宠物警示 ───────────────────── */
+/* ── 顶部 3 主 Tab：设施地图 / 友好地图 / 宠物警示 ───────── */
+export function FacilityTopTabs({ tab, onChange }) {
+  const opts = [
+    { id: "facility", label: "设施地图" },
+    { id: "friendly", label: "友好地图" },
+    { id: "warning",  label: "宠物警示" },
+  ];
+  const idx = Math.max(0, opts.findIndex((o) => o.id === tab));
+  return (
+    <div style={{ position: "relative", display: "flex", background: "#fff", borderRadius: 999,
+                  padding: 4, boxShadow: "0 2px 10px rgba(0,0,0,0.06)", border: `1px solid ${C.border}` }}>
+      <div style={{ position: "absolute", top: 4, bottom: 4, left: 4, width: "calc((100% - 8px)/3)",
+                    borderRadius: 999, background: C.pri, transition: "transform .25s cubic-bezier(.4,0,.2,1)",
+                    transform: `translateX(${idx * 100}%)`, boxShadow: "0 3px 10px rgba(230,134,69,0.32)" }} />
+      {opts.map((o) => {
+        const on = o.id === tab;
+        return (
+          <button key={o.id} onClick={() => onChange(o.id)}
+            style={{ position: "relative", zIndex: 1, flex: 1, padding: "10px 0", border: "none",
+                     background: "transparent", cursor: "pointer", fontSize: 14, fontWeight: 800,
+                     color: on ? "#fff" : C.sub, transition: "color .2s" }}>
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── 主模式切换（旧，保留备用）────────────────────────── */
 export function FacilityModeSwitch({ mode, onChange }) {
   const opts = [
     { id: "friendly", label: "友好地图" },
@@ -207,6 +236,57 @@ export function WarningDetail({ report, onClose }) {
           <button onClick={onClose}
             style={{ width: "100%", padding: "14px 0", borderRadius: 16, background: C.pri, color: "#fff",
                      fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer" }}>我知道了</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── 友好地点详情（底部弹层，含导航）─────────────────── */
+const FRIENDLY_PERKS = [
+  { key: "has_water_bowl",   label: "提供水碗",   icon: "💧" },
+  { key: "has_food_bowl",    label: "提供喂食碗", icon: "🥣" },
+  { key: "allow_pet_inside", label: "允许进店",   icon: "🚪" },
+  { key: "good_for_rest",    label: "适合休息",   icon: "🛋️" },
+];
+export function FriendlyDetail({ report, onClose, onNavigate }) {
+  if (!report) return null;
+  const perks = FRIENDLY_PERKS.filter((p) => report[p.key]);
+  return (
+    <div style={{ position: "absolute", inset: 0, zIndex: 60, background: "rgba(26,16,6,0.44)", display: "flex", alignItems: "flex-end" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div style={{ width: "100%", background: "#fff", borderRadius: "22px 22px 0 0", padding: "0 0 40px", maxHeight: "80%", overflowY: "auto", animation: "tm-up .22s ease-out" }}>
+        <div style={{ width: 40, height: 4, borderRadius: 4, background: "#E0D4C8", margin: "14px auto 12px" }} />
+        <div style={{ padding: "0 20px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <Chip tone="pri">🐾 宠物友好</Chip>
+          </div>
+          <div style={{ fontSize: 19, fontWeight: 800, color: C.text, marginBottom: 12 }}>{report.title || report.place_name || "宠物友好地点"}</div>
+          {report.images?.length > 0 && (
+            <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 14 }} className="shop-noscroll">
+              {report.images.map((u, i) => <img key={i} src={u} alt="" style={{ width: 124, height: 124, borderRadius: 14, objectFit: "cover", flexShrink: 0 }} />)}
+            </div>
+          )}
+          {perks.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+              {perks.map((p) => <Chip key={p.key} tone="pri">{p.icon} {p.label}</Chip>)}
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+            <Row icon="📍" text={report.address || report.place_name || "未提供地址"} />
+            {report._distance != null && <Row icon="📏" text={`距您约 ${fmtDist(report._distance)}`} />}
+            {report.description && <Row icon="📝" text={report.description} />}
+            <Row icon="🕓" text={`提交于 ${fmtAgo(report.created_at)}`} />
+            <Row icon="👤" text={`由${report.anonymous ? "匿名用户" : reporterLabel(report)}上传`} />
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => onNavigate?.(report)}
+              style={{ flex: 1, padding: "14px 0", borderRadius: 16, background: C.pri, color: "#fff", fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer" }}>
+              🗺️ 导航前往
+            </button>
+            <button onClick={onClose}
+              style={{ width: 48, height: 48, borderRadius: 13, background: "#EDE6DB", border: `1.5px solid ${C.border}`, cursor: "pointer", fontSize: 18, color: C.sub, flexShrink: 0 }}>✕</button>
+          </div>
         </div>
       </div>
     </div>

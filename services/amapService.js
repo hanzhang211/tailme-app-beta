@@ -197,6 +197,39 @@ export async function searchPetPOI(lat, lng) {
   return result;
 }
 
+/**
+ * 地点搜索（滴滴式输入提示）。用高德 inputtips，返回带坐标的候选地点。
+ * @returns [{ id, name, address, district, lng, lat }]
+ */
+export async function searchPlaces(keyword, lat, lng) {
+  const key = process.env.NEXT_PUBLIC_AMAP_WEB_KEY;
+  if (!key || !keyword?.trim()) return [];
+  let url = `https://restapi.amap.com/v3/assistant/inputtips?key=${key}&keywords=${encodeURIComponent(keyword.trim())}&datatype=poi`;
+  if (lat != null && lng != null) url += `&location=${lng},${lat}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (data.status !== "1" || !Array.isArray(data.tips)) return [];
+    return data.tips
+      .filter((t) => typeof t.location === "string" && t.location.includes(","))
+      .map((t) => {
+        const [plng, plat] = t.location.split(",").map(Number);
+        const district = [t.district].flat().filter(Boolean).join("");
+        return {
+          id: t.id || `${t.name}-${t.location}`,
+          name: Array.isArray(t.name) ? t.name[0] : t.name,
+          address: (Array.isArray(t.address) ? t.address[0] : t.address) || district || "",
+          district,
+          lng: plng, lat: plat,
+        };
+      })
+      .filter((t) => !isNaN(t.lng) && !isNaN(t.lat));
+  } catch {
+    return [];
+  }
+}
+
 /* ══════════════════════════════════════════════════════════
    4. 常量与工具函数
 ══════════════════════════════════════════════════════════ */
