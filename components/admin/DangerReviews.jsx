@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { adminListWarnings, adminReviewWarning } from "@/services/warningAdminService";
-import { adminListFriendly, adminEditFriendlyTitle, adminDeleteFriendly } from "@/services/friendlyAdminService";
+import { adminListFriendly, adminApproveFriendly, adminRejectFriendly, adminEditFriendlyTitle, adminDeleteFriendly } from "@/services/friendlyAdminService";
 import { WARNING_GROUPS, typeInfo, riskInfo, maskUserId, fmtAgo, RISK_LEVELS } from "@/services/warningTypes";
 
 const C = {
@@ -195,8 +195,14 @@ function ReviewRow({ report, adminId, open, onToggle, onDone }) {
   );
 }
 
-/* ── 友好地点管理（改标题 / 删除）─────────────────────── */
+/* ── 友好地点审核（待审核 / 已通过 / 全部）──────────────── */
+const F_TABS = [
+  { key: "pending", label: "待审核" },
+  { key: "approved", label: "已通过" },
+  { key: "all", label: "全部" },
+];
 export function FriendlyManager({ adminId }) {
+  const [tab, setTab] = useState("pending");
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState(null);
@@ -204,49 +210,73 @@ export function FriendlyManager({ adminId }) {
   const reload = async () => {
     if (!adminId) return;
     setLoading(true); setErr(null);
-    try { setList(await adminListFriendly(adminId, "approved")); }
+    try { setList(await adminListFriendly(adminId, tab)); }
     catch (e) { setErr(e.message); }
     finally { setLoading(false); }
   };
-  useEffect(() => { reload(); }, [adminId]); // eslint-disable-line
+  useEffect(() => { reload(); }, [tab, adminId]); // eslint-disable-line
 
+  const approve = async (r) => {
+    const title = prompt("通过并确认标题（地图显示前 6 字，可缩短）：", r.title || r.place_name || "");
+    if (title == null) return;
+    try { await adminApproveFriendly({ adminId, id: r.id, title: title.trim() || undefined }); reload(); }
+    catch (e) { alert(e.message); }
+  };
   const editTitle = async (r) => {
-    const title = prompt("修改标题（地图显示前 6 个字）：", r.title || "");
+    const title = prompt("修改标题：", r.title || "");
     if (title == null || !title.trim()) return;
     try { await adminEditFriendlyTitle({ adminId, id: r.id, title: title.trim() }); reload(); }
     catch (e) { alert(e.message); }
   };
-  const del = async (r) => {
-    if (!confirm("删除这个友好地点？")) return;
-    try { await adminDeleteFriendly({ adminId, id: r.id }); reload(); }
-    catch (e) { alert(e.message); }
-  };
+  const reject = async (r) => { if (!confirm("驳回这个友好地点？")) return; try { await adminRejectFriendly({ adminId, id: r.id }); reload(); } catch (e) { alert(e.message); } };
+  const del = async (r) => { if (!confirm("删除这个友好地点？")) return; try { await adminDeleteFriendly({ adminId, id: r.id }); reload(); } catch (e) { alert(e.message); } };
+
+  const badge = (s) => ({ pending: { t: "待审核", c: "#9C5A00", b: "#FFF4D6" }, approved: { t: "已通过", c: C.ok, b: "#E6F4E1" }, rejected: { t: "已驳回", c: C.errT, b: "#FFE2E2" } }[s] || { t: s, c: C.sub, b: C.line });
 
   return (
     <div style={{ background: C.card, borderRadius: 18, padding: "16px 14px", border: `1px solid ${C.border}`, boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
-      <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 2 }}>🐾 友好地点管理</div>
-      <div style={{ fontSize: 11, color: C.sub, marginBottom: 12 }}>用户提交即展示 · admin 可改标题（防止过长）或删除</div>
+      <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 2 }}>🐾 友好地点审核</div>
+      <div style={{ fontSize: 11, color: C.sub, marginBottom: 12 }}>审核用户上报的友好地点 · 可改标题（防过长）· 仅「通过」会展示在友好地图</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        {F_TABS.map((t) => {
+          const on = tab === t.key;
+          return <button key={t.key} onClick={() => setTab(t.key)}
+            style={{ flex: 1, padding: "7px 0", borderRadius: 12, fontSize: 12, fontWeight: on ? 800 : 600, background: on ? C.pri : C.tint, color: on ? "#fff" : C.text, border: "none", cursor: "pointer" }}>{t.label}</button>;
+        })}
+      </div>
       {loading && <div style={{ textAlign: "center", color: C.sub, fontSize: 12, padding: 20 }}>加载中...</div>}
       {err && <div style={{ color: C.errT, fontSize: 12, padding: 6 }}>❌ {err}</div>}
-      {!loading && !err && list.length === 0 && <div style={{ textAlign: "center", color: C.sub, fontSize: 13, padding: 24 }}>暂无友好地点</div>}
-      {list.map((r) => (
-        <div key={r.id} style={{ background: C.bg, borderRadius: 12, padding: "11px 12px", marginBottom: 8, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ width: 40, height: 40, borderRadius: 10, background: C.tint, flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
-            {r.images?.[0] ? <img src={r.images[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "🐾"}
-          </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title || r.place_name}</div>
-            <div style={{ fontSize: 11, color: C.sub, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              📍 {r.address || r.place_name || "—"} · {maskUserId(r.reporter_user_id)} · {fmtAgo(r.created_at)}
+      {!loading && !err && list.length === 0 && <div style={{ textAlign: "center", color: C.sub, fontSize: 13, padding: 24 }}>暂无记录 ✓</div>}
+      {list.map((r) => {
+        const st = r.status || "pending"; const b = badge(st);
+        return (
+          <div key={r.id} style={{ background: C.bg, borderRadius: 12, padding: "11px 12px", marginBottom: 8, border: `1px solid ${C.border}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ width: 44, height: 44, borderRadius: 10, background: C.tint, flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+                {r.images?.[0] ? <img src={r.images[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "🐾"}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title || r.place_name}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, color: b.c, background: b.b, flexShrink: 0 }}>{b.t}</span>
+                </div>
+                <div style={{ fontSize: 11, color: C.sub, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📍 {r.address || r.place_name || "—"} · {maskUserId(r.reporter_user_id)} · {fmtAgo(r.created_at)}</div>
+              </div>
+            </div>
+            {r.description && <div style={{ fontSize: 11.5, color: C.text, lineHeight: 1.6, margin: "6px 0 0" }}>{r.description}</div>}
+            <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+              {st === "pending" && <button onClick={() => approve(r)} style={btn("#E6F4E1", C.ok)}>通过 / 改标题</button>}
+              {st === "pending" && <button onClick={() => reject(r)} style={btn(C.tint, "#9C5A00")}>驳回</button>}
+              {st === "approved" && <button onClick={() => editTitle(r)} style={btn(C.tint, "#9C5A00")}>改标题</button>}
+              <button onClick={() => del(r)} style={btn("#FFE2E2", C.errT)}>删除</button>
             </div>
           </div>
-          <button onClick={() => editTitle(r)} style={{ padding: "6px 10px", borderRadius: 10, fontSize: 11.5, fontWeight: 700, background: C.tint, color: "#9C5A00", border: "none", cursor: "pointer" }}>改标题</button>
-          <button onClick={() => del(r)} style={{ padding: "6px 10px", borderRadius: 10, fontSize: 11.5, fontWeight: 700, background: "#FFE2E2", color: C.errT, border: "none", cursor: "pointer" }}>删除</button>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
+const btn = (bg, c) => ({ padding: "6px 12px", borderRadius: 10, fontSize: 11.5, fontWeight: 700, background: bg, color: c, border: "none", cursor: "pointer" });
 
 function Field({ label, children }) {
   return (

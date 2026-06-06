@@ -312,39 +312,48 @@ function AdminMain({ me, onSwitch }) {
           </>
         )}
 
-        {/* 商家资质审核 */}
-        <StoreReviewManager adminId={me?.id} />
-
-        {/* 商品审核 */}
-        <div style={{ marginTop:16 }}>
-          <ProductReviewManager adminId={me?.id} />
-        </div>
-
-        {/* 宠物警示审核 */}
-        <div style={{ marginTop:16 }}>
-          <DangerReviewManager adminId={me?.id} />
-        </div>
-
-        {/* 友好地点管理 */}
-        <div style={{ marginTop:16 }}>
-          <FriendlyManager adminId={me?.id} />
-        </div>
-
-        {/* 内容审核 */}
-        <div style={{ marginTop:16 }}>
-          <FlaggedModeration adminId={me?.id} />
-        </div>
-
-        {/* 食谱管理 */}
-        <div style={{ marginTop:16 }}>
-          <RecipeManager adminId={me?.id} />
-        </div>
-
-        {/* 活动 / 资讯管理 */}
-        <div style={{ marginTop:16 }}>
-          <NewsManager adminId={me?.id} />
-        </div>
+        {/* 审核 / 管理 —— Tab 切换 */}
+        <AdminTabs me={me} />
       </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────
+   审核 / 管理 Tab 切换（类似社群 关注/推荐/同城）
+────────────────────────────────────────────────────────── */
+function AdminTabs({ me }) {
+  const TABS = [
+    { key: "merchant", label: "商家资质", render: () => <StoreReviewManager adminId={me?.id} /> },
+    { key: "product",  label: "商品",     render: () => <ProductReviewManager adminId={me?.id} /> },
+    { key: "warning",  label: "宠物警示", render: () => <DangerReviewManager adminId={me?.id} /> },
+    { key: "friendly", label: "友好地点", render: () => <FriendlyManager adminId={me?.id} /> },
+    { key: "content",  label: "内容",     render: () => <FlaggedModeration adminId={me?.id} /> },
+    { key: "recipe",   label: "食谱",     render: () => <RecipeManager adminId={me?.id} /> },
+    { key: "news",     label: "资讯",     render: () => <NewsManager adminId={me?.id} /> },
+  ];
+  const [active, setActive] = useState("merchant");
+  const cur = TABS.find((t) => t.key === active) || TABS[0];
+
+  return (
+    <div>
+      {/* Tab 胶囊（横向滚动）*/}
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 16,
+                    scrollbarWidth: "none", msOverflowStyle: "none" }}>
+        {TABS.map((t) => {
+          const on = active === t.key;
+          return (
+            <button key={t.key} onClick={() => setActive(t.key)}
+              style={{ flexShrink: 0, padding: "8px 16px", borderRadius: 999, fontSize: 13, fontWeight: on ? 800 : 600,
+                       cursor: "pointer", whiteSpace: "nowrap", border: `1px solid ${on ? C.pri : C.border}`,
+                       background: on ? C.pri : "#fff", color: on ? "#fff" : C.sub,
+                       boxShadow: on ? "0 3px 10px rgba(230,134,69,0.28)" : "none" }}>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+      {cur.render()}
     </div>
   );
 }

@@ -10,6 +10,12 @@ export async function adminListFriendly(adminId, status = "approved") {
   return json.reports || [];
 }
 
+export async function adminApproveFriendly({ adminId, id, title }) {
+  return post({ adminId, id, action: "approve", patch: title ? { title } : undefined });
+}
+export async function adminRejectFriendly({ adminId, id }) {
+  return post({ adminId, id, action: "reject" });
+}
 export async function adminEditFriendlyTitle({ adminId, id, title }) {
   return post({ adminId, id, action: "edit", patch: { title } });
 }

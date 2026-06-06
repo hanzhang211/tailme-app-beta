@@ -1,7 +1,7 @@
 /**
  * services/friendlyService.js
  * 「友好地图」用户上报地点数据层（Supabase，anon）。
- *  - v1：用户提交即 status='approved' 直接展示（保留 status 字段，便于日后改审核制）。
+ *  - 审核制：用户提交 status='pending'，admin 审核通过后才在友好地图展示。
  *  - 图片复用 pet-warning-reports bucket（friendly/ 前缀）。
  */
 
@@ -51,10 +51,10 @@ export async function submitFriendly(payload) {
     good_for_rest:    !!payload.goodForRest,
     contact_info:     payload.contactInfo || null,
     anonymous:        payload.anonymous !== false,
-    status:           "approved",     // v1：直接展示
+    status:           "pending",     // 审核制：待 admin 通过
   };
-  // status=approved，returning 行可被 SELECT 策略读取，可安全 .select()
-  const { data, error } = await sb().from("pet_friendly_reports").insert(row).select().single();
+  // 不要 .select()：SELECT 策略只允许 approved，返回新插入 pending 行会触发 RLS。
+  const { error } = await sb().from("pet_friendly_reports").insert(row);
   if (error) throw new Error(error.message);
-  return data;
+  return { ...row };
 }

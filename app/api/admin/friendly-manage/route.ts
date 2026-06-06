@@ -1,7 +1,9 @@
 /**
  * /api/admin/friendly-manage — 友好地点管理（service_role）
- * GET  ?adminId=&status=   列出（默认 approved，可 all）
- * POST { adminId, id, action:'edit'|'delete', patch:{ title } }
+ * GET  ?adminId=&status=   列出（pending/approved/all）
+ * POST { adminId, id, action:'approve'|'reject'|'edit'|'delete', patch:{ title } }
+ *   - approve: status='approved'（可同时改 title）→ 才会在友好地图展示
+ *   - reject : status='rejected'
  *   - edit   : 修改标题（admin 可缩短/规范）
  *   - delete : status='deleted'（软删，不在地图显示）
  * 校验：adminId 对应 users.role==='admin'。
@@ -43,7 +45,12 @@ export async function POST(req: Request) {
 
   const now = new Date().toISOString();
   let upd: Record<string, any> = { updated_at: now };
-  if (action === "edit") {
+  if (action === "approve") {
+    upd.status = "approved";
+    if (patch?.title?.trim()) upd.title = patch.title.trim();
+  } else if (action === "reject") {
+    upd.status = "rejected";
+  } else if (action === "edit") {
     if (!patch?.title?.trim()) return NextResponse.json({ error: "标题不能为空" }, { status: 400 });
     upd.title = patch.title.trim();
   } else if (action === "delete") {

@@ -66,7 +66,7 @@ export default function FriendlyReportForm({ location, onClose, onSubmitted }) {
   };
 
   if (step === "done") {
-    return <Shell title="上报友好地点" onClose={onClose}><Success text="已发布到友好地图，感谢分享 🐾" onClose={onClose} /></Shell>;
+    return <Shell title="上报友好地点" onClose={onClose}><Success text="已提交审核，审核通过后会展示给附近宠物家长 🐾" onClose={onClose} /></Shell>;
   }
   if (step === "place") {
     return (
@@ -124,7 +124,7 @@ export default function FriendlyReportForm({ location, onClose, onSubmitted }) {
           <AnonToggle on={anonymous} onToggle={() => setAnonymous((v) => !v)} />
           {err && <div style={{ color: "#D9542B", fontSize: 12.5, marginBottom: 10 }}>{err}</div>}
           <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.tint, borderRadius: 12, padding: "11px 14px", fontSize: 12, color: "#9A6B3C", fontWeight: 600, lineHeight: 1.5 }}>
-            🐾 提交后将直接展示在友好地图，帮助更多宠物家长
+            🐾 提交后将进入审核，审核通过后会展示在友好地图
           </div>
         </Card>
       </div>
