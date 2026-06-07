@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getUserPets, deletePet, updateUserAvatar, getPetCountByUsers, setUsername, isUsernameTaken, updateUserBackground } from "@/services/supabaseService";
 import { checkUsername } from "@/services/contentFilter";
-import { uploadUserAvatar, uploadProfileBackground } from "@/services/petAvatarService";
+import { uploadProfileBackground } from "@/services/petAvatarService";
 import {
   listMyPosts, listLikedPosts, getUserStats,
   deleteOwnContent,
@@ -1039,23 +1039,8 @@ function EditNameModal({ user, onClose, onSaved, toast }) {
 
 /* ────────────────────────────────────────────────────── */
 function AvatarPickerModal({ user, pets, onClose, onSelect, toast }) {
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef();
   const petAvatars = pets.filter((p) => p.ai_avatar_url || p.pet_avatar_thumb_url);
   const defaultEmoji = avatarForBreed(pets[0]?.breed, pets[0]?.pet_type);
-
-  const handleUpload = async (e) => {
-    const f = e.target.files?.[0];
-    e.target.value = "";
-    if (!f) return;
-    setUploading(true);
-    try {
-      const url = await uploadUserAvatar(f, user.id);
-      await onSelect(url);
-    } catch (err) {
-      toast?.(err.message, "error");
-    } finally { setUploading(false); }
-  };
 
   return (
     <div onClick={(e) => e.target === e.currentTarget && onClose()}
@@ -1097,14 +1082,13 @@ function AvatarPickerModal({ user, pets, onClose, onSelect, toast }) {
           </>
         )}
 
-        {/* 上传图片 */}
-        <button onClick={() => fileRef.current?.click()} disabled={uploading}
-          style={{ width:"100%", padding:"13px 0", borderRadius:14, fontSize:14, fontWeight:700,
-                   background:C.pri, color:"white", border:"none",
-                   cursor: uploading ? "default" : "pointer", marginBottom:10 }}>
-          {uploading ? "上传中…" : "📷 上传自定义图片"}
-        </button>
-        <input ref={fileRef} type="file" accept="image/*" onChange={handleUpload} style={{ display:"none" }}/>
+        {/* 无 AI 形象时的引导（头像只能用 AI 生成的虚拟宠物形象）*/}
+        {petAvatars.length === 0 && (
+          <div style={{ background:"white", borderRadius:14, padding:"16px 14px", marginBottom:10,
+                        textAlign:"center", fontSize:13, color:C.sub, lineHeight:1.6, border:`1px solid ${C.border}` }}>
+            还没有 AI 宠物形象<br/>先到首页为宠物生成一个，即可设为头像 🐾
+          </div>
+        )}
 
         {/* 恢复默认 emoji */}
         <button onClick={() => onSelect(null)}
