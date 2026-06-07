@@ -40,7 +40,7 @@ export default function PlacePicker({ location, onPick, placeholder = "搜索门
           <path d="M20 20l-3.2-3.2" stroke={C.sub} strokeWidth="2" strokeLinecap="round" />
         </svg>
         <input value={kw} onChange={(e) => setKw(e.target.value)} placeholder={placeholder} autoFocus={autoFocus}
-          style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, color: C.text, minWidth: 0 }} />
+          style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 16, color: C.text, minWidth: 0 }} />
         {kw && <span onClick={() => setKw("")} style={{ color: C.sub, cursor: "pointer", fontSize: 16 }}>×</span>}
       </div>
 
