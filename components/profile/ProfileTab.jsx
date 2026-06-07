@@ -530,22 +530,22 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
 
           {/* 功能入口：商城 / 审核 / 代遛 */}
           <div style={{ padding:"12px 14px 0" }}>
-            <div style={{ display:"flex", background:"white", borderRadius:24, padding:"16px 8px",
+            <div style={{ display:"flex", background:"white", borderRadius:20,
                           boxShadow:"0 2px 14px rgba(0,0,0,0.05)" }}>
               {[
-                { key:"shop",   label:"商城", icon:<ShopBagIcon size={28} />, onClick: () => setShopOpen(true) },
-                { key:"review", label:"审核", icon:<ReviewEntryIcon />,        onClick: () => setReviewsOpen(true) },
-                { key:"walk",   label:"代遛", icon:<WalkEntryIcon />, disabled:true,
+                { key:"shop",   label:"商城", icon:<ShopBagIcon size={34} />,    onClick: () => setShopOpen(true) },
+                { key:"review", label:"审核", icon:<ReviewEntryIcon size={34} />, onClick: () => setReviewsOpen(true) },
+                { key:"walk",   label:"代遛", icon:<WalkEntryIcon size={34} />, disabled:true,
                   onClick: () => toast("代遛功能即将开通") },
-              ].map((e) => (
+              ].map((e, i) => (
                 <button key={e.key} onClick={e.onClick}
                   style={{ flex:1, background:"none", border:"none", cursor:"pointer",
-                           display:"flex", flexDirection:"column", alignItems:"center", gap:8, padding:"4px 0",
-                           opacity: e.disabled ? 0.5 : 1 }}>
-                  <span style={{ width:52, height:52, borderRadius:16, background: e.disabled ? "#EEEAE2" : C.tint,
+                           display:"flex", flexDirection:"column", alignItems:"center", gap:6, padding:"13px 0",
+                           borderLeft: i > 0 ? `1px solid ${C.border}` : "none", opacity: e.disabled ? 0.55 : 1 }}>
+                  <span style={{ width:44, height:44, borderRadius:13, background: e.disabled ? "#EEEAE2" : C.tint,
                                  display:"flex", alignItems:"center", justifyContent:"center" }}>{e.icon}</span>
-                  <span style={{ fontSize:13, fontWeight:700, color: e.disabled ? C.sub : C.text }}>{e.label}</span>
-                  {e.disabled && <span style={{ fontSize:10, color:C.sub, marginTop:-4 }}>即将开通</span>}
+                  <span style={{ fontSize:12.5, fontWeight:700, color: e.disabled ? C.sub : C.text, lineHeight:1 }}>{e.label}</span>
+                  {e.disabled && <span style={{ fontSize:9.5, color:C.sub, lineHeight:1 }}>即将开通</span>}
                 </button>
               ))}
             </div>
