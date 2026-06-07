@@ -16,7 +16,7 @@ import { getUserPets, deletePet, updateUserAvatar, getPetCountByUsers, setUserna
 import { checkUsername } from "@/services/contentFilter";
 import { uploadProfileBackground } from "@/services/petAvatarService";
 import {
-  listMyPosts, listLikedPosts, getUserStats,
+  listMyPosts, listLikedPosts, listFavoritePosts, getUserStats,
   deleteOwnContent,
   getFollowCounts, listFollowing, listFollowers, getFollowingSet, followUser,
 } from "@/services/communityService";
@@ -122,8 +122,9 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   const [stats,       setStats]       = useState({ totalLikes: 0, postCount: 0, likedCount: 0 });
   const [myPosts,     setMyPosts]     = useState([]);
   const [likedPosts,  setLikedPosts]  = useState([]);
+  const [favPosts,    setFavPosts]    = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
-  const [activeTab,   setActiveTab]   = useState("mine"); // mine | liked
+  const [activeTab,   setActiveTab]   = useState("liked"); // liked | favorites
   const [detailId,    setDetailId]    = useState(null);
   const [editorPet,    setEditorPet]    = useState(undefined); // undefined=closed, obj=edit（仅编辑用）
   const [addOpen,      setAddOpen]      = useState(false);     // 新增宠物：走 PetOnboarding 引导流程
@@ -176,14 +177,19 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   };
   useEffect(() => { refreshAll(); }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── 切到"我赞过"才拉 ─────────────────────────────── */
+  /* ── 切到"点赞 / 收藏"才拉对应列表 ─────────────────── */
   useEffect(() => {
-    if (activeTab !== "liked" || !user?.id) return;
+    if (!user?.id) return;
     let alive = true;
     (async () => {
       try {
-        const liked = await listLikedPosts(user.id);
-        if (alive) setLikedPosts(liked);
+        if (activeTab === "liked") {
+          const liked = await listLikedPosts(user.id);
+          if (alive) setLikedPosts(liked);
+        } else if (activeTab === "favorites") {
+          const favs = await listFavoritePosts(user.id);
+          if (alive) setFavPosts(favs);
+        }
       } catch (e) {
         if (alive) toast(e.message, "error");
       }
@@ -316,7 +322,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   };
 
   /* ── 瀑布流分列 ──────────────────────────────────── */
-  const posts = activeTab === "mine" ? myPosts : likedPosts;
+  const posts = activeTab === "favorites" ? favPosts : likedPosts;
   const [leftCol, rightCol] = useMemo(() => {
     const L = [], R = [];
     let lh = 0, rh = 0;
@@ -359,13 +365,13 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
         </>
       )}
 
-      {/* ════ 我的帖子 子页（我的作品 / 我赞过）════ */}
+      {/* ════ 点赞&收藏 子页（点赞 / 收藏）════ */}
       {subView === "posts" && (
         <>
-          <SubBack title="我的帖子" onBack={() => setSubView(null)} />
+          <SubBack title="点赞&收藏" onBack={() => setSubView(null)} />
           <div style={{ padding:"10px 14px 0", position:"sticky", top:0, background:C.bg, zIndex:2 }}>
             <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${C.border}` }}>
-              {[{ key:"mine", label:"我的作品" }, { key:"liked", label:"我赞过" }].map((t) => {
+              {[{ key:"liked", label:"点赞" }, { key:"favorites", label:"收藏" }].map((t) => {
                 const on = activeTab === t.key;
                 return (
                   <button key={t.key} onClick={() => setActiveTab(t.key)}
@@ -386,7 +392,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
                 {col.map((p) => (
                   <MiniPostCard key={p.id} post={p}
                     onOpen={() => setDetailId(p.id)}
-                    onDelete={activeTab === "mine" ? (e) => handleDeletePost(p, e) : null} />
+                    onDelete={null} />
                 ))}
               </div>
             ))}
@@ -394,7 +400,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
           {loadingPosts && <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:30 }}>加载中…</div>}
           {!loadingPosts && posts.length === 0 && (
             <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"40px 0 90px" }}>
-              {activeTab === "mine" ? "还没有发布过作品，去社群发一条吧 ✏️" : "还没有赞过的帖子"}
+              {activeTab === "favorites" ? "还没有收藏的帖子，点开帖子右下角「收藏」试试 ⭐" : "还没有赞过的帖子"}
             </div>
           )}
         </>
@@ -621,7 +627,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
 
           {/* 菜单列表 */}
           <div style={{ padding:"16px 14px 90px", display:"flex", flexDirection:"column", gap:12 }}>
-            <MenuRow icon="📝" label="我的帖子" hint={`${stats.postCount} 篇`} onClick={() => setSubView("posts")} />
+            <MenuRow icon="⭐" label="点赞&收藏" onClick={() => setSubView("posts")} />
             <MenuRow icon="🐾" label="我的宠物" hint={`${pets.length} 只`} onClick={() => setSubView("pets")} />
             <MenuRow icon={<img src="/logo.png" alt="" style={{ width:42, height:42, objectFit:"contain", filter:"brightness(0)" }} />}
               label="联系我们" sub="客服 · 合作 · 建议反馈" onClick={() => setContactOpen(true)} />
@@ -690,9 +696,9 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
       {detailId && (
         <PostDetail
           postId={detailId} user={user} pet={pet}
-          initialPost={[...myPosts, ...likedPosts].find((x) => x.id === detailId) || null}
+          initialPost={[...likedPosts, ...favPosts].find((x) => x.id === detailId) || null}
           initialLiked={activeTab === "liked"}
-          initialIsVideo={[...myPosts, ...likedPosts].find((x) => x.id === detailId)?.media_items?.[0]?.type === "video"}
+          initialIsVideo={[...likedPosts, ...favPosts].find((x) => x.id === detailId)?.media_items?.[0]?.type === "video"}
           onLikeChange={(postId, isLikedNow, delta) => {
             setMyPosts((prev) => prev.map((p) =>
               p.id === postId ? { ...p, like_count: (p.like_count || 0) + delta } : p));

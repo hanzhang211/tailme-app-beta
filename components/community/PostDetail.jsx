@@ -16,6 +16,7 @@ import {
   listComments, createComment,
   likeComment, unlikeComment, getMyLikedCommentIds,
   likePost, unlikePost,
+  favoritePost, unfavoritePost, isPostFavorited,
   deleteOwnContent, reportContent,
   subscribeComments, unsubscribeChannel,
   isFollowing, followUser, unfollowUser,
@@ -52,6 +53,7 @@ export default function PostDetail({
   const [loadingPost, setLoadingPost] = useState(!initialPost); // 有初始数据则不整屏加载
   const [isLiked,  setIsLiked]  = useState(initialLiked);
   const [likeCount, setLikeCount] = useState(initialPost?.like_count || 0);
+  const [isFav,    setIsFav]    = useState(false);
   const [comments, setComments] = useState([]);
   const [likedCs,  setLikedCs]  = useState(new Set());
   const [loadingC, setLoadingC] = useState(true);
@@ -119,6 +121,8 @@ export default function PostDetail({
       })
       .catch(() => {})
       .finally(() => { if (alive) setLoadingC(false); });
+    // 收藏状态
+    if (user?.id) isPostFavorited(postId, user.id).then((v) => { if (alive) setIsFav(v); }).catch(() => {});
     return () => { alive = false; };
   }, [postId, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -156,6 +160,20 @@ export default function PostDetail({
       setIsLiked(wasLiked);
       setLikeCount((c) => Math.max(0, c + (wasLiked ? 1 : -1)));
       onLikeChange?.(postId, wasLiked, wasLiked ? 1 : -1);
+      toast?.(e.message, "error");
+    }
+  };
+
+  const togglePostFav = async () => {
+    if (!user?.id) { toast?.("请先登录", "error"); return; }
+    const was = isFav;
+    setIsFav(!was);
+    try {
+      if (was) await unfavoritePost(postId, user.id);
+      else      await favoritePost(postId, user.id);
+      toast?.(was ? "已取消收藏" : "已收藏 ⭐", "success");
+    } catch (e) {
+      setIsFav(was);
       toast?.(e.message, "error");
     }
   };
@@ -430,6 +448,15 @@ export default function PostDetail({
             <div style={{ display:"flex", alignItems:"center", gap:6, color:C.sub, fontSize:13 }}>
               💬 {topLevels.length + Object.values(repliesByParent).reduce((s, a) => s+a.length, 0)}
             </div>
+            <button onClick={togglePostFav}
+              style={{ background:"transparent", border:"none", cursor:"pointer", marginLeft:"auto",
+                       display:"flex", alignItems:"center", gap:6,
+                       color: isFav ? C.pri : C.sub, fontWeight: isFav ? 700 : 500, fontSize:13 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill={isFav ? C.pri : "none"} stroke={isFav ? C.pri : C.sub} strokeWidth="1.9" strokeLinejoin="round">
+                <path d="M12 3.5l2.6 5.5 6 .7-4.4 4.1 1.2 5.9L12 17.6 6.6 19.7l1.2-5.9L3.4 9.7l6-.7L12 3.5Z"/>
+              </svg>
+              {isFav ? "已收藏" : "收藏"}
+            </button>
           </div>
 
           {/* 评论列表 */}

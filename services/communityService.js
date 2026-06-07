@@ -926,6 +926,79 @@ export async function unlikePost(postId, userId) {
 }
 
 /* ══════════════════════════════════════════════════════════
+   收藏（post_favorites，与点赞同信任级别：anon 轻量读写自己的收藏）
+══════════════════════════════════════════════════════════ */
+export async function listFavoritePosts(userId, { limit = 50 } = {}) {
+  if (!userId) return [];
+  const sb = requireSupabase();
+  const { data: favs, error: favErr } = await sb
+    .from("post_favorites")
+    .select("post_id, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (favErr) throw new Error(`获取收藏列表失败: ${favErr.message}`);
+  const ids = (favs || []).map((r) => r.post_id);
+  if (ids.length === 0) return [];
+
+  const { data, error } = await sb.from("posts")
+    .select(`
+      id, title, content, post_type, text_bg_color,
+      cover_thumbnail_url, cover_image_url, cover_aspect_ratio, image_urls, media_items,
+      like_count, comment_count, created_at, hashtags,
+      user_id, pet_id,
+      user:users!posts_user_id_fkey ( username, avatar_url ),
+      pet:pets!posts_pet_id_fkey ( name, breed, ai_avatar_url )
+    `)
+    .in("id", ids)
+    .eq("status", "visible");
+  if (error) throw new Error(`获取收藏帖子失败: ${error.message}`);
+  const map = new Map((data || []).map((p) => [p.id, p]));
+  return ids.map((id) => map.get(id)).filter(Boolean);
+}
+
+export async function getMyFavoritedPostIds(userId, postIds) {
+  if (!userId || !postIds.length) return new Set();
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from("post_favorites")
+    .select("post_id")
+    .eq("user_id", userId)
+    .in("post_id", postIds);
+  if (error) throw new Error(`查询收藏失败: ${error.message}`);
+  return new Set((data || []).map((r) => r.post_id));
+}
+
+export async function isPostFavorited(postId, userId) {
+  if (!userId) return false;
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from("post_favorites")
+    .select("post_id")
+    .eq("user_id", userId).eq("post_id", postId).maybeSingle();
+  if (error) return false;
+  return !!data;
+}
+
+export async function favoritePost(postId, userId) {
+  const sb = requireSupabase();
+  const { error } = await sb
+    .from("post_favorites")
+    .insert({ post_id: postId, user_id: userId });
+  if (error && error.code !== "23505") throw new Error(`收藏失败: ${error.message}`);
+}
+
+export async function unfavoritePost(postId, userId) {
+  const sb = requireSupabase();
+  const { error } = await sb
+    .from("post_favorites")
+    .delete()
+    .eq("post_id", postId)
+    .eq("user_id", userId);
+  if (error) throw new Error(`取消收藏失败: ${error.message}`);
+}
+
+/* ══════════════════════════════════════════════════════════
    评论
 ══════════════════════════════════════════════════════════ */
 export async function listComments(postId) {
