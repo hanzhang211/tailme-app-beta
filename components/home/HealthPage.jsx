@@ -13,6 +13,7 @@ import {
   isMedDoneToday, setMedDoneToday,
 } from "@/services/petHealthService";
 import { HealthIcon } from "@/components/icons/HomeModuleIcons";
+import { toastColors } from "@/services/toastTheme";
 import PetTrashIcon from "@/components/icons/PetTrashIcon";
 import {
   ChevronLeft, ChevronRight, Dog, Pill, Bell, Clock,
@@ -574,8 +575,8 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
       {/* Toast */}
       {toast && (
         <div style={{ position:"fixed", left:"50%", bottom:90, transform:"translateX(-50%)",
-                      zIndex:2000, background: toast.type === "error" ? "#B91C1C" : GREEN,
-                      color:"white", padding:"11px 22px", borderRadius:999,
+                      zIndex:2000, background: toastColors(toast.type).bg, color: toastColors(toast.type).color,
+                      padding:"11px 22px", borderRadius:999,
                       fontSize:14, fontWeight:700, boxShadow:"0 6px 20px rgba(0,0,0,0.22)",
                       maxWidth:"80%", textAlign:"center" }}>
           {toast.msg}

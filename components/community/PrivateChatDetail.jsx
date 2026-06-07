@@ -341,7 +341,7 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
       {/* 轻提示 */}
       {notice && (
         <div style={{ position:"absolute", left:"50%", bottom:96, transform:"translateX(-50%)",
-                      background:"#2A2520", color:"white", padding:"9px 16px", borderRadius:999,
+                      background:"#E68645", color:"white", padding:"9px 16px", borderRadius:999,
                       fontSize:12.5, fontWeight:600, zIndex:10, maxWidth:"82%", textAlign:"center",
                       boxShadow:"0 6px 20px rgba(0,0,0,0.25)" }}>
           {notice}

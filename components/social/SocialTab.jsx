@@ -18,6 +18,7 @@ import {
   getNearbyDogFriends, getCurrentPosition,
 } from "@/services/dogFriendService";
 import { getOrCreateConversation, sendWalkInvite } from "@/services/privateChatService";
+import { toastColors } from "@/services/toastTheme";
 import { formatPetAge } from "@/services/petAge";
 import { avatarForBreed } from "@/services/breedAvatar";
 import DogFriendEdit from "./DogFriendEdit";
@@ -461,10 +462,8 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile, onOpenV
       {notice && (
         <div style={{ position:"fixed", left:"50%", bottom:96, transform:"translateX(-50%)", zIndex:400,
                       maxWidth:320, padding:"10px 18px", borderRadius:14, fontSize:13, fontWeight:600,
-                      color:"white", textAlign:"center", boxShadow:"0 4px 16px rgba(0,0,0,0.2)",
-                      background: notice.type === "error" ? "#E07A6B"
-                               : notice.type === "warn"  ? "#E0A35B"
-                               : notice.type === "success" ? "#5BB97A" : "#5A5048" }}>
+                      textAlign:"center", boxShadow:"0 4px 16px rgba(0,0,0,0.2)",
+                      background: toastColors(notice.type).bg, color: toastColors(notice.type).color }}>
           {notice.msg}
         </div>
       )}

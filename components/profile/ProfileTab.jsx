@@ -32,6 +32,7 @@ import BgCropModal      from "./BgCropModal";
 import ShopMall         from "@/components/shop/ShopMall";
 import MyReviews        from "./MyReviews";
 import VerifyBadge       from "./VerifyBadge";
+import { toastColors }   from "@/services/toastTheme";
 import PetEditor       from "./PetEditor";
 import PetOnboarding   from "./PetOnboarding";
 import SettingsModal   from "./SettingsModal";
@@ -1234,13 +1235,7 @@ function MiniPostCard({ post, onOpen, onDelete }) {
 
 /* ────────────────────────────────────────────────────── */
 function Toast({ msg, level }) {
-  const colors = {
-    info:    { bg:"#1F2937", color:"white" },
-    success: { bg:"#0F766E", color:"white" },
-    warn:    { bg:"#B45309", color:"white" },
-    error:   { bg:"#B91C1C", color:"white" },
-  };
-  const s = colors[level] || colors.info;
+  const s = toastColors(level);
   return (
     <div style={{ position:"fixed", left:"50%", bottom:90, transform:"translateX(-50%)",
                   background:s.bg, color:s.color, padding:"10px 18px",

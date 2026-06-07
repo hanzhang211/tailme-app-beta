@@ -7,6 +7,7 @@
 
 import { useCallback, useState } from "react";
 import { STORE_STATUS, PRODUCT_STATUS } from "@/services/merchantService";
+import { toastColors } from "@/services/toastTheme";
 
 /** 轻量 toast：const { toast, ToastHost } = useToast(); 在 JSX 末尾放 <ToastHost /> */
 export function useToast() {
@@ -19,7 +20,7 @@ export function useToast() {
   const ToastHost = () =>
     !msg ? null : (
       <div style={{ position: "fixed", top: 22, left: "50%", transform: "translateX(-50%)", zIndex: 2000,
-                    background: msg.tone === "error" ? "#3A2218" : "#26201A", color: "#fff",
+                    background: toastColors(msg.tone).bg, color: toastColors(msg.tone).color,
                     padding: "11px 20px", borderRadius: 12, fontSize: 13.5, fontWeight: 600,
                     boxShadow: "0 8px 24px rgba(0,0,0,0.25)", maxWidth: "82vw" }}>
         {msg.tone === "error" ? "⚠️ " : msg.tone === "success" ? "✓ " : ""}{msg.text}
