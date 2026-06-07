@@ -259,19 +259,40 @@ export default function MapTab({ user, onOpenVerify }) {
 
         {/* 大地图悬浮控件（友好 / 警示）*/}
         {bigMap && mapPhase === "ready" && (
-          <div style={{ position: "absolute", right: 14, bottom: 22, zIndex: 6, display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-end" }}>
-            <RoundBtn icon="🔍" label="搜索" onClick={() => setShowSearch(true)} />
-            <RoundBtn icon="📍" label="定位" onClick={recenter} />
+          <>
+            {/* 搜索 / 定位：右侧竖排圆形工具按钮 */}
+            <div style={{ position: "absolute", right: 16, bottom: "calc(96px + env(safe-area-inset-bottom))",
+                          zIndex: 6, display: "flex", flexDirection: "column", gap: 12 }}>
+              <RoundBtn onClick={() => setShowSearch(true)} ariaLabel="搜索">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+                  <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                  <path d="M20 20l-3.4-3.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </RoundBtn>
+              <RoundBtn onClick={recenter} ariaLabel="定位">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="4.2" stroke="currentColor" strokeWidth="2" />
+                  <path d="M12 2.5v3.2M12 18.3v3.2M2.5 12h3.2M18.3 12h3.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </RoundBtn>
+            </div>
+
+            {/* 上报：右下角橙色胶囊主按钮 */}
             <button onClick={() => {
                 if ((user?.verification_status || "unverified") !== "approved") { setGateOpen(true); return; }
                 tab === "friendly" ? setShowFriForm(true) : setShowWarnForm(true);
               }}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 18px", borderRadius: 999, border: "none",
-                       background: tab === "friendly" ? C.pri : C.danger, color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer",
-                       boxShadow: `0 6px 18px ${tab === "friendly" ? "rgba(230,134,69,0.45)" : "rgba(217,84,43,0.45)"}` }}>
+              className="tm-fab"
+              style={{ position: "absolute", right: 16, bottom: "calc(24px + env(safe-area-inset-bottom))", zIndex: 6,
+                       display: "flex", alignItems: "center", gap: 6, height: 48, padding: "0 20px", borderRadius: 999,
+                       border: "none", outline: "none", WebkitTapHighlightColor: "transparent",
+                       background: C.pri, color: "#fff", fontSize: 14.5, fontWeight: 800, cursor: "pointer",
+                       boxShadow: "0 6px 18px rgba(230,134,69,0.45)" }}>
               ＋ {tab === "friendly" ? "上报友好地点" : "上报宠物警示"}
             </button>
-          </div>
+
+            <style>{`.tm-fab{transition:transform .12s ease}.tm-fab:active{transform:scale(.9)}`}</style>
+          </>
         )}
 
         {/* 大地图空态提示（数据为空时叠加，不挡操作）*/}
@@ -360,13 +381,13 @@ export default function MapTab({ user, onOpenVerify }) {
   );
 }
 
-function RoundBtn({ icon, label, onClick }) {
+function RoundBtn({ children, onClick, ariaLabel }) {
   return (
-    <button onClick={onClick}
-      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, width: 48, height: 48, borderRadius: "50%",
-               background: "#fff", border: `1px solid ${C.border}`, boxShadow: "0 3px 10px rgba(0,0,0,0.12)", cursor: "pointer" }}>
-      <span style={{ fontSize: 16, lineHeight: 1 }}>{icon}</span>
-      <span style={{ fontSize: 9, fontWeight: 700, color: C.sub }}>{label}</span>
+    <button onClick={onClick} aria-label={ariaLabel} className="tm-fab"
+      style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 46, height: 46, borderRadius: "50%",
+               background: "#fff", border: "none", outline: "none", WebkitTapHighlightColor: "transparent",
+               boxShadow: "0 3px 12px rgba(0,0,0,0.16)", cursor: "pointer", color: "#5A5048" }}>
+      {children}
     </button>
   );
 }
