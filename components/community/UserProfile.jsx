@@ -10,6 +10,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getUserById, getUserPets } from "@/services/supabaseService";
+import VerifyBadge from "@/components/profile/VerifyBadge";
 import {
   getFollowCounts, getUserLikeTotal, isFollowing, followUser, unfollowUser,
   listMyPosts, getMyLikedPostIds, likePost, unlikePost,
@@ -188,6 +189,7 @@ export default function UserProfile({ viewerId, userId, onClose }) {
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:20, fontWeight:800, color:C.text,
                             overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{name}</div>
+              {user?.verification_status === "approved" && <div style={{ marginTop:5 }}><VerifyBadge /></div>}
               {user?.user_no && <div style={{ fontSize:12, color:C.sub, marginTop:4 }}>用户号 {user.user_no}</div>}
               {user?.city && <div style={{ fontSize:12, color:C.sub, marginTop:3 }}>📍 {user.city}</div>}
             </div>

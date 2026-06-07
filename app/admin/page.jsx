@@ -28,6 +28,7 @@ import {
 import { avatarForBreed } from "@/services/breedAvatar";
 import { StoreReviewManager, ProductReviewManager } from "@/components/admin/MerchantReviews";
 import { DangerReviewManager, FriendlyManager } from "@/components/admin/DangerReviews";
+import { VerificationManager } from "@/components/admin/VerificationReviews";
 
 const C = {
   pri:    "#E68645",
@@ -319,6 +320,7 @@ function AdminTabs({ me }) {
   const TABS = [
     { key: "merchant", label: "商家资质", render: () => <StoreReviewManager adminId={me?.id} /> },
     { key: "product",  label: "商品",     render: () => <ProductReviewManager adminId={me?.id} /> },
+    { key: "verify",   label: "用户认证", render: () => <VerificationManager adminId={me?.id} /> },
     { key: "warning",  label: "宠物警示", render: () => <DangerReviewManager adminId={me?.id} /> },
     { key: "friendly", label: "友好地点", render: () => <FriendlyManager adminId={me?.id} /> },
     { key: "content",  label: "内容",     render: () => <FlaggedModeration adminId={me?.id} /> },

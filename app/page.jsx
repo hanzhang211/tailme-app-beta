@@ -35,6 +35,7 @@ import HealthPage,  { prefetchHealth }  from "@/components/home/HealthPage";
 import PetChatPage from "@/components/home/PetChatPage";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
 import PetOnboarding from "@/components/profile/PetOnboarding";
+import VerifyFlow from "@/components/profile/VerifyFlow";
 import PetAvatar from "@/components/PetAvatar";
 import MapIcon from "@/components/MapIcon";
 import ChatIcon from "@/components/ChatIcon";
@@ -1571,6 +1572,7 @@ export default function AppRoot() {
   const [pet, setPet]       = useState(null); // 当前激活宠物
   const [tab, setTab]       = useState(2);
   const [profileUserId, setProfileUserId] = useState(null); // 用户主页浮层
+  const [verifyOpen, setVerifyOpen] = useState(false);      // 资料认证浮层（全局）
 
   const userId = user?.id ?? null;
 
@@ -1697,11 +1699,11 @@ export default function AppRoot() {
   return shell(
     <>
       <div style={{ position:"absolute", top:0, left:0, right:0, bottom:60, overflow:"hidden" }}>
-        {tab === 0 && <SocialTab user={user} pet={pet} pets={pets} onOpenProfile={setProfileUserId} />}
-        {tab === 1 && <MapTab />}
+        {tab === 0 && <SocialTab user={user} pet={pet} pets={pets} onOpenProfile={setProfileUserId} onOpenVerify={() => setVerifyOpen(true)} />}
+        {tab === 1 && <MapTab user={user} onOpenVerify={() => setVerifyOpen(true)} />}
         {tab === 2 && <HomeTab user={user} pet={pet} pets={pets} onPetUpdate={handlePetDataUpdated} onSwitchPet={setActivePet} />}
         {tab === 3 && <CommunityTab user={user} pet={pet} pets={pets} onUserUpdated={setUser} onOpenProfile={setProfileUserId} />}
-        {tab === 4 && <ProfileTab user={user} pet={pet} onSetActivePet={setActivePet} onPetUpdated={handlePetDataUpdated} onPetDeleted={handlePetDeleted} onUserUpdated={setUser} onOpenProfile={setProfileUserId} onLogout={handleLogout} />}
+        {tab === 4 && <ProfileTab user={user} pet={pet} onSetActivePet={setActivePet} onPetUpdated={handlePetDataUpdated} onPetDeleted={handlePetDeleted} onUserUpdated={setUser} onOpenProfile={setProfileUserId} onOpenVerify={() => setVerifyOpen(true)} onLogout={handleLogout} />}
       </div>
       <div style={{ position:"absolute", bottom:0, left:0, right:0, height:60,
                     background:"white", display:"flex", zIndex:100 }}>
@@ -1746,6 +1748,14 @@ export default function AppRoot() {
       {profileUserId && (
         <UserProfile viewerId={user?.id} userId={profileUserId}
           onClose={() => setProfileUserId(null)} />
+      )}
+
+      {/* 资料认证浮层（全局；遛弯/上报/我的页均可唤起） */}
+      {verifyOpen && (
+        <VerifyFlow user={user}
+          rejectedReason={user?.verification_status === "rejected" ? user?.verification_rejected_reason : null}
+          onClose={() => setVerifyOpen(false)}
+          onSubmitted={() => setUser((u) => (u ? { ...u, verification_status: "pending", verification_rejected_reason: null } : u))} />
       )}
     </>
   );

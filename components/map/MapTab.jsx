@@ -26,6 +26,7 @@ import {
 } from "./FacilityParts";
 import DangerReportForm from "./DangerReportForm";
 import FriendlyReportForm from "./FriendlyReportForm";
+import VerifyGateModal from "@/components/profile/VerifyGateModal";
 import PlacePicker from "./PlacePicker";
 
 const C = {
@@ -53,10 +54,11 @@ const labelMarker = (text, color, lead = "") =>
    </div>`;
 
 /* ════════════════════════════════════════════════════════ */
-export default function MapTab() {
+export default function MapTab({ user, onOpenVerify }) {
   const divRef = useRef(null);
   const mapRef = useRef(null);
   const mksRef = useRef([]);
+  const [gateOpen, setGateOpen] = useState(false); // 认证拦截弹窗（上报需认证）
 
   const [location, setLocation] = useState(null);
   const [locating, setLocating] = useState(true);
@@ -259,7 +261,10 @@ export default function MapTab() {
           <div style={{ position: "absolute", right: 14, bottom: 22, zIndex: 6, display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-end" }}>
             <RoundBtn icon="🔍" label="搜索" onClick={() => setShowSearch(true)} />
             <RoundBtn icon="📍" label="定位" onClick={recenter} />
-            <button onClick={() => (tab === "friendly" ? setShowFriForm(true) : setShowWarnForm(true))}
+            <button onClick={() => {
+                if ((user?.verification_status || "unverified") !== "approved") { setGateOpen(true); return; }
+                tab === "friendly" ? setShowFriForm(true) : setShowWarnForm(true);
+              }}
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 18px", borderRadius: 999, border: "none",
                        background: tab === "friendly" ? C.pri : C.danger, color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer",
                        boxShadow: `0 6px 18px ${tab === "friendly" ? "rgba(230,134,69,0.45)" : "rgba(217,84,43,0.45)"}` }}>
@@ -326,6 +331,9 @@ export default function MapTab() {
 
       {showFriForm && <FriendlyReportForm location={location} onClose={() => setShowFriForm(false)} onSubmitted={() => setFriVer((v) => v + 1)} />}
       {showWarnForm && <DangerReportForm location={location} onClose={() => setShowWarnForm(false)} onSubmitted={() => setWarnVer((v) => v + 1)} />}
+
+      {gateOpen && <VerifyGateModal status={user?.verification_status || "unverified"}
+        onClose={() => setGateOpen(false)} onGoVerify={onOpenVerify} />}
 
       {showSearch && (
         <div style={{ position: "fixed", inset: 0, zIndex: 1600, background: "rgba(26,16,6,0.4)", display: "flex", alignItems: "flex-end" }}

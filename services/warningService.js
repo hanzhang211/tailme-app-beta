@@ -38,23 +38,17 @@ export async function uploadWarningImage(file, userId = "anon") {
 }
 
 export async function submitWarning(payload) {
-  const row = {
-    reporter_user_id: payload.reporterUserId || null,
-    title:            payload.title || null,
-    event_type:       payload.eventType,
-    event_type_other: payload.eventTypeOther || null,
-    description:      payload.description || null,
-    place_name:       payload.placeName || null,
-    address:          payload.address || null,
-    latitude:         payload.latitude ?? null,
-    longitude:        payload.longitude ?? null,
-    images:           payload.images || [],
-    contact_info:     payload.contactInfo || null,
-    anonymous:        payload.anonymous !== false,
-    status:           "pending",
-  };
-  // 不要 .select() 返回：SELECT 策略只允许 approved，返回新插入的 pending 行会触发 RLS。
-  const { error } = await sb().from("pet_warning_reports").insert(row);
-  if (error) throw new Error(error.message);
-  return { ...row, status: "pending" };
+  // 后端硬校验认证（service_role）：仅 approved 用户可上报，防绕过前端拦截。
+  const res = await fetch("/api/reports/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: payload.reporterUserId || null, kind: "warning", payload }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(json?.error || "提交失败");
+    err.code = json?.code;
+    throw err;
+  }
+  return json;
 }

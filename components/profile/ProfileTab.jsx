@@ -31,6 +31,7 @@ import BackButton      from "@/components/icons/BackButton";
 import BgCropModal      from "./BgCropModal";
 import ShopMall         from "@/components/shop/ShopMall";
 import MyReviews        from "./MyReviews";
+import VerifyBadge       from "./VerifyBadge";
 import PetEditor       from "./PetEditor";
 import PetOnboarding   from "./PetOnboarding";
 import SettingsModal   from "./SettingsModal";
@@ -116,7 +117,7 @@ function WalkEntryIcon({ size = 28 }) {
   );
 }
 
-export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, onPetDeleted, onUserUpdated, onOpenProfile, onLogout }) {
+export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, onPetDeleted, onUserUpdated, onOpenProfile, onOpenVerify, onLogout }) {
   const [pets,        setPets]        = useState([]);
   const [stats,       setStats]       = useState({ totalLikes: 0, postCount: 0, likedCount: 0 });
   const [myPosts,     setMyPosts]     = useState([]);
@@ -483,15 +484,19 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
                               fontSize:12, fontWeight:700, color:"white", lineHeight:1 }}>⌄</div>
               </div>
 
-              {/* 用户名 + 用户号 */}
+              {/* 用户名 + 用户号（已认证时昵称下显示小 badge）*/}
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:22, fontWeight:800, color:C.text,
                               overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                   {user?.username || "未命名"}
                 </div>
-                <div style={{ fontSize:13, color:C.sub, marginTop:5 }}>
-                  用户号 {user?.user_no || maskPhone(user?.phone)}
-                </div>
+                {user?.verification_status === "approved" ? (
+                  <div style={{ marginTop:6 }}><VerifyBadge /></div>
+                ) : (
+                  <div style={{ fontSize:13, color:C.sub, marginTop:5 }}>
+                    用户号 {user?.user_no || maskPhone(user?.phone)}
+                  </div>
+                )}
               </div>
 
               {/* 个人主页 */}
@@ -527,6 +532,69 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
               ))}
             </div>
           </div>
+
+          {/* 认证状态区（approved 不显示卡片，只在昵称旁小 badge）*/}
+          {user?.verification_status !== "approved" && (
+            <div style={{ padding:"12px 14px 0" }}>
+              {(() => {
+                const vs = user?.verification_status || "unverified";
+                if (vs === "pending") {
+                  return (
+                    <div style={{ background:"#FBEED6", borderRadius:20, padding:"15px 16px",
+                                  display:"flex", alignItems:"center", gap:12 }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:14.5, fontWeight:800, color:"#8A5A2E" }}>认证审核中</div>
+                        <div style={{ fontSize:12, color:"#A9824E", marginTop:4, lineHeight:1.5 }}>我们会尽快完成审核，请耐心等待</div>
+                      </div>
+                      <span style={{ flexShrink:0, display:"inline-flex", alignItems:"center", gap:5, padding:"7px 13px",
+                                     borderRadius:999, background:"#fff", color:"#C0612A", fontSize:12, fontWeight:800 }}>🕒 审核中</span>
+                    </div>
+                  );
+                }
+                if (vs === "rejected") {
+                  return (
+                    <div style={{ background:"#FBDAD7", borderRadius:20, padding:"15px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:14.5, fontWeight:800, color:"#C0392B" }}>认证未通过</div>
+                          <div style={{ fontSize:12, color:"#A6453A", marginTop:4, lineHeight:1.5 }}>请查看原因并重新提交</div>
+                        </div>
+                        <button onClick={onOpenVerify}
+                          style={{ flexShrink:0, padding:"9px 16px", borderRadius:999, border:"none",
+                                   background:C.pri, color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer" }}>重新认证</button>
+                      </div>
+                      {user?.verification_rejected_reason && (
+                        <div style={{ marginTop:10, background:"#fff", borderRadius:12, padding:"9px 12px",
+                                      fontSize:12.5, color:"#7A2218", lineHeight:1.6 }}>
+                          驳回原因：{user.verification_rejected_reason}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                // unverified
+                return (
+                  <div style={{ background:"#F8E3CE", borderRadius:20, padding:"15px 16px",
+                                display:"flex", alignItems:"center", gap:12 }}>
+                    <span style={{ flexShrink:0, width:44, height:44, borderRadius:13, background:"#fff",
+                                   display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2.6l7 2.6v6.1c0 4.4-3 8-7 10.1-4-2.1-7-5.7-7-10.1V5.2l7-2.6Z" fill={C.pri}/>
+                        <path d="M8.6 12.1l2.3 2.3 4.4-4.5" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:14.5, fontWeight:800, color:"#8A5A2E" }}>完成认证，开启更多功能</div>
+                      <div style={{ fontSize:11.5, color:"#A9824E", marginTop:4, lineHeight:1.5 }}>认证后可使用遛弯、宠物友好地点上传、宠物警示上报等功能</div>
+                    </div>
+                    <button onClick={onOpenVerify}
+                      style={{ flexShrink:0, padding:"9px 16px", borderRadius:999, border:"none",
+                               background:C.pri, color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer" }}>去认证</button>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
 
           {/* 功能入口：商城 / 审核 / 代遛 */}
           <div style={{ padding:"12px 14px 0" }}>

@@ -36,25 +36,17 @@ export async function uploadFriendlyImage(file, userId = "anon") {
 }
 
 export async function submitFriendly(payload) {
-  const row = {
-    reporter_user_id: payload.reporterUserId || null,
-    title:            payload.title || payload.placeName || "宠物友好地点",
-    description:      payload.description || null,
-    place_name:       payload.placeName || null,
-    address:          payload.address || null,
-    latitude:         payload.latitude ?? null,
-    longitude:        payload.longitude ?? null,
-    images:           payload.images || [],
-    has_water_bowl:   !!payload.hasWaterBowl,
-    has_food_bowl:    !!payload.hasFoodBowl,
-    allow_pet_inside: !!payload.allowPetInside,
-    good_for_rest:    !!payload.goodForRest,
-    contact_info:     payload.contactInfo || null,
-    anonymous:        payload.anonymous !== false,
-    status:           "pending",     // 审核制：待 admin 通过
-  };
-  // 不要 .select()：SELECT 策略只允许 approved，返回新插入 pending 行会触发 RLS。
-  const { error } = await sb().from("pet_friendly_reports").insert(row);
-  if (error) throw new Error(error.message);
-  return { ...row };
+  // 后端硬校验认证（service_role）：仅 approved 用户可上报，防绕过前端拦截。
+  const res = await fetch("/api/reports/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: payload.reporterUserId || null, kind: "friendly", payload }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(json?.error || "提交失败");
+    err.code = json?.code;
+    throw err;
+  }
+  return json;
 }

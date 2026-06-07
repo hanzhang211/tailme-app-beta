@@ -117,7 +117,7 @@ function PawWhite({ size = 16 }) {
   );
 }
 
-export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
+export default function SocialTab({ user, pet, pets = [], onOpenProfile, onOpenVerify }) {
   const [profile, setProfile]   = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [nearby, setNearby]     = useState([]);
@@ -291,6 +291,48 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile }) {
       else setNearby([]);
     } catch {}
   };
+
+  // 认证拦截：遛弯仅认证用户可用
+  const vs = user?.verification_status || "unverified";
+  if (vs !== "approved") {
+    const pending = vs === "pending", rejected = vs === "rejected";
+    return (
+      <div style={{ height:"100%", overflowY:"auto", background:C.bg }}>
+        <div style={{ padding:"52px 18px 14px" }}>
+          <div style={{ fontSize:21, fontWeight:800, color:C.text, display:"flex", alignItems:"center", gap:8 }}>
+            <PawOrange size={20} /> 附近狗狗
+          </div>
+          <div style={{ fontSize:12.5, color:C.sub, marginTop:3 }}>发现 3km 内愿意一起遛弯的毛孩子</div>
+        </div>
+        <div style={{ margin:"40px 22px 0", background:"#fff", borderRadius:22, padding:"30px 22px",
+                      textAlign:"center", boxShadow:"0 2px 14px rgba(0,0,0,0.05)" }}>
+          <div style={{ width:72, height:72, borderRadius:"50%", background:"#FBE6D4", margin:"0 auto 16px",
+                        display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+              <rect x="5" y="10.5" width="14" height="9.5" rx="2.4" fill={C.pri}/>
+              <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" stroke={C.pri} strokeWidth="1.9" fill="none" strokeLinecap="round"/>
+              <circle cx="12" cy="15" r="1.5" fill="#fff"/>
+            </svg>
+          </div>
+          <div style={{ fontSize:16.5, fontWeight:800, color:C.text, marginBottom:10 }}>
+            {pending ? "认证审核中" : "完成认证后即可使用遛弯"}
+          </div>
+          <div style={{ fontSize:13, color:C.sub, lineHeight:1.65, marginBottom:22 }}>
+            {pending ? "认证审核中，审核通过后即可使用遛弯交友功能"
+              : rejected ? "认证未通过，请重新提交认证后使用遛弯交友功能"
+              : "为了保护宠物家长和毛孩子的安全，使用遛弯交友前，需要先完成资料认证。"}
+          </div>
+          {!pending && (
+            <button onClick={onOpenVerify}
+              style={{ width:"100%", maxWidth:280, padding:"13px 0", borderRadius:999, border:"none",
+                       background:C.pri, color:"#fff", fontSize:15, fontWeight:800, cursor:"pointer" }}>
+              {rejected ? "重新认证" : "去认证"}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ height:"100%", overflowY:"auto", background:C.bg }}>
