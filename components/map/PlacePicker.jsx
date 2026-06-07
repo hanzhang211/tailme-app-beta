@@ -13,7 +13,7 @@ const C = {
   pri: "#E68645", bg: "#EEE9E1", tint: "#F2E5DA", text: "#1A1006", sub: "#8A8074", border: "#E4DDD2",
 };
 
-export default function PlacePicker({ location, onPick, placeholder = "搜索门店、小区或地址", allowCurrent = true }) {
+export default function PlacePicker({ location, onPick, placeholder = "搜索门店、小区或地址", allowCurrent = true, autoFocus = false }) {
   const [kw, setKw] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -39,7 +39,7 @@ export default function PlacePicker({ location, onPick, placeholder = "搜索门
           <circle cx="11" cy="11" r="7" stroke={C.sub} strokeWidth="2" />
           <path d="M20 20l-3.2-3.2" stroke={C.sub} strokeWidth="2" strokeLinecap="round" />
         </svg>
-        <input value={kw} onChange={(e) => setKw(e.target.value)} placeholder={placeholder} autoFocus
+        <input value={kw} onChange={(e) => setKw(e.target.value)} placeholder={placeholder} autoFocus={autoFocus}
           style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, color: C.text, minWidth: 0 }} />
         {kw && <span onClick={() => setKw("")} style={{ color: C.sub, cursor: "pointer", fontSize: 16 }}>×</span>}
       </div>
