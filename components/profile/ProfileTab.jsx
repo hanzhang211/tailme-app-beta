@@ -30,6 +30,7 @@ import PetTrashIcon    from "@/components/icons/PetTrashIcon";
 import BackButton      from "@/components/icons/BackButton";
 import BgCropModal      from "./BgCropModal";
 import ShopMall         from "@/components/shop/ShopMall";
+import MyReviews        from "./MyReviews";
 import PetEditor       from "./PetEditor";
 import PetOnboarding   from "./PetOnboarding";
 import SettingsModal   from "./SettingsModal";
@@ -92,6 +93,28 @@ function ShopBagIcon({ size = 30 }) {
     </svg>
   );
 }
+/* 审核入口图标（剪贴板 + 勾）*/
+function ReviewEntryIcon({ size = 28 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="5" y="4" width="14" height="17" rx="2.6" stroke={C.pri} strokeWidth="1.8"/>
+      <rect x="8.6" y="2.6" width="6.8" height="3.4" rx="1.4" fill={C.pri}/>
+      <path d="M8.6 13.2l2.2 2.2 4.4-4.4" stroke={C.pri} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+/* 代遛入口图标（牵绳遛狗，置灰）*/
+function WalkEntryIcon({ size = 28 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="7" cy="5.5" r="2" stroke={C.sub} strokeWidth="1.7"/>
+      <path d="M7 7.5v6m0 0l-2.5 6m2.5-6l2.5 3 2 3" stroke={C.sub} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M9.5 10.5l3-1" stroke={C.sub} strokeWidth="1.7" strokeLinecap="round"/>
+      <path d="M15 14.5h3.2l1.3 3.5h-2.2a2 2 0 0 1-2-1.5l-.3-2z" stroke={C.sub} strokeWidth="1.6" strokeLinejoin="round"/>
+      <path d="M18.2 14.5v-1.3l1.6-1" stroke={C.sub} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
 
 export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, onPetDeleted, onUserUpdated, onOpenProfile, onLogout }) {
   const [pets,        setPets]        = useState([]);
@@ -113,6 +136,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   const [bgPreview, setBgPreview] = useState(null);                 // 裁剪后本地预览（秒显，无需刷新）
   const [contactOpen, setContactOpen]   = useState(false);          // 联系我们
   const [shopOpen, setShopOpen]         = useState(false);          // 宠物商城浮层
+  const [reviewsOpen, setReviewsOpen]   = useState(false);          // 用户端审核浮层
   const bgFileRef = useRef();
 
   // 关注/粉丝
@@ -483,29 +507,46 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
                 个人主页 ›
               </button>
             </div>
-          </div>
 
-          {/* 统计卡片：获赞 ｜ 关注 ｜ 粉丝 ｜ 商城 */}
-          <div style={{ padding:"12px 14px 0" }}>
-            <div style={{ display:"flex", background:"white", borderRadius:24, padding:"18px 0",
-                          boxShadow:"0 2px 14px rgba(0,0,0,0.05)" }}>
+            {/* 获赞 / 关注 / 粉丝（并入用户卡，浅灰竖线分隔）*/}
+            <div style={{ display:"flex", marginTop:16, paddingTop:14, borderTop:`1px solid ${C.bg}` }}>
               {[
-                { label:"获赞", val: stats.totalLikes,        icon:<PawLikeIcon filled color="#E68645" size={20} />, onClick: null },
+                { label:"获赞", val: stats.totalLikes,        icon:<PawLikeIcon filled color={C.pri} size={18} />, onClick: null },
                 { label:"关注", val: followCounts.following,  icon:<UsersStatIcon />, onClick: () => setFollowView("following") },
                 { label:"粉丝", val: followCounts.followers,  icon:<FansStatIcon />,  onClick: () => setFollowView("followers") },
-                { label:"商城", entry:true,                   icon:<ShopBagIcon size={30} />, onClick: () => setShopOpen(true) },
               ].map((s, i) => (
                 <div key={s.label} onClick={s.onClick || undefined}
                   style={{ flex:1, textAlign:"center", cursor: s.onClick ? "pointer" : "default",
                            borderLeft: i > 0 ? `1px solid ${C.border}` : "none" }}>
-                  {s.entry ? (
-                    <div style={{ height:58, display:"flex", alignItems:"center", justifyContent:"center" }}>{s.icon}</div>
-                  ) : (<>
-                    <div style={{ fontSize:24, fontWeight:800, color:C.text, lineHeight:1.1 }}>{s.val}</div>
-                    <div style={{ display:"flex", justifyContent:"center", margin:"7px 0 5px", height:20 }}>{s.icon}</div>
-                  </>)}
-                  <div style={{ fontSize:12, color: s.entry ? C.pri : C.sub, fontWeight: s.entry ? 700 : 400 }}>{s.label}</div>
+                  <div style={{ fontSize:21, fontWeight:800, color:C.text, lineHeight:1.1 }}>{s.val}</div>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:5, marginTop:6 }}>
+                    <span style={{ display:"flex", width:18, height:18, alignItems:"center", justifyContent:"center" }}>{s.icon}</span>
+                    <span style={{ fontSize:12, color:C.sub }}>{s.label}</span>
+                  </div>
                 </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 功能入口：商城 / 审核 / 代遛 */}
+          <div style={{ padding:"12px 14px 0" }}>
+            <div style={{ display:"flex", background:"white", borderRadius:24, padding:"16px 8px",
+                          boxShadow:"0 2px 14px rgba(0,0,0,0.05)" }}>
+              {[
+                { key:"shop",   label:"商城", icon:<ShopBagIcon size={28} />, onClick: () => setShopOpen(true) },
+                { key:"review", label:"审核", icon:<ReviewEntryIcon />,        onClick: () => setReviewsOpen(true) },
+                { key:"walk",   label:"代遛", icon:<WalkEntryIcon />, disabled:true,
+                  onClick: () => toast("代遛功能即将开通") },
+              ].map((e) => (
+                <button key={e.key} onClick={e.onClick}
+                  style={{ flex:1, background:"none", border:"none", cursor:"pointer",
+                           display:"flex", flexDirection:"column", alignItems:"center", gap:8, padding:"4px 0",
+                           opacity: e.disabled ? 0.5 : 1 }}>
+                  <span style={{ width:52, height:52, borderRadius:16, background: e.disabled ? "#EEEAE2" : C.tint,
+                                 display:"flex", alignItems:"center", justifyContent:"center" }}>{e.icon}</span>
+                  <span style={{ fontSize:13, fontWeight:700, color: e.disabled ? C.sub : C.text }}>{e.label}</span>
+                  {e.disabled && <span style={{ fontSize:10, color:C.sub, marginTop:-4 }}>即将开通</span>}
+                </button>
               ))}
             </div>
           </div>
@@ -535,6 +576,9 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
 
       {/* 宠物商城（全屏浮层） */}
       {shopOpen && <ShopMall onClose={() => setShopOpen(false)} toast={toast} />}
+
+      {/* 用户端审核（全屏浮层） */}
+      {reviewsOpen && <MyReviews user={user} onClose={() => setReviewsOpen(false)} toast={toast} />}
 
       {/* 背景图裁剪取景 */}
       {bgFile && (
