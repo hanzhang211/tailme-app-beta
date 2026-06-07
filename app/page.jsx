@@ -17,7 +17,6 @@ import {
   savePetProfile,
   getFeedingPlan,
   saveFeedingPlan,
-  saveHealthUpload,
   setUsername,
   isUsernameTaken,
   updatePet,
@@ -33,7 +32,6 @@ import ProfileTab from "@/components/profile/ProfileTab";
 import ExpensePage, { prefetchExpense } from "@/components/home/ExpensePage";
 import RecipePage,  { prefetchRecipes } from "@/components/home/RecipePage";
 import HealthPage,  { prefetchHealth }  from "@/components/home/HealthPage";
-import NewsPage, { NewsCover } from "@/components/home/NewsPage";
 import PetChatPage from "@/components/home/PetChatPage";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
 import PetOnboarding from "@/components/profile/PetOnboarding";
@@ -49,18 +47,7 @@ import {
 import { DOG_BREEDS, CAT_BREEDS } from "@/services/breedAvatar";
 import { getMonthlyTotal } from "@/services/petExpenseService";
 import { getTodayRecipe }  from "@/services/petRecipeService";
-import { getLatestNews }   from "@/services/petNewsService";
 import { listDiseaseRecords, isMedDoneToday } from "@/services/petHealthService";
-
-/* ══════════════════════════════════════════════════════════════
-   AI Stub（社群已迁至 components/community/CommunityTab.jsx 真实数据）
-══════════════════════════════════════════════════════════════ */
-const _delay = (ms) => new Promise((r) => setTimeout(r, ms));
-const aiHealthService = {
-  analyzeFoodImage:  async () => { await _delay(2200); return AI_RES.food;  },
-  analyzePoopImage:  async () => { await _delay(2200); return AI_RES.poop;  },
-  analyzeOtherImage: async () => { await _delay(2200); return AI_RES.other; },
-};
 
 /* ══════════════════════════════════════════════════════════════
    STATIC DATA（地图/聊天/附近狗狗 UI 数据）
@@ -102,12 +89,6 @@ const isHungry = (bt, dt) => {
   const [bh, bm] = bt.split(":").map(Number);
   const [dh, dm] = dt.split(":").map(Number);
   return (m > bh * 60 + bm + 180 && m < dh * 60 + dm - 120) || m > dh * 60 + dm + 180;
-};
-
-const AI_RES = {
-  food:  { score:85, risk:"低", rc:"#4CAF50", txt:"食物搭配营养均衡，蛋白质含量适中。建议继续保持当前饮食，可适量补充益生菌。" },
-  poop:  { score:78, risk:"低", rc:"#4CAF50", txt:"排泄物颜色和形态正常，水分含量适中。肠胃健康状况良好，继续日常观察即可。" },
-  other: { score:65, risk:"中", rc:"#FA8C16", txt:"发现少量异常分泌物，可能与轻微炎症或过敏有关。建议近期关注症状，如持续出现请就医。" },
 };
 
 /* ══════════════════════════════════════════════════════════════
@@ -518,7 +499,6 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   const [subPage, setSubPage] = useState(null);
   const [monthExpense, setMonthExpense] = useState(null);
   const [todayRecipe,  setTodayRecipe]  = useState(null);
-  const [latestNews,   setLatestNews]   = useState(null);
   const [avatarOpen,       setAvatarOpen]   = useState(false);
   const [avatarBroken,     setAvatarBroken] = useState(false);
   const [avatarLoaded,     setAvatarLoaded] = useState(false);
@@ -599,7 +579,6 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     let alive = true;
     getMonthlyTotal(user.id).then((v) => { if (alive) setMonthExpense(v); }).catch(() => {});
     getTodayRecipe().then((r) => { if (alive) setTodayRecipe(r); }).catch(() => {});
-    getLatestNews().then((n) => { if (alive) setLatestNews(n); }).catch(() => {});
     // 后台预取记账/食谱/健康全量数据，点进子页时秒开有内容
     prefetchExpense(user.id);
     prefetchRecipes();
@@ -638,11 +617,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     setDoneMeals(next);
     try { localStorage.setItem(feedDoneKey, JSON.stringify(next)); } catch {}
   };
-  const [uplType, setUpl]   = useState(null);
-  const [loading, setLoad]  = useState(false);
-  const [result, setResult] = useState(null);
   const [feedError, setFeedError]     = useState(null);
-  const [uploadError, setUploadError] = useState(null);
 
   // 切换宠物时重新加载该宠物的喂食计划
   useEffect(() => {
@@ -754,24 +729,6 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
       }
     }
     setEdit((v) => !v);
-  };
-
-  const handleUpload = async (type) => {
-    setUpl(type); setResult(null); setLoad(true); setUploadError(null);
-    try {
-      const analyze = type === "food"
-        ? aiHealthService.analyzeFoodImage
-        : type === "poop"
-          ? aiHealthService.analyzePoopImage
-          : aiHealthService.analyzeOtherImage;
-      const res = await analyze("pending_upload", pet);
-      await saveHealthUpload({ pet_id: pet.id, type, score: res.score, risk_level: res.risk, analysis: res.txt });
-      setResult(res);
-    } catch (err) {
-      setUploadError(err.message);
-    } finally {
-      setLoad(false);
-    }
   };
 
   // HomeTab 本地白底科技风配色（仅作用于本 Tab，保留橙色作为点缀）
@@ -1003,10 +960,6 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     return <PetChatPage user={user} pet={pet} onPetUpdate={onPetUpdate}
                         onBack={() => setSubPage(null)} />;
   }
-  if (subPage === "news") {
-    return <NewsPage onBack={() => setSubPage(null)} />;
-  }
-
   return (
     <div style={{ height:"100%", overflowY:"auto", background:H_BG }}>
       {completeOpen && (
@@ -1487,83 +1440,6 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           );
         })()}
 
-        {/* 活动推送 / 资讯 */}
-        <button onClick={() => setSubPage("news")}
-          style={{ width:"100%", background:"white", border:`1px solid ${H_BORDER}`,
-                   borderRadius:20, padding:14, marginBottom:12, boxShadow:H_SHADOW,
-                   cursor:"pointer", textAlign:"left",
-                   display:"flex", alignItems:"center", gap:12 }}>
-          <NewsCover news={latestNews} size={64} />
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
-              <span style={{ fontSize:11, color:C.accent, fontWeight:700 }}>📰 活动推送</span>
-              <span style={{ fontSize:10, color:H_SUB }}>· 更多 ›</span>
-            </div>
-            <div style={{ fontSize:13, fontWeight:700, color:C.text, lineHeight:1.4,
-                          display:"-webkit-box", WebkitLineClamp:2,
-                          WebkitBoxOrient:"vertical", overflow:"hidden" }}>
-              {latestNews?.title || "暂无资讯，去看看更多 →"}
-            </div>
-          </div>
-        </button>
-
-        {/* AI Upload */}
-        <div style={{ background:"white", border:`1px solid ${H_BORDER}`, borderRadius:20,
-                      padding:16, marginBottom:12, boxShadow:H_SHADOW }}>
-          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-            <span style={{ fontSize:18 }}>🔬</span>
-            <span style={{ fontSize:14, fontWeight:700, color:C.text }}>AI 健康分析</span>
-            <span style={{ marginLeft:"auto", fontSize:10, background:C.tint, color:C.accent,
-                           border:`1px solid ${C.tint}`,
-                           padding:"2px 9px", borderRadius:20, fontWeight:600 }}>Beta</span>
-          </div>
-          <div style={{ fontSize:11, color:H_SUB, marginBottom:14 }}>上传照片，AI 帮你初步分析健康状况</div>
-          <div style={{ display:"flex", gap:8 }}>
-            {[["food","🥩","食物照片"],["poop","💩","便便照片"],["other","🔍","分泌物"]].map(([key, em, lbl]) => (
-              <button key={key} onClick={() => handleUpload(key)}
-                style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center",
-                         padding:"12px 6px", borderRadius:16,
-                         background:uplType === key ? C.tint : H_SURFACE,
-                         border:`1.5px solid ${uplType === key ? C.pri : H_BORDER}`,
-                         cursor:"pointer", transition:"all .2s" }}>
-                <span style={{ fontSize:24 }}>{em}</span>
-                <span style={{ fontSize:10, color:C.text, marginTop:5, textAlign:"center", lineHeight:1.3 }}>{lbl}</span>
-              </button>
-            ))}
-          </div>
-          {loading && (
-            <div style={{ marginTop:18, textAlign:"center", padding:"12px 0" }}>
-              <div style={{ fontSize:28, display:"inline-block", animation:"spin 1s linear infinite" }}>⟳</div>
-              <div style={{ fontSize:12, color:H_SUB, marginTop:8 }}>AI 分析中，请稍候...</div>
-            </div>
-          )}
-          <ErrBox msg={uploadError} />
-          {result && !loading && (
-            <div style={{ marginTop:14, borderRadius:16, padding:16, background:C.tint, border:`1px solid ${H_BORDER}` }}>
-              <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${H_BORDER}` }}>
-                <div style={{ textAlign:"center" }}>
-                  <div style={{ fontSize:30, fontWeight:800, color:result.rc, lineHeight:1 }}>{result.score}</div>
-                  <div style={{ fontSize:10, color:H_SUB, marginTop:2 }}>健康评分</div>
-                </div>
-                <div style={{ width:1, height:40, background:H_BORDER }}/>
-                <div style={{ textAlign:"center" }}>
-                  <div style={{ fontSize:14, fontWeight:700, color:result.rc }}>风险：{result.risk}</div>
-                  <div style={{ fontSize:10, color:H_SUB, marginTop:2 }}>当前等级</div>
-                </div>
-                <div style={{ marginLeft:"auto", width:42, height:42, borderRadius:"50%",
-                              background:`${result.rc}22`, display:"flex", alignItems:"center",
-                              justifyContent:"center", fontSize:22 }}>
-                  {result.score >= 80 ? "😊" : result.score >= 65 ? "😐" : "😟"}
-                </div>
-              </div>
-              <div style={{ fontSize:13, lineHeight:1.7, color:C.text, marginBottom:10 }}>{result.txt}</div>
-              <div style={{ fontSize:11, background:"white", border:`1px solid ${H_BORDER}`,
-                            borderRadius:12, padding:"8px 12px", color:H_SUB, lineHeight:1.5 }}>
-                ⚠️ 本结果仅为健康辅助参考，不能替代兽医诊断。如有疑虑请及时就医。
-              </div>
-            </div>
-          )}
-        </div>
       </div>
       <style>{`
         @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }

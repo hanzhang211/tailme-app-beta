@@ -310,15 +310,6 @@ export async function saveFeedingPlan(petId, feedings) {
   if (insErr) throw new Error(`保存喂食计划失败: ${insErr.message}`);
 }
 
-/* ── 保存健康上传记录 ─────────────────────────────────────────── */
-export async function saveHealthUpload(upload) {
-  const sb = requireSupabase();
-  const { error } = await sb
-    .from("health_uploads")
-    .insert({ ...upload, created_at: new Date().toISOString() });
-  if (error) throw new Error(`保存健康记录失败: ${error.message}`);
-}
-
 /* ── 后台统计（各表真实 count）────────────────────────────────
    count = number（含 0）→ 正常
    count = null          → 该表查询失败（含错误原因）
@@ -334,10 +325,9 @@ export async function getAdminStats() {
     return { count, error: null };
   };
 
-  const [users, pets, uploads, messages, shops] = await Promise.all([
+  const [users, pets, messages, shops] = await Promise.all([
     queryCount("users"),
     queryCount("pets"),
-    queryCount("health_uploads"),
     queryCount("messages"),
     queryCount("shops"),
   ]);
@@ -345,13 +335,11 @@ export async function getAdminStats() {
   return {
     total_users:    users.count,
     total_pets:     pets.count,
-    health_uploads: uploads.count,
     chat_messages:  messages.count,
     partner_shops:  shops.count,
     errors: {
       users:    users.error,
       pets:     pets.error,
-      uploads:  uploads.error,
       messages: messages.error,
       shops:    shops.error,
     },

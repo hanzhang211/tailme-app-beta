@@ -25,12 +25,6 @@ import {
   adminCreateRecipe,
   adminDeleteRecipe,
 } from "@/services/petRecipeService";
-import {
-  listNews,
-  adminCreateNews,
-  adminUpdateNews,
-  adminDeleteNews,
-} from "@/services/petNewsService";
 import { avatarForBreed } from "@/services/breedAvatar";
 import { StoreReviewManager, ProductReviewManager } from "@/components/admin/MerchantReviews";
 import { DangerReviewManager, FriendlyManager } from "@/components/admin/DangerReviews";
@@ -207,7 +201,6 @@ function AdminMain({ me, onSwitch }) {
     ? [
         { icon: "👤", label: "注册用户",   val: stats.total_users,    err: stats.errors?.users    },
         { icon: "🐾", label: "宠物数量",   val: stats.total_pets,     err: stats.errors?.pets     },
-        { icon: "🔬", label: "健康上传",   val: stats.health_uploads, err: stats.errors?.uploads  },
         { icon: "💬", label: "聊天消息",   val: stats.chat_messages,  err: stats.errors?.messages },
         { icon: "🏪", label: "商铺数量",   val: stats.partner_shops,  err: stats.errors?.shops    },
       ]
@@ -330,7 +323,6 @@ function AdminTabs({ me }) {
     { key: "friendly", label: "友好地点", render: () => <FriendlyManager adminId={me?.id} /> },
     { key: "content",  label: "内容",     render: () => <FlaggedModeration adminId={me?.id} /> },
     { key: "recipe",   label: "食谱",     render: () => <RecipeManager adminId={me?.id} /> },
-    { key: "news",     label: "资讯",     render: () => <NewsManager adminId={me?.id} /> },
   ];
   const [active, setActive] = useState("merchant");
   const cur = TABS.find((t) => t.key === active) || TABS[0];
@@ -704,211 +696,3 @@ function RecipeEditor({ adminId, initial, onClose, onSaved }) {
   );
 }
 
-/* ────────────────────────────────────────────────────────── */
-function NewsManager({ adminId }) {
-  const [list,    setList]    = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [err,     setErr]     = useState(null);
-  const [open,    setOpen]    = useState(false);
-  const [editing, setEditing] = useState(null);
-
-  const reload = async () => {
-    setLoading(true);
-    setErr(null);
-    try {
-      const rs = await listNews({ limit: 100 });
-      setList(rs);
-    } catch (e) {
-      setErr(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { reload(); }, []);
-
-  const handleDelete = async (n) => {
-    if (!confirm(`删除「${n.title}」？此操作不可撤销。`)) return;
-    try {
-      await adminDeleteNews(adminId, n.id);
-      reload();
-    } catch (e) { alert(e.message); }
-  };
-
-  return (
-    <div style={{ background:C.card, borderRadius:18, padding:"16px 14px",
-                  border:`1px solid ${C.border}`, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
-        <div>
-          <div style={{ fontSize:15, fontWeight:800, color:C.text, marginBottom:2 }}>
-            📰 活动 / 资讯
-          </div>
-          <div style={{ fontSize:11, color:C.sub }}>
-            首页"活动推送"卡片显示最新一条；点入后可看全部
-          </div>
-        </div>
-        <button onClick={() => { setEditing(null); setOpen(true); }}
-          style={{ padding:"7px 14px", borderRadius:14, fontSize:12, fontWeight:700,
-                   background:C.pri, color:"white", border:"none", cursor:"pointer" }}>
-          + 新建
-        </button>
-      </div>
-
-      {loading && <div style={{ textAlign:"center", color:C.sub, fontSize:12, padding:20 }}>加载中...</div>}
-      {err && <div style={{ color:C.errT, fontSize:12, padding:6 }}>❌ {err}</div>}
-      {!loading && !err && list.length === 0 && (
-        <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:20 }}>
-          还没有资讯
-        </div>
-      )}
-
-      {list.map((n) => (
-        <div key={n.id} style={{
-          background:C.bg, borderRadius:12, padding:"10px 12px", marginBottom:8,
-          border:`1px solid ${C.border}`,
-          display:"flex", alignItems:"center", gap:10,
-        }}>
-          <div style={{ width:40, height:40, borderRadius:10, background:C.tint,
-                        display:"flex", alignItems:"center", justifyContent:"center",
-                        fontSize:20, flexShrink:0, overflow:"hidden" }}>
-            {n.cover_image_url
-              ? <img src={n.cover_image_url} alt=""
-                  style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-              : (n.emoji || "📰")}
-          </div>
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:13, fontWeight:700, color:C.text,
-                          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-              {n.title}
-            </div>
-            <div style={{ fontSize:11, color:C.sub, marginTop:2,
-                          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-              {n.source ? `${n.source} · ` : ""}{fmtTime(n.published_at)}
-            </div>
-          </div>
-          <button onClick={() => { setEditing(n); setOpen(true); }}
-            style={{ padding:"6px 10px", borderRadius:10, fontSize:11, fontWeight:600,
-                     background:C.tint, color:C.text, border:"none", cursor:"pointer" }}>
-            编辑
-          </button>
-          <button onClick={() => handleDelete(n)}
-            style={{ padding:"6px 10px", borderRadius:10, fontSize:11, fontWeight:600,
-                     background:"#FFE2E2", color:C.errT, border:"none", cursor:"pointer" }}>
-            删除
-          </button>
-        </div>
-      ))}
-
-      {open && (
-        <NewsEditor
-          adminId={adminId}
-          initial={editing}
-          onClose={() => setOpen(false)}
-          onSaved={() => { setOpen(false); reload(); }}
-        />
-      )}
-    </div>
-  );
-}
-
-/* ────────────────────────────────────────────────────────── */
-function NewsEditor({ adminId, initial, onClose, onSaved }) {
-  const [title,    setTitle]    = useState(initial?.title || "");
-  const [emoji,    setEmoji]    = useState(initial?.emoji || "📰");
-  const [coverUrl, setCoverUrl] = useState(initial?.cover_image_url || "");
-  const [summary,  setSummary]  = useState(initial?.summary || "");
-  const [content,  setContent]  = useState(initial?.content || "");
-  const [source,   setSource]   = useState(initial?.source || "");
-  const [saving,   setSaving]   = useState(false);
-  const [err,      setErr]      = useState(null);
-
-  const isEdit = !!initial?.id;
-
-  const handleSave = async () => {
-    setErr(null);
-    if (!title.trim()) { setErr("标题不能为空"); return; }
-    setSaving(true);
-    try {
-      const payload = {
-        title:           title.trim(),
-        emoji:           emoji.trim() || "📰",
-        cover_image_url: coverUrl.trim() || null,
-        summary:         summary.trim() || null,
-        content,         // 保留换行
-        source:          source.trim() || null,
-      };
-      if (isEdit) {
-        await adminUpdateNews(adminId, initial.id, payload);
-      } else {
-        await adminCreateNews(adminId, payload);
-      }
-      onSaved();
-    } catch (e) {
-      setErr(e.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const inputStyle = {
-    width:"100%", borderRadius:12, padding:"10px 12px", fontSize:13,
-    border:`1.5px solid ${C.border}`, background:"white", color:C.text,
-    outline:"none", boxSizing:"border-box", marginBottom:10, fontFamily:"inherit",
-  };
-
-  return (
-    <div onClick={(e) => e.target === e.currentTarget && onClose()}
-      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:1000,
-               display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div style={{ width:"100%", maxWidth:520, background:C.bg, borderRadius:18,
-                    padding:"18px 18px 22px", maxHeight:"90vh", overflowY:"auto" }}>
-        <div style={{ fontSize:17, fontWeight:800, color:C.text, marginBottom:14 }}>
-          {isEdit ? "✏️ 编辑资讯" : "➕ 新建资讯"}
-        </div>
-
-        <div style={{ display:"flex", gap:10, marginBottom:10 }}>
-          <input value={emoji} onChange={(e) => setEmoji(e.target.value)}
-            placeholder="📰" maxLength={4}
-            style={{ ...inputStyle, width:60, textAlign:"center", fontSize:20, marginBottom:0 }} />
-          <input value={title} onChange={(e) => setTitle(e.target.value)}
-            placeholder="标题（必填）" maxLength={120}
-            style={{ ...inputStyle, marginBottom:0 }} />
-        </div>
-
-        <input value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)}
-          placeholder="封面图 URL（可空，留空显示 emoji）"
-          style={inputStyle} />
-
-        <input value={source} onChange={(e) => setSource(e.target.value)}
-          placeholder="来源 / 作者（可空）" maxLength={60}
-          style={inputStyle} />
-
-        <textarea value={summary} onChange={(e) => setSummary(e.target.value)}
-          placeholder="摘要（列表预览用，1-2 句）"
-          rows={2} maxLength={300}
-          style={{ ...inputStyle, resize:"vertical", minHeight:50 }} />
-
-        <textarea value={content} onChange={(e) => setContent(e.target.value)}
-          placeholder="正文（保留换行）"
-          rows={8}
-          style={{ ...inputStyle, resize:"vertical", minHeight:180, fontFamily:"inherit" }} />
-
-        {err && <div style={{ color:C.errT, fontSize:12, marginBottom:6 }}>❌ {err}</div>}
-
-        <div style={{ display:"flex", gap:10, marginTop:6 }}>
-          <button onClick={onClose}
-            style={{ flex:1, padding:"11px 0", borderRadius:14, fontSize:13, fontWeight:600,
-                     background:"white", color:C.text, border:`1px solid ${C.border}`,
-                     cursor:"pointer" }}>取消</button>
-          <button onClick={handleSave} disabled={saving || !title.trim()}
-            style={{ flex:1, padding:"11px 0", borderRadius:14, fontSize:13, fontWeight:700,
-                     background: title.trim() && !saving ? C.pri : C.light,
-                     color:"white", border:"none",
-                     cursor: title.trim() && !saving ? "pointer" : "default" }}>
-            {saving ? "保存中..." : isEdit ? "保存" : "发布"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
