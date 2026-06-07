@@ -190,16 +190,17 @@ export default function MapTab({ user, onOpenVerify }) {
       });
     }
 
-    // 大地图（友好/警示）：自动缩放到所有标记，避免点位远离当前定位而“看不到”
-    if (tab !== "facility" && mksRef.current.length > 0) {
-      try { mapRef.current.setFitView(mksRef.current, false, [80, 80, 80, 80], 16); } catch {}
-    }
+    // 友好/警示：不再 setFitView 跳到数据点；保持以用户当前位置为中心，看身边的事件。
   }, [tab, pois, fris, warns, facilityCatObj.icon]);
 
   const switchTab = (t) => {
     setTab(t); setSelPoi(null); setSelWarning(null); setSelFriendly(null);
     if (t === "friendly") setFriVer((v) => v + 1);   // 切到该 Tab 时刷新，确保看到最新审核通过的点
     if (t === "warning") setWarnVer((v) => v + 1);
+    // 切到大地图（友好/警示）默认回到用户当前位置，而不是跳到上传的数据点
+    if (t !== "facility" && mapRef.current && window.AMap && location) {
+      try { mapRef.current.setCenter(new window.AMap.LngLat(location.lng, location.lat)); mapRef.current.setZoom(14); } catch {}
+    }
   };
   const recenter = () => { if (mapRef.current && window.AMap && location) mapRef.current.setCenter(new window.AMap.LngLat(location.lng, location.lat)); };
   const onSearchPick = (p) => { setShowSearch(false); if (mapRef.current && window.AMap) { mapRef.current.setCenter(new window.AMap.LngLat(p.lng, p.lat)); mapRef.current.setZoom(16); } };
