@@ -423,27 +423,93 @@ function PoiCard({ poi, icon, selected, onSelect }) {
   );
 }
 
+/* 设施图片字段兼容：高德 photos[].url 优先，其余数据源兜底 */
+function getFacilityImage(poi) {
+  if (!poi) return null;
+  return (
+    poi.photos?.[0]?.url ||
+    (Array.isArray(poi.images) && poi.images[0]) ||
+    poi.cover_url || poi.image_url || poi.image || poi.thumbnail || null
+  );
+}
+
 function PoiDetail({ poi, onClose }) {
   const dist = fmtDist(poi.distance);
   const tel = fmtTel(poi.tel);
   const type = poi.type?.split(";").slice(-1)[0] ?? "";
   const addr = poi.address || [poi.pname, poi.cityname, poi.adname].filter(Boolean).join("") || "";
+  const photo = getFacilityImage(poi);
+  const [imgOk, setImgOk] = useState(!!photo);
+  const showImg = photo && imgOk;
+
+  const InfoRow = ({ icon, children, last }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 14px",
+                  borderBottom: last ? "none" : `1px solid ${C.bg}` }}>
+      <span style={{ flexShrink: 0, width: 18, textAlign: "center", fontSize: 15 }}>{icon}</span>
+      <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: C.text, lineHeight: 1.5 }}>{children}</span>
+    </div>
+  );
+
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1500, background: "rgba(26,16,6,0.44)", display: "flex", alignItems: "flex-end" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{ width: "100%", background: "#fff", borderRadius: "22px 22px 0 0", padding: "0 0 44px", boxSizing: "border-box", maxHeight: "74%", overflowY: "auto", animation: "tm-up .22s ease-out" }}>
-        <div style={{ width: 40, height: 4, borderRadius: 4, background: "#E0D4C8", margin: "14px auto 18px" }} />
-        <div style={{ padding: "0 20px" }}>
-          <div style={{ fontSize: 19, fontWeight: 800, color: C.text, marginBottom: 6 }}>{poi.name}</div>
-          {type && <span style={{ display: "inline-block", fontSize: 11, background: C.tint, color: C.accent, padding: "3px 10px", borderRadius: 20, marginBottom: 16, fontWeight: 600 }}>{type}</span>}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 22 }}>
-            {addr && <Row icon="📍" text={addr} />}
-            {dist && <Row icon="📏" text={`距您约 ${dist}`} />}
-            {tel && <Row icon="📞" text={tel} extra={<a href={`tel:${tel}`} style={{ marginLeft: 10, color: C.accent, fontWeight: 700, textDecoration: "none", fontSize: 12 }}>拨打</a>} />}
+      <div style={{ position: "relative", width: "100%", background: "#fff", borderRadius: "22px 22px 0 0",
+                    boxSizing: "border-box", maxHeight: "86%", overflowY: "auto", animation: "tm-up .22s ease-out" }}>
+        {/* 拖拽条 */}
+        <div style={{ width: 40, height: 4, borderRadius: 4, background: "#E0D4C8", margin: "10px auto 0" }} />
+        {/* 关闭 X（右上角浅灰圆形）*/}
+        <button onClick={onClose} aria-label="关闭"
+          style={{ position: "absolute", top: 12, right: 14, zIndex: 2, width: 30, height: 30, borderRadius: "50%",
+                   background: "rgba(255,255,255,0.92)", border: "none", outline: "none", cursor: "pointer",
+                   boxShadow: "0 2px 8px rgba(0,0,0,0.12)", fontSize: 16, color: C.sub, lineHeight: 1 }}>✕</button>
+
+        <div style={{ padding: "14px 16px calc(20px + env(safe-area-inset-bottom))" }}>
+          {/* 图片区 */}
+          <div style={{ width: "100%", height: 168, borderRadius: 20, overflow: "hidden", marginBottom: 14,
+                        background: C.tint, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {showImg
+              ? <img src={photo} alt={poi.name} onError={() => setImgOk(false)}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              : <div style={{ textAlign: "center", color: C.sub }}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill={C.pri} style={{ opacity: 0.8 }}>
+                    <ellipse cx="6.2" cy="11" rx="2" ry="2.6"/><ellipse cx="11" cy="8.4" rx="2.1" ry="2.8"/>
+                    <ellipse cx="16.4" cy="9.6" rx="2" ry="2.6"/><ellipse cx="19.2" cy="13.6" rx="1.7" ry="2.2"/>
+                    <path d="M12.4 13c2.4 0 4.4 1.7 4.4 3.8 0 1.7-1.5 2.5-3.2 2.5-1 0-1.4-.3-2.2-.3s-1.2.3-2.2.3c-1.7 0-3.2-.8-3.2-2.5 0-2.1 2-3.8 4.4-3.8Z"/>
+                  </svg>
+                  <div style={{ fontSize: 12, marginTop: 6 }}>暂无图片</div>
+                </div>}
           </div>
+
+          {/* 名称 */}
+          <div style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 8, lineHeight: 1.3 }}>{poi.name}</div>
+
+          {/* 类型 tag + 距离 */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+            {type && <span style={{ fontSize: 11.5, background: C.tint, color: C.accent, padding: "4px 11px", borderRadius: 999, fontWeight: 700, maxWidth: "60%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{type}</span>}
+            <span style={{ flex: 1 }} />
+            {dist && <span style={{ fontSize: 13.5, fontWeight: 800, color: C.pri, flexShrink: 0 }}>距您约 {dist}</span>}
+          </div>
+
+          {/* 信息卡片 */}
+          <div style={{ background: "#FBF8F3", border: `1px solid ${C.border}`, borderRadius: 16, marginBottom: 18 }}>
+            {addr && <InfoRow icon="📍">{addr}</InfoRow>}
+            {dist && <InfoRow icon="📏">距您约 {dist}</InfoRow>}
+            {tel && (
+              <InfoRow icon="📞" last>
+                <span style={{ display: "flex", alignItems: "center" }}>
+                  <span style={{ flex: 1 }}>{tel}</span>
+                  <a href={`tel:${tel}`} style={{ color: C.accent, fontWeight: 800, textDecoration: "none", fontSize: 13 }}>拨打</a>
+                </span>
+              </InfoRow>
+            )}
+          </div>
+
+          {/* 底部操作 */}
           <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={() => openNavigation(poi)} style={{ flex: 1, padding: "14px 0", borderRadius: 16, background: C.grad, color: "#fff", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer" }}>🗺️ 打开高德地图导航</button>
-            <button onClick={onClose} style={{ width: 48, height: 48, borderRadius: 13, background: C.light, border: `1.5px solid ${C.border}`, cursor: "pointer", fontSize: 18, color: C.sub, flexShrink: 0 }}>✕</button>
+            <button onClick={() => openNavigation(poi)}
+              style={{ flex: 1, height: 48, borderRadius: 14, background: C.grad, color: "#fff", fontSize: 14.5, fontWeight: 800, border: "none", cursor: "pointer" }}>🗺️ 打开高德地图导航</button>
+            <button onClick={onClose}
+              style={{ width: 48, height: 48, borderRadius: 13, background: C.light, border: `1.5px solid ${C.border}`, cursor: "pointer", fontSize: 18, color: C.sub, flexShrink: 0 }}>✕</button>
           </div>
         </div>
       </div>
