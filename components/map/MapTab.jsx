@@ -187,36 +187,11 @@ export default function MapTab({ user, onOpenVerify }) {
     };
 
     if (tab === "facility") {
-      // 全城范围 marker 多 → 点聚合（MarkerCluster），缩放时自动聚合/展开，避免卡顿
-      const points = (pois || []).map((poi) => {
-        const c = getCoords(poi.location);
-        return c ? { lnglat: [c.lng, c.lat], poi } : null;
-      }).filter(Boolean);
-
-      if (AMap.MarkerCluster && points.length) {
-        clusterRef.current = new AMap.MarkerCluster(mapRef.current, points, {
-          gridSize: 60,
-          renderClusterMarker: (ctx) => {
-            const n = ctx.count;
-            const s = n < 10 ? 38 : n < 50 ? 46 : 54;
-            ctx.marker.setContent(
-              `<div style="width:${s}px;height:${s}px;border-radius:50%;background:rgba(230,134,69,0.92);border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;box-shadow:0 3px 12px rgba(230,134,69,0.5)">${n}</div>`
-            );
-            ctx.marker.setOffset(new AMap.Pixel(-s / 2, -s / 2));
-          },
-          renderMarker: (ctx) => {
-            ctx.marker.setContent(poiMarker());
-            ctx.marker.setOffset(new AMap.Pixel(-17, -17));
-            const poi = ctx.data?.[0]?.poi;
-            if (poi) ctx.marker.on("click", () => { setSelPoi(poi); const c = getCoords(poi.location); if (c) mapRef.current?.setCenter(new AMap.LngLat(c.lng, c.lat)); });
-          },
-        });
-      } else {
-        // 兜底（插件未就绪）：直接画 marker，限量防卡
-        points.slice(0, 80).forEach(({ lnglat, poi }) => {
-          addCircle(lnglat[0], lnglat[1], poiMarker(), () => { setSelPoi(poi); mapRef.current?.setCenter(new AMap.LngLat(lnglat[0], lnglat[1])); });
-        });
-      }
+      // 直接显示店铺爪印 pin（不聚合/不数字）；按距离取最近一批，避免全城上百 marker 卡顿
+      (pois || []).slice(0, 120).forEach((poi) => {
+        const c = getCoords(poi.location); if (!c) return;
+        addCircle(c.lng, c.lat, poiMarker(), () => { setSelPoi(poi); mapRef.current?.setCenter(new AMap.LngLat(c.lng, c.lat)); });
+      });
     } else if (tab === "friendly") {
       fris.forEach((r) => {
         if (r.latitude == null || r.longitude == null) return;
