@@ -22,6 +22,49 @@ const C = {
 
 const warnTitle = (r) => r.admin_title || r.title || typeInfo(r.event_type).label;
 
+/* ══════════ 分类线性 SVG 图标（统一风格，替代 emoji）══════════ */
+export function CategoryIcon({ id, size = 24, color = "#2A2A2A" }) {
+  const p = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor",
+              strokeWidth: 1.9, strokeLinecap: "round", strokeLinejoin: "round", style: { color, display: "block" } };
+  switch (id) {
+    case "bath": return (<svg {...p}><path d="M12 3v4"/><path d="M5 11a7 7 0 0 1 14 0Z"/><path d="M8 15v1.6M12 16v1.6M16 15v1.6"/></svg>);
+    case "neuter": return (<svg {...p}><circle cx="6" cy="6.5" r="2.2"/><circle cx="6" cy="17.5" r="2.2"/><path d="M8 7.5l12 9M8 16.5l12-9"/></svg>);
+    case "hospital": return (<svg {...p}><rect x="3" y="8" width="18" height="12" rx="2.2"/><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M12 11.5v5M9.5 14h5"/></svg>);
+    case "vaccine": return (<svg {...p}><path d="M4 20l4-4"/><path d="M14.5 3.5l6 6"/><path d="M17 6l-9 9 3 3 9-9z"/><path d="M11 9l3 3"/></svg>);
+    case "grooming": return (<svg {...p}><circle cx="6" cy="7" r="2"/><circle cx="6" cy="17" r="2"/><path d="M8 8l11 8M8 16l11-8"/><path d="M20 4l.6 1.6L22 6l-1.4.4L20 8l-.6-1.6L18 6l1.4-.4z"/></svg>);
+    case "petting": return (<svg {...p}><ellipse cx="9" cy="13.5" rx="2.4" ry="3"/><ellipse cx="15" cy="13.5" rx="2.4" ry="3"/><ellipse cx="11" cy="9.5" rx="1.7" ry="2.2"/><ellipse cx="16.5" cy="10" rx="1.5" ry="2"/><path d="M5 6c2 2 4 2 6 1"/></svg>);
+    case "buy": return (<svg {...p}><circle cx="9" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/><path d="M3 4h2l2.2 11h10l1.8-7H6.2"/><circle cx="12" cy="9" r="0.6" fill="currentColor"/><circle cx="14" cy="9" r="0.6" fill="currentColor"/></svg>);
+    case "checkup": return (<svg {...p}><path d="M6 3v6a4 4 0 0 0 8 0V3"/><path d="M10 17a4.5 4.5 0 0 0 9 0v-3"/><circle cx="19" cy="12.5" r="2"/></svg>);
+    case "deworm": return (<svg {...p}><ellipse cx="12" cy="13" rx="4.5" ry="5.5"/><path d="M12 8.5V7M10 9L8 7M14 9l2-2"/><path d="M7.5 12H5M16.5 12H19M7.5 15.5l-2 1M16.5 15.5l2 1"/></svg>);
+    case "supplies": return (<svg {...p}><path d="M7 8h10l-1 11a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1z"/><path d="M9 8c0-2.2 1.3-4 3-4s3 1.8 3 4"/><circle cx="12" cy="13.5" r="1.6"/></svg>);
+    case "park": return (<svg {...p}><path d="M7 21V4"/><path d="M7 5h10l-2.2 3L17 11H7"/></svg>);
+    case "training": return (<svg {...p}><circle cx="9" cy="14" r="5"/><path d="M13.5 12l7-3v4.2l-6 1"/><path d="M9 9V6h3"/></svg>);
+    case "boarding": return (<svg {...p}><path d="M4 11l8-6 8 6"/><path d="M6 10v9h12v-9"/><circle cx="12" cy="14.5" r="1.4"/><circle cx="9.6" cy="13" r="0.7" fill="currentColor"/><circle cx="14.4" cy="13" r="0.7" fill="currentColor"/></svg>);
+    case "transport": return (<svg {...p}><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M9 7V5h6v2"/><circle cx="12" cy="13" r="2.4"/><path d="M4 11h2M18 11h2"/></svg>);
+    case "photo": return (<svg {...p}><rect x="3" y="7" width="18" height="12" rx="2.4"/><circle cx="12" cy="13" r="3.2"/><path d="M8.5 7l1.3-2h4.4L15.5 7"/></svg>);
+    default: return (<svg {...p}><ellipse cx="8" cy="12" rx="1.8" ry="2.4"/><ellipse cx="16" cy="12" rx="1.8" ry="2.4"/><ellipse cx="11" cy="8.5" rx="1.6" ry="2.1"/><ellipse cx="15" cy="9" rx="1.4" ry="1.9"/><path d="M12 13.5c2.2 0 4 1.5 4 3.4 0 1.5-1.3 2.2-2.8 2.2-.9 0-1.2-.3-1.9-.3s-1 .3-1.9.3C7.9 19.1 6.5 18.4 6.5 16.9c0-1.9 1.8-3.4 4-3.4z"/></svg>);
+  }
+}
+
+export function GridIcon({ size = 16, color = "#E68645" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{ color, display: "block" }}>
+      <rect x="3.5" y="3.5" width="7.5" height="7.5" rx="2" /><rect x="13" y="3.5" width="7.5" height="7.5" rx="2" />
+      <rect x="3.5" y="13" width="7.5" height="7.5" rx="2" /><rect x="13" y="13" width="7.5" height="7.5" rx="2" />
+    </svg>
+  );
+}
+
+export function PawIcon({ size = 24, color = "#E68645" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{ color, display: "block" }}>
+      <ellipse cx="6.2" cy="11" rx="2" ry="2.6"/><ellipse cx="11" cy="8.4" rx="2.1" ry="2.8"/>
+      <ellipse cx="16.4" cy="9.6" rx="2" ry="2.6"/><ellipse cx="19.2" cy="13.6" rx="1.7" ry="2.2"/>
+      <path d="M12.4 13c2.4 0 4.4 1.7 4.4 3.8 0 1.7-1.5 2.5-3.2 2.5-1 0-1.4-.3-2.2-.3s-1.2.3-2.2.3c-1.7 0-3.2-.8-3.2-2.5 0-2.1 2-3.8 4.4-3.8Z"/>
+    </svg>
+  );
+}
+
 /* ── 顶部 3 主 Tab：设施地图 / 友好地图 / 宠物警示 ───────── */
 export function FacilityTopTabs({ tab, onChange }) {
   const opts = [
@@ -80,44 +123,38 @@ export function FacilityModeSwitch({ mode, onChange }) {
 }
 
 /* ── 分类胶囊 ─────────────────────────────────────────── */
-/* ── 分类筛选：默认一行快捷分类 + 「全部分类」宫格面板 ───────── */
+/* ── 分类筛选：一行快捷分类(纯文字) + 「全部分类」宫格面板 ───────── */
 export function FacilityCategoryFilter({ categories, quickIds, gridCategories, activeId, onPick, accent = C.pri }) {
   const [open, setOpen] = useState(false);
   const quick = quickIds.map((id) => categories.find((c) => c.id === id)).filter(Boolean);
   const activeIsQuick = quickIds.includes(activeId);
-
-  const Chip = ({ c }) => {
-    const on = activeId === c.id;
-    return (
-      <button onClick={() => { onPick(c.id); setOpen(false); }}
-        style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 5, padding: "8px 14px",
-                 borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", fontSize: 13,
-                 fontWeight: on ? 800 : 600, transition: "all .15s",
-                 background: on ? accent : "#fff", color: on ? "#fff" : C.text,
-                 border: `1px solid ${on ? "transparent" : C.border}`,
-                 boxShadow: on ? `0 3px 10px ${accent}44` : "0 1px 4px rgba(0,0,0,0.04)" }}>
-        <span style={{ fontSize: 14 }}>{c.icon}</span>{c.label}
-      </button>
-    );
-  };
-
   const moreActive = open || !activeIsQuick;
 
   return (
     <div style={{ position: "relative", zIndex: 7 }}>
-      {/* 快捷行 */}
-      <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", padding: "2px 0" }}
-           className="shop-noscroll">
-        {quick.map((c) => <Chip key={c.id} c={c} />)}
+      {/* 快捷行：不滚动，一行内紧凑展示；窄屏自动换行而非横滑 */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+        {quick.map((c) => {
+          const on = activeId === c.id;
+          return (
+            <button key={c.id} onClick={() => { onPick(c.id); setOpen(false); }}
+              style={{ flexShrink: 0, padding: "8px 13px", borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap",
+                       fontSize: 12.5, fontWeight: on ? 800 : 600, transition: "all .15s",
+                       background: on ? accent : "#FFFDF9", color: on ? "#fff" : "#2A2A2A",
+                       border: `1px solid ${on ? "transparent" : "#E8DED3"}`,
+                       boxShadow: on ? `0 3px 10px ${accent}44` : "0 1px 4px rgba(0,0,0,0.04)" }}>
+              {c.label}
+            </button>
+          );
+        })}
+        {/* 全部分类（永远显示在右侧，不滚动）*/}
         <button onClick={() => setOpen((o) => !o)}
-          style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 5, padding: "8px 14px",
-                   borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", fontSize: 13,
-                   fontWeight: moreActive ? 800 : 600, transition: "all .15s",
-                   background: moreActive ? accent : "#fff", color: moreActive ? "#fff" : C.text,
-                   border: `1px solid ${moreActive ? "transparent" : C.border}`,
-                   boxShadow: moreActive ? `0 3px 10px ${accent}44` : "0 1px 4px rgba(0,0,0,0.04)" }}>
-          <span style={{ fontSize: 14 }}>▦</span>全部分类
-          <span style={{ fontSize: 11, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>⌄</span>
+          style={{ flexShrink: 0, marginLeft: "auto", display: "flex", alignItems: "center", gap: 5, padding: "8px 12px",
+                   borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", fontSize: 12.5, fontWeight: 800, transition: "all .15s",
+                   background: "#FFFDF9", color: accent, border: `1.4px solid ${accent}`,
+                   boxShadow: moreActive ? `0 3px 10px ${accent}33` : "none" }}>
+          <GridIcon size={14} color={accent} />全部分类
+          <span style={{ fontSize: 11, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s", lineHeight: 1 }}>⌄</span>
         </button>
       </div>
 
@@ -127,19 +164,20 @@ export function FacilityCategoryFilter({ categories, quickIds, gridCategories, a
           <div onClick={() => setOpen(false)}
                style={{ position: "fixed", inset: 0, zIndex: 6, background: "transparent" }} />
           <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0, zIndex: 8,
-                        background: "#fff", borderRadius: 18, padding: "14px 10px 8px",
-                        boxShadow: "0 10px 30px rgba(0,0,0,0.14)", border: `1px solid ${C.border}`,
+                        background: "#FFFDF9", borderRadius: 22, padding: "13px 10px",
+                        boxShadow: "0 12px 34px rgba(0,0,0,0.14)", border: `1px solid ${C.border}`,
                         animation: "tm-cat-panel .2s ease-out" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "6px 4px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px 5px" }}>
               {gridCategories.map((c) => {
                 const on = activeId === c.id;
                 return (
                   <button key={c.id} onClick={() => { onPick(c.id); setOpen(false); }}
-                    style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "10px 2px",
-                             borderRadius: 14, cursor: "pointer", transition: "all .15s",
-                             background: on ? accent : "#fff", border: `1px solid ${on ? "transparent" : C.border}` }}>
-                    <span style={{ fontSize: 21, lineHeight: 1 }}>{c.icon}</span>
-                    <span style={{ fontSize: 11.5, fontWeight: on ? 800 : 600, color: on ? "#fff" : C.text }}>{c.label}</span>
+                    style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 7,
+                             height: 70, borderRadius: 14, cursor: "pointer", transition: "all .15s",
+                             background: on ? "#FFF3E8" : "#fff",
+                             border: `1.4px solid ${on ? accent : "#EFE7DC"}` }}>
+                    <CategoryIcon id={c.id} size={24} color={on ? accent : "#3A352F"} />
+                    <span style={{ fontSize: 12, fontWeight: on ? 800 : 600, color: on ? accent : "#2A2A2A" }}>{c.label}</span>
                   </button>
                 );
               })}

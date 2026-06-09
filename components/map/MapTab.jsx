@@ -21,7 +21,7 @@ import { listApprovedWarnings } from "@/services/warningService";
 import { listFriendlyReports } from "@/services/friendlyService";
 import MapIcon from "@/components/MapIcon";
 import {
-  FacilityTopTabs, FacilityCategoryFilter,
+  FacilityTopTabs, FacilityCategoryFilter, PawIcon,
   WarningDetail, FriendlyDetail,
 } from "./FacilityParts";
 
@@ -46,8 +46,8 @@ const ME_MARKER = `
     <div style="position:absolute;width:26px;height:26px;border-radius:50%;background:rgba(66,133,244,0.22);animation:tm-pulse 2s ease-out infinite"></div>
     <div style="width:14px;height:14px;border-radius:50%;background:#4285F4;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(66,133,244,0.55)"></div>
   </div>`;
-const poiMarker = (icon) =>
-  `<div style="width:32px;height:32px;border-radius:50%;background:#E68645;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,0.4)">${icon}</div>`;
+const poiMarker = () =>
+  `<div style="width:32px;height:32px;border-radius:50%;background:#E68645;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,0.4)"><svg width="17" height="17" viewBox="0 0 24 24" fill="#fff"><ellipse cx="6.2" cy="11" rx="2" ry="2.6"/><ellipse cx="11" cy="8.4" rx="2.1" ry="2.8"/><ellipse cx="16.4" cy="9.6" rx="2" ry="2.6"/><ellipse cx="19.2" cy="13.6" rx="1.7" ry="2.2"/><path d="M12.4 13c2.4 0 4.4 1.7 4.4 3.8 0 1.7-1.5 2.5-3.2 2.5-1 0-1.4-.3-2.2-.3s-1.2.3-2.2.3c-1.7 0-3.2-.8-3.2-2.5 0-2.1 2-3.8 4.4-3.8Z"/></svg></div>`;
 // 带文字 label 的 marker（友好/警示大地图用），anchor=bottom-center
 const labelMarker = (text, color, lead = "") =>
   `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer">
@@ -184,7 +184,7 @@ export default function MapTab({ user, onOpenVerify }) {
     if (tab === "facility") {
       (pois || []).slice(0, 60).forEach((poi) => {
         const c = getCoords(poi.location); if (!c) return;
-        addCircle(c.lng, c.lat, poiMarker(facilityCatObj.icon), () => { setSelPoi(poi); mapRef.current?.setCenter(new AMap.LngLat(c.lng, c.lat)); });
+        addCircle(c.lng, c.lat, poiMarker(), () => { setSelPoi(poi); mapRef.current?.setCenter(new AMap.LngLat(c.lng, c.lat)); });
       });
     } else if (tab === "friendly") {
       fris.forEach((r) => {
@@ -201,7 +201,7 @@ export default function MapTab({ user, onOpenVerify }) {
     }
 
     // 友好/警示：不再 setFitView 跳到数据点；保持以用户当前位置为中心，看身边的事件。
-  }, [tab, pois, fris, warns, facilityCatObj.icon]);
+  }, [tab, pois, fris, warns]);
 
   const switchTab = (t) => {
     setTab(t); setSelPoi(null); setSelWarning(null); setSelFriendly(null);
@@ -343,7 +343,7 @@ export default function MapTab({ user, onOpenVerify }) {
             <EmptyState cat={facilityCatObj} hasOthers={false} />
           )}
           {(pois || []).map((poi) => (
-            <PoiCard key={poi.id} poi={poi} icon={facilityCatObj.icon} tags={matchedCategoryLabels(poi)} selected={selPoi?.id === poi.id}
+            <PoiCard key={poi.id} poi={poi} tags={matchedCategoryLabels(poi)} selected={selPoi?.id === poi.id}
               onSelect={() => { setSelPoi(poi); const c = getCoords(poi.location); if (c && mapRef.current && window.AMap) mapRef.current.setCenter(new window.AMap.LngLat(c.lng, c.lat)); }} />
           ))}
         </div>
@@ -409,7 +409,7 @@ function PoiCard({ poi, icon, tags = [], selected, onSelect }) {
     <div onClick={onSelect}
       style={{ background: selected ? C.tint : "#fff", borderRadius: 20, padding: 14, marginBottom: 12, boxShadow: "0 4px 16px rgba(0,0,0,0.06)", cursor: "pointer", display: "flex", gap: 13, border: `1.5px solid ${selected ? C.pri : "transparent"}`, transition: "all .15s" }}>
       <div style={{ width: 72, height: 72, borderRadius: 16, flexShrink: 0, overflow: "hidden", background: C.tint, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        {photo && imgOk ? <img src={photo} alt={poi.name} loading="lazy" onError={() => setImgOk(false)} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <span style={{ fontSize: 30 }}>{icon}</span>}
+        {photo && imgOk ? <img src={photo} alt={poi.name} loading="lazy" onError={() => setImgOk(false)} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <PawIcon size={30} color={C.pri} />}
       </div>
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{poi.name}</div>
@@ -535,7 +535,7 @@ function Row({ icon, text, extra }) {
 function EmptyState({ cat, hasOthers }) {
   return (
     <div style={{ textAlign: "center", padding: "40px 24px", color: C.sub }}>
-      <div style={{ fontSize: 40, marginBottom: 14 }}>{cat.icon}</div>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 14, opacity: 0.7 }}><PawIcon size={40} color={C.pri} /></div>
       <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 8 }}>附近暂未找到{cat.id === "all" ? "宠物相关" : cat.label}设施</div>
       <div style={{ fontSize: 12, lineHeight: 1.7 }}>{hasOthers && cat.id !== "all" ? "该分类无结果，可切换「全部」查看其他设施" : "已搜索 10km 范围，暂无相关设施"}</div>
     </div>
