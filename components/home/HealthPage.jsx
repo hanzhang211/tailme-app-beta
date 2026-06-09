@@ -19,6 +19,7 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, Dog, Cat, Pill, Bell, Clock,
   CircleCheck, ClipboardList, HeartPulse, Syringe, ShieldCheck,
   Stethoscope, Calendar, Check, Plus, Ellipsis, Pencil, MapPin, Bug,
+  PawPrint, Filter, X,
 } from "lucide-react";
 import { avatarForBreed } from "@/services/breedAvatar";
 import { formatPetAge } from "@/services/petAge";
@@ -41,7 +42,6 @@ const CARD = {
   border: "1px solid rgba(255,255,255,0.65)",
 };
 
-const fmtDate  = (d) => d ? String(d).slice(0, 10) : "";
 const fmtFull  = (d) => d ? String(d).replace(/-/g, "/") : "";
 const fmtShort = (d) => { if (!d) return ""; const [,m,day] = String(d).split("-"); return `${+m}月${+day}日`; };
 const fmtTime  = (t) => t ? String(t).slice(0, 5) : "";
@@ -52,13 +52,18 @@ const DISEASE_STATUS = {
   recovered: { label:"已康复", bg:"rgba(95,167,102,0.12)", color:GREEN },
 };
 
-const typeMeta = (k) => RECORD_TYPES.find((t) => t.key === k) || RECORD_TYPES[3];
-const typeIcon = (k) => {
-  if (k === "vaccine") return <Syringe  size={15} color={GREEN} strokeWidth={1.8}/>;
-  if (k === "deworm")  return <ShieldCheck size={15} color={GREEN} strokeWidth={1.8}/>;
-  if (k === "checkup") return <Stethoscope size={15} color={GREEN} strokeWidth={1.8}/>;
-  return <ClipboardList size={15} color={GREEN} strokeWidth={1.8}/>;
+// 健康档案分类色（蓝/紫仅用于此处分类 tag，不改全局主色）
+const CAT_META = {
+  vaccine:    { label:"疫苗", color:"#4FA85D", bg:"#EAF6EA", Icon: Syringe },
+  deworm:     { label:"驱虫", color:"#4FA85D", bg:"#EAF6EA", Icon: Bug },
+  diagnosis:  { label:"诊断", color:"#8B6FD6", bg:"#F1EDFF", Icon: HeartPulse },
+  medication: { label:"用药", color:"#E68645", bg:"#FFF1E8", Icon: Pill },
+  recovery:   { label:"康复", color:"#4FA85D", bg:"#EAF6EA", Icon: CircleCheck },
+  checkup:    { label:"体检", color:"#4A90E2", bg:"#EAF3FF", Icon: Stethoscope },
+  other:      { label:"其他", color:"#777777", bg:"#F3F3F3", Icon: ClipboardList },
 };
+
+const typeMeta = (k) => RECORD_TYPES.find((t) => t.key === k) || RECORD_TYPES[3];
 
 /* ══════════════════════════════════════════════ */
 // 健康内存缓存（petId → {records, diseases}）：再次打开秒显，后台静默刷新
@@ -77,12 +82,24 @@ export async function prefetchHealth(petId, userId) {
 }
 
 export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate, onBack }) {
-  // view：overview 总览 / vaccine 疫苗记录 / deworm 驱虫记录
+  // view：overview 总览(含3 tab) / vaccine 疫苗记录 / deworm 驱虫记录
   const [view, setView]   = useState("overview");
+  // 总览内部 3 tab：overview 健康概览 / care 生病护理 / archive 健康档案
+  const [healthTab, setHealthTab] = useState("overview");
   // 顶部「狗狗 / 猫咪」切换 = 在当前用户的宠物间切换（默认当前 activePet）
   const [selId, setSelId] = useState(petProp?.id || null);
   const [petMenuOpen, setPetMenuOpen] = useState(false);
   const pet = pets.find((p) => p.id === selId) || petProp;
+
+  // 右上加号 → 底部「添加记录」action sheet
+  const [addSheetOpen, setAddSheetOpen] = useState(false);
+  // 详情页自动打开添加弹窗（加号里点疫苗/驱虫时用）
+  const [vaxAutoAdd,    setVaxAutoAdd]    = useState(false);
+  const [dewormAutoAdd, setDewormAutoAdd] = useState(false);
+  // 打开疾病弹窗时的初始状态（生病/用药/康复 三个入口预设）
+  const [diseaseInit,   setDiseaseInit]   = useState("sick");
+  // 打开通用记录弹窗时的初始类型（体检入口预设 checkup）
+  const [recordInit,    setRecordInit]    = useState("checkup");
 
   const h0 = pet?.id ? healthCache[pet.id] : null;
   const [records,    setRecords]    = useState(h0?.records || []);
@@ -185,34 +202,35 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
   const timeline = useMemo(() => {
     const items = [
       ...vaxRecords.filter(r => r.dose_date).map(r => ({
-        id:"vax_"+r.id, date:r.dose_date, kind:"vaccine",
-        label:`疫苗：${r.vaccine_name}${r.dose_no ? ` 第${r.dose_no}针` : ""}`,
-        iconEl:<Syringe size={15} color={GREEN} strokeWidth={1.8}/>,
+        id:"vax_"+r.id, date:r.dose_date, cat:"vaccine",
+        title:`${r.vaccine_name}${r.dose_no ? `：第${r.dose_no}针` : ""}`,
+        sub: r.note || "",
       })),
       ...dewormRecords.map(r => ({
-        id:"dw_"+r.id, date:r.done_date, kind:"deworm",
-        label:`驱虫：${r.deworm_type === "internal" ? "内驱" : "外驱"}${r.product_name ? `・${r.product_name}` : ""}`,
-        iconEl:<ShieldCheck size={15} color={GREEN} strokeWidth={1.8}/>,
+        id:"dw_"+r.id, date:r.done_date, cat:"deworm",
+        title: r.deworm_type === "internal" ? "体内驱虫" : "体外驱虫",
+        sub: r.product_name ? (r.product_desc ? `${r.product_name}（${r.product_desc}）` : r.product_name) : (r.product_desc || ""),
       })),
       ...records.map(r => ({
-        id:r.id, date:r.record_date, kind:"record",
-        label: typeMeta(r.record_type).label + (r.title ? `・${r.title}` : ""),
-        iconEl: typeIcon(r.record_type),
+        id:r.id, date:r.record_date,
+        cat: r.record_type === "checkup" ? "checkup"
+           : r.record_type === "vaccine" ? "vaccine"
+           : r.record_type === "deworm" ? "deworm" : "other",
+        title: typeMeta(r.record_type).label + (r.title ? `：${r.title}` : ""),
+        sub: r.note || "",
       })),
       ...diseases.map(d => ({
-        id:d.id, date:d.diagnosis_date, kind:"disease",
-        label: `诊断：${d.disease_name}`,
-        iconEl: <Dog size={15} color={GREEN} strokeWidth={1.8}/>,
+        id:"diag_"+d.id, date:d.diagnosis_date, cat:"diagnosis",
+        title: `诊断：${d.disease_name}`, sub: d.symptoms || "", disease: d,
       })),
       ...diseases.filter(d => d.medicine_name).map(d => ({
-        id:d.id+"_med", date:d.medicine_start_date || d.diagnosis_date, kind:"medication",
-        label: `开始用药：${d.medicine_name}`,
-        iconEl: <Pill size={15} color={GREEN} strokeWidth={1.8}/>,
+        id:d.id+"_med", date:d.medicine_start_date || d.diagnosis_date, cat:"medication",
+        title: `开始用药：${d.medicine_name}`,
+        sub: [d.medicine_dosage, d.medicine_frequency].filter(Boolean).join("，"), disease: d,
       })),
       ...diseases.filter(d => d.status === "recovered" && d.recovery_date).map(d => ({
-        id:d.id+"_rec", date:d.recovery_date, kind:"recovery",
-        label: `康复：${d.disease_name}`,
-        iconEl: <CircleCheck size={15} color={GREEN} strokeWidth={1.8}/>,
+        id:d.id+"_rec", date:d.recovery_date, cat:"recovery",
+        title: `${d.disease_name} 康复`, sub: "康复情况良好", disease: d,
       })),
     ];
     return items.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
@@ -238,13 +256,81 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
 
   // 子页面路由（疫苗 / 驱虫记录页）；返回时刷新总览数据，保持进度/日期同步
   if (view === "vaccine") {
-    return <VaccineRecordPage pet={pet} user={user}
-      onBack={() => { setView("overview"); reload(); }} />;
+    return <VaccineRecordPage pet={pet} user={user} autoAdd={vaxAutoAdd}
+      onBack={() => { setView("overview"); setVaxAutoAdd(false); reload(); }} />;
   }
   if (view === "deworm") {
-    return <DewormingRecordPage pet={pet} user={user}
-      onBack={() => { setView("overview"); reload(); }} />;
+    return <DewormingRecordPage pet={pet} user={user} autoAdd={dewormAutoAdd}
+      onBack={() => { setView("overview"); setDewormAutoAdd(false); reload(); }} />;
   }
+
+  // 健康档案：彩色分类时间线（数据来自合并 timeline）
+  const renderArchive = () => (
+    <>
+      {/* 筛选行（UI 占位）*/}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 2px" }}>
+        <div style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"7px 14px",
+                      borderRadius:999, background:"rgba(95,167,102,0.12)", color:GREEN,
+                      fontSize:13, fontWeight:700 }}>
+          全部类型 <ChevronDown size={14} strokeWidth={2.4}/>
+        </div>
+        <div style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"7px 14px",
+                      borderRadius:999, background:"rgba(255,255,255,0.7)", color:SUB,
+                      fontSize:13, fontWeight:700 }}>
+          <Filter size={14} strokeWidth={2}/> 筛选
+        </div>
+      </div>
+
+      <div style={{ ...CARD, padding:"6px 18px" }}>
+        {loading && timeline.length === 0 ? (
+          <div style={{ textAlign:"center", color:SUB, padding:18, fontSize:13 }}>加载中…</div>
+        ) : timeline.length === 0 ? (
+          <EmptyCard icon={<ClipboardList size={32} color="rgba(95,167,102,0.4)" strokeWidth={1.5}/>}
+            text="还没有健康记录" sub="点击右上角 + 添加记录"/>
+        ) : timeline.map((item, i) => {
+          const meta = CAT_META[item.cat] || CAT_META.other;
+          const Icon = meta.Icon;
+          const rec  = records.find((r) => r.id === item.id);
+          return (
+            <div key={item.id} style={{ display:"flex", gap:12, padding:"12px 0", position:"relative",
+                                        cursor: item.disease ? "pointer" : "default" }}
+                 onClick={() => item.disease && setViewDisease(item.disease)}>
+              {i < timeline.length - 1 && (
+                <div style={{ position:"absolute", left:17, top:42, bottom:-4, width:2,
+                              background:"rgba(95,167,102,0.16)", zIndex:0 }}/>
+              )}
+              <div style={{ width:36, height:36, borderRadius:999, flexShrink:0, zIndex:1,
+                            background: meta.bg, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Icon size={18} color={meta.color} strokeWidth={1.9}/>
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+                  <span style={{ fontSize:11, color:SUB }}>{fmtFull(item.date)}</span>
+                  <span style={{ fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:999,
+                                 background: meta.bg, color: meta.color, flexShrink:0 }}>{meta.label}</span>
+                </div>
+                <div style={{ fontSize:14, fontWeight:700, color:TEXT, marginTop:3 }}>{item.title}</div>
+                {item.sub && (
+                  <div style={{ fontSize:12, color:SUB, marginTop:2, overflow:"hidden",
+                                textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.sub}</div>
+                )}
+              </div>
+              {rec ? (
+                <button onClick={(e) => { e.stopPropagation(); handleDeleteRecord(rec); }}
+                  style={{ background:"transparent", border:"none", cursor:"pointer", padding:2,
+                           alignSelf:"center", flexShrink:0 }}>
+                  <PetTrashIcon size={16}/>
+                </button>
+              ) : (
+                <ChevronRight size={16} color="#C2C8BE" strokeWidth={2}
+                  style={{ alignSelf:"center", flexShrink:0 }}/>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
 
   return (
     <div style={{ height:"100%", overflowY:"auto", background:BG }}>
@@ -263,7 +349,7 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
           <HealthIcon size={60} color={TEXT}/>
           <span style={{ fontSize:17, fontWeight:800, color:TEXT }}>宠物健康</span>
         </div>
-        <button onClick={() => setAddRecordOpen(true)} disabled={!pet?.id}
+        <button onClick={() => setAddSheetOpen(true)} disabled={!pet?.id}
           style={{ width:40, height:40, borderRadius:999,
                    background: pet?.id ? PRI : "#D6D5D8", color:"white",
                    border:"none", cursor: pet?.id ? "pointer" : "default",
@@ -283,6 +369,10 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
           <PetTypeSwitch pets={pets} curPet={pet} open={petMenuOpen}
             setOpen={setPetMenuOpen} onSelect={setSelId} />
 
+          {/* ── 内部 3 段 tab：健康概览 / 生病护理 / 健康档案 ── */}
+          <HealthTabs tab={healthTab} setTab={setHealthTab} />
+
+          {healthTab === "overview" && (<>
           {/* ── 1. 当前状态 Hero ── */}
           <div style={{ ...CARD, padding:"22px 20px", position:"relative", overflow:"hidden" }}>
             <div style={{ position:"absolute", bottom:-15, right:-15, opacity:0.08,
@@ -349,11 +439,23 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
               rightBottom={`高发\n${risk.risks.join(" / ")}`}/>
           </div>
 
-          {/* ── 3. 生病记录（含用药摘要）── */}
+          {/* ── 3. 快捷入口 ── */}
+          <QuickEntryCard onVaccine={() => setView("vaccine")} onDeworm={() => setView("deworm")} />
+          </>)}
+
+          {healthTab === "care" && (<>
+          {/* ── 当前护理状态（有生病中→卡片；无→可爱空状态）── */}
+          <CareStatusCard
+            diseases={diseases} pets={pets} medTick={medDoneTick}
+            onAdd={() => { setDiseaseInit("sick"); setAddDiseaseOpen(true); }}
+            onOpen={(d) => setViewDisease(d)}
+            onToggleMed={toggleMedDone} onRecover={markRecovered} />
+
+          {/* ── 生病记录（保留完整功能卡片）── */}
           <div style={{ ...CARD, padding:"18px 20px" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
               <HTitle noMargin>生病记录</HTitle>
-              <button onClick={() => setAddDiseaseOpen(true)}
+              <button onClick={() => { setDiseaseInit("sick"); setAddDiseaseOpen(true); }}
                 style={{ fontSize:12, fontWeight:700, color:GREEN, background:"transparent",
                          border:"none", cursor:"pointer" }}>
                 ＋ 添加记录
@@ -570,71 +672,34 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
               </>
             )}
           </div>
+          </>)}
 
-          {/* ── 4. 健康记录时间线 ── */}
-          <div style={{ ...CARD, padding:"18px 20px" }}>
-            <HTitle>健康记录</HTitle>
-            {loading && <div style={{ textAlign:"center", color:SUB, padding:16, fontSize:13 }}>加载中…</div>}
-            {err && <div style={{ color:"#D94040", fontSize:12 }}>❌ {err}</div>}
-            {!loading && timeline.length === 0 && (
-              <EmptyCard
-                icon={<ClipboardList size={32} color="rgba(95,167,102,0.4)" strokeWidth={1.5}/>}
-                text="还没有记录"
-                sub="点击右上角 + 添加疫苗/驱虫/体检/疾病"/>
-            )}
-            {timeline.map((item, i) => (
-              <div key={item.id + item.kind} style={{ display:"flex", gap:14, paddingBottom:14, position:"relative" }}>
-                {i < timeline.length - 1 && (
-                  <div style={{ position:"absolute", left:13, top:28, bottom:0, width:2,
-                                background:"rgba(95,167,102,0.2)", zIndex:0 }}/>
-                )}
-                <div style={{ width:28, height:28, borderRadius:999, background:"rgba(95,167,102,0.12)",
-                              flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>
-                  {item.iconEl}
-                </div>
-                <div style={{ flex:1, paddingTop:4 }}>
-                  <div style={{ fontSize:10, color:SUB, marginBottom:3 }}>{fmtFull(item.date)}</div>
-                  <div style={{ fontSize:13, fontWeight:600, color:TEXT }}>{item.label}</div>
-                </div>
-              </div>
-            ))}
-            {/* 原有健康记录管理 */}
-            {records.length > 0 && (
-              <div style={{ borderTop:"1px solid rgba(0,0,0,0.06)", paddingTop:12, marginTop:4 }}>
-                <div style={{ fontSize:11, color:SUB, marginBottom:8, fontWeight:600 }}>管理健康记录</div>
-                {records.map((r) => {
-                  const meta = typeMeta(r.record_type);
-                  return (
-                    <div key={r.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0",
-                                            borderBottom:"1px solid rgba(0,0,0,0.04)" }}>
-                      <span style={{ fontSize:16, flexShrink:0 }}>{meta.emoji}</span>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <span style={{ fontSize:12, fontWeight:600, color:TEXT }}>{meta.label}</span>
-                        {r.title && <span style={{ fontSize:11, color:SUB }}> · {r.title}</span>}
-                        <div style={{ fontSize:10, color:SUB }}>{fmtDate(r.record_date)}</div>
-                      </div>
-                      <button onClick={() => handleDeleteRecord(r)}
-                        style={{ background:"transparent", border:"none", cursor:"pointer",
-                                 padding:"2px 4px", display:"flex", alignItems:"center" }}>
-                        <PetTrashIcon size={17} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          {healthTab === "archive" && renderArchive()}
         </div>
       )}
 
       {/* ── Modals ── */}
+      {addSheetOpen && (
+        <AddRecordSheet
+          onClose={() => setAddSheetOpen(false)}
+          onSelect={(key) => {
+            setAddSheetOpen(false);
+            if (key === "vaccine") { setVaxAutoAdd(true); setView("vaccine"); }
+            else if (key === "deworm") { setDewormAutoAdd(true); setView("deworm"); }
+            else if (key === "checkup") { setRecordInit("checkup"); setAddRecordOpen(true); }
+            else { // disease / medication / recovery 都落到生病记录表单，预设状态
+              setDiseaseInit(key === "medication" ? "medicating" : key === "recovery" ? "recovered" : "sick");
+              setAddDiseaseOpen(true);
+            }
+          }} />
+      )}
       {addRecordOpen && pet?.id && (
-        <AddRecordModal user={user} pet={pet}
+        <AddRecordModal user={user} pet={pet} initialType={recordInit}
           onClose={() => setAddRecordOpen(false)}
           onAdded={() => { setAddRecordOpen(false); reload(); showToast("健康记录已添加 ✨"); }}/>
       )}
       {addDiseaseOpen && (
-        <AddDiseaseModal user={user} pet={pet} pets={pets}
+        <AddDiseaseModal user={user} pet={pet} pets={pets} initialStatus={diseaseInit}
           onClose={() => setAddDiseaseOpen(false)}
           onAdded={() => { setAddDiseaseOpen(false); reload(); showToast("疾病记录已保存 ✨"); }}
           onError={(msg) => showToast(msg, "error")}/>
@@ -679,6 +744,191 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
 }
 
 /* ══ Shared UI ═══════════════════════════════════ */
+/* 内部 3 段 tab：健康概览 / 生病护理 / 健康档案 */
+function HealthTabs({ tab, setTab }) {
+  const items = [
+    { k:"overview", l:"健康概览" },
+    { k:"care",     l:"生病护理" },
+    { k:"archive",  l:"健康档案" },
+  ];
+  return (
+    <div style={{ display:"flex", gap:4, padding:4, borderRadius:999, background:"#EEF5EA" }}>
+      {items.map((it) => {
+        const on = tab === it.k;
+        return (
+          <button key={it.k} onClick={() => setTab(it.k)}
+            style={{ flex:1, height:34, borderRadius:999, border:"none", cursor:"pointer",
+                     fontSize:14, fontWeight:600, transition:"all .15s",
+                     background: on ? "#4FA85D" : "transparent", color: on ? "#fff" : "#333" }}>
+            {it.l}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* 健康概览：快捷入口卡（疫苗记录 / 驱虫记录）*/
+function QuickEntryCard({ onVaccine, onDeworm }) {
+  const Item = ({ icon, title, sub, onClick }) => (
+    <button onClick={onClick}
+      style={{ flex:1, display:"flex", alignItems:"center", gap:10, padding:"14px",
+               borderRadius:18, border:"1px solid rgba(0,0,0,0.05)", background:"#F6FAF4",
+               cursor:"pointer", textAlign:"left" }}>
+      <div style={{ width:38, height:38, borderRadius:12, flexShrink:0, background:"rgba(95,167,102,0.12)",
+                    display:"flex", alignItems:"center", justifyContent:"center" }}>{icon}</div>
+      <div style={{ minWidth:0 }}>
+        <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>{title}</div>
+        <div style={{ fontSize:11, color:SUB, marginTop:2 }}>{sub}</div>
+      </div>
+    </button>
+  );
+  return (
+    <div style={{ ...CARD, padding:"18px 20px" }}>
+      <HTitle>快捷入口</HTitle>
+      <div style={{ display:"flex", gap:12 }}>
+        <Item icon={<Syringe size={19} color={GREEN} strokeWidth={1.8}/>} title="疫苗记录" sub="查看接种进度" onClick={onVaccine}/>
+        <Item icon={<Bug size={19} color={GREEN} strokeWidth={1.8}/>} title="驱虫记录" sub="查看驱虫计划" onClick={onDeworm}/>
+      </div>
+    </div>
+  );
+}
+
+/* 可爱宠物脸（线性 SVG，绿色）—— 生病护理空状态 */
+function PetFaceSVG({ size = 46 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none"
+         stroke="#4FA85D" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 14 L10 6 L19 11"/>
+      <path d="M34 14 L38 6 L29 11"/>
+      <circle cx="24" cy="26" r="13"/>
+      <circle cx="19" cy="24" r="1.5" fill="#4FA85D" stroke="none"/>
+      <circle cx="29" cy="24" r="1.5" fill="#4FA85D" stroke="none"/>
+      <path d="M24 28 L24 30"/>
+      <path d="M24 30 Q21 32.5 19.5 30"/>
+      <path d="M24 30 Q27 32.5 28.5 30"/>
+    </svg>
+  );
+}
+
+/* 生病护理：当前护理状态卡（无 active→可爱空状态；有→ spotlight + 快捷操作）*/
+function CareStatusCard({ diseases, pets, medTick, onAdd, onOpen, onToggleMed, onRecover }) {
+  const active = (diseases || []).filter((d) => d.status !== "recovered");
+  if (active.length === 0) {
+    return (
+      <div style={{ ...CARD, padding:"18px 20px" }}>
+        <HTitle>当前护理状态</HTitle>
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"18px 10px 8px" }}>
+          <div style={{ width:84, height:84, borderRadius:999, background:"rgba(95,167,102,0.1)",
+                        display:"flex", alignItems:"center", justifyContent:"center", marginBottom:14 }}>
+            <PetFaceSVG size={46}/>
+          </div>
+          <div style={{ fontSize:16, fontWeight:800, color:TEXT }}>暂无生病护理</div>
+          <div style={{ fontSize:12.5, color:SUB, marginTop:6, textAlign:"center", lineHeight:1.6 }}>
+            如果宠物生病、用药或康复，<br/>可以在这里记录
+          </div>
+          <button onClick={onAdd}
+            style={{ marginTop:16, height:42, padding:"0 22px", borderRadius:999, border:`1px solid ${GREEN}`,
+                     background:"transparent", color:GREEN, fontSize:14, fontWeight:700, cursor:"pointer",
+                     display:"inline-flex", alignItems:"center", gap:6 }}>
+            <Plus size={16} strokeWidth={2.6}/> 添加生病记录
+          </button>
+        </div>
+      </div>
+    );
+  }
+  const d = active[0];
+  const stLabel = d.medicine_name ? "用药中" : "生病中";
+  const medDone = medTick >= 0 && isMedDoneToday(d.id);
+  return (
+    <div style={{ ...CARD, padding:"18px 20px" }}>
+      <HTitle>当前护理状态</HTitle>
+      <div onClick={() => onOpen(d)} style={{ cursor:"pointer" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+          <span style={{ fontSize:17, fontWeight:800, color:TEXT }}>{d.disease_name}</span>
+          <span style={{ fontSize:12, fontWeight:700, padding:"4px 12px", borderRadius:999,
+                         background:"rgba(230,134,69,0.14)", color:PRI }}>{stLabel}</span>
+        </div>
+        <div style={{ fontSize:12.5, color:SUB, marginTop:8 }}>
+          {fmtFull(d.diagnosis_date)}{d.recovery_date ? ` - ${fmtFull(d.recovery_date)}` : ""}
+        </div>
+        {d.medicine_name && (
+          <div style={{ fontSize:13, color:TEXT, marginTop:6 }}>
+            最近用药：{[d.medicine_name, d.medicine_dosage, d.medicine_frequency].filter(Boolean).join(" · ")}
+          </div>
+        )}
+      </div>
+      <div style={{ display:"flex", gap:8, marginTop:14 }}>
+        {d.medicine_reminder_time && (
+          <button onClick={() => onToggleMed(d)}
+            style={{ flex:1, height:40, borderRadius:12, cursor:"pointer",
+                     border: medDone ? "none" : `1px solid ${GREEN}`,
+                     background: medDone ? GREEN : "transparent", color: medDone ? "#fff" : GREEN,
+                     fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:4 }}>
+            {medDone ? <><Check size={14} strokeWidth={2.6}/>今日已用药</> : "今日已用药"}
+          </button>
+        )}
+        <button onClick={() => onRecover(d)}
+          style={{ flex:1, height:40, borderRadius:12, cursor:"pointer", border:`1px solid ${GREEN}`,
+                   background:"transparent", color:GREEN, fontSize:13, fontWeight:700 }}>
+          标记已康复
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* 右上加号：底部「添加记录」action sheet（6 项，统一入口）*/
+function AddRecordSheet({ onClose, onSelect }) {
+  const items = [
+    { k:"vaccine",    t:"添加疫苗记录", s:"记录疫苗接种情况",   Icon:Syringe,     c:GREEN,     bg:"rgba(95,167,102,0.12)" },
+    { k:"deworm",     t:"添加驱虫记录", s:"记录体内 / 体外驱虫", Icon:Bug,         c:GREEN,     bg:"rgba(95,167,102,0.12)" },
+    { k:"disease",    t:"添加生病记录", s:"记录生病和护理情况",  Icon:HeartPulse,  c:GREEN,     bg:"rgba(95,167,102,0.12)" },
+    { k:"medication", t:"添加用药记录", s:"记录用药详情",        Icon:Pill,        c:PRI,       bg:"rgba(230,134,69,0.12)" },
+    { k:"checkup",    t:"添加体检记录", s:"记录体检结果",        Icon:Stethoscope, c:"#4A90E2", bg:"#EAF3FF" },
+    { k:"recovery",   t:"添加康复记录", s:"记录康复情况",        Icon:CircleCheck, c:GREEN,     bg:"rgba(95,167,102,0.12)" },
+  ];
+  return (
+    <div onClick={onClose}
+      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:1500,
+               display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ width:"100%", maxWidth:430, background:"#fff", borderRadius:"24px 24px 0 0",
+                 padding:"18px 16px 30px", maxHeight:"88vh", overflowY:"auto" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+          <span style={{ fontSize:17, fontWeight:800, color:TEXT }}>添加记录</span>
+          <button onClick={onClose}
+            style={{ width:32, height:32, borderRadius:999, border:"none", cursor:"pointer",
+                     background:"#F2F1ED", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <X size={17} color={SUB} strokeWidth={2.4}/>
+          </button>
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {items.map((it) => {
+            const Ico = it.Icon;
+            return (
+              <button key={it.k} onClick={() => onSelect(it.k)}
+                style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px",
+                         borderRadius:16, border:"1px solid rgba(0,0,0,0.05)", background:"#FAFAF8",
+                         cursor:"pointer", textAlign:"left" }}>
+                <div style={{ width:40, height:40, borderRadius:12, flexShrink:0, background:it.bg,
+                              display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <Ico size={20} color={it.c} strokeWidth={1.9}/>
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:14.5, fontWeight:700, color:TEXT }}>{it.t}</div>
+                  <div style={{ fontSize:12, color:SUB, marginTop:2 }}>{it.s}</div>
+                </div>
+                <ChevronRight size={17} color="#C2C8BE" strokeWidth={2}/>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PetTypeSwitch({ pets, curPet, open, setOpen, onSelect }) {
   const multi = (pets?.length || 0) > 1;
   const iconFor = (p) => p?.pet_type === "cat"
@@ -1021,12 +1271,13 @@ function MedicineFields({ med, setMed }) {
 }
 
 /* ══ AddDiseaseModal ═════════════════════════════ */
-function AddDiseaseModal({ user, pet, pets = [], onClose, onAdded, onError }) {
+function AddDiseaseModal({ user, pet, pets = [], onClose, onAdded, onError, initialStatus = "sick" }) {
   const defaultPet = pets.find((p) => p.id === pet?.id) || pets[0] || pet;
   const [selPetId, setSelPetId] = useState(defaultPet?.id || "");
   const [name,     setName]     = useState("");
   const [syms,     setSyms]     = useState("");
-  const [status,   setStatus]   = useState("treating");
+  // UI 三段：sick 生病中 / medicating 用药中 / recovered 已康复（落库时映射为 treating/recovered）
+  const [status,   setStatus]   = useState(initialStatus);
   const [diag,     setDiag]     = useState(new Date().toISOString().slice(0, 10));
   const [recov,    setRecov]    = useState("");
   const [plan,     setPlan]     = useState("");
@@ -1048,7 +1299,8 @@ function AddDiseaseModal({ user, pet, pets = [], onClose, onAdded, onError }) {
     try {
       await addDiseaseRecord({
         userId:      user.id, petId: selPetId,
-        diseaseName: name, symptoms: syms, status,
+        diseaseName: name, symptoms: syms,
+        status: status === "recovered" ? "recovered" : "treating",
         diagnosisDate: diag, recoveryDate: recov || null,
         treatmentPlan: plan,
         notes: "",
@@ -1118,10 +1370,10 @@ function AddDiseaseModal({ user, pet, pets = [], onClose, onAdded, onError }) {
 
             <div>
               <FTitle>状态 *</FTitle>
-              <div style={{ display:"flex", gap:10 }}>
-                {[{k:"treating",l:"治疗中"},{k:"recovered",l:"已康复"}].map(({k,l}) => (
+              <div style={{ display:"flex", gap:8 }}>
+                {[{k:"sick",l:"生病中"},{k:"medicating",l:"用药中"},{k:"recovered",l:"已康复"}].map(({k,l}) => (
                   <button key={k} onClick={() => setStatus(k)}
-                    style={{ flex:1, height:50, borderRadius:16, fontSize:15, fontWeight:700,
+                    style={{ flex:1, height:48, borderRadius:14, fontSize:14, fontWeight:700,
                              background: status===k ? GREEN : "rgba(255,255,255,0.72)",
                              color: status===k ? "white" : "#1F1F1F",
                              border: status===k ? "none" : "1px solid rgba(138,123,106,0.18)",
@@ -1499,8 +1751,8 @@ function EditMedicationModal({ disease: d, user, onClose, onSaved }) {
 }
 
 /* ══ AddRecordModal (vaccine/deworm/checkup) ════ */
-function AddRecordModal({ user, pet, onClose, onAdded }) {
-  const [recordType,  setRecordType]  = useState("vaccine");
+function AddRecordModal({ user, pet, onClose, onAdded, initialType = "vaccine" }) {
+  const [recordType,  setRecordType]  = useState(initialType);
   const [title,       setTitle]       = useState("");
   const [recordDate,  setRecordDate]  = useState(new Date().toISOString().slice(0, 10));
   const [nextDueDate, setNextDueDate] = useState("");

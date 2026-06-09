@@ -25,12 +25,12 @@ const fmtSlash = (d) => (d ? String(d).slice(0, 10).replace(/-/g, "/") : "");
 
 const dewormCache = {};
 
-export default function DewormingRecordPage({ pet, user, onBack }) {
+export default function DewormingRecordPage({ pet, user, onBack, autoAdd = false }) {
   const cached = pet?.id ? dewormCache[pet.id] : null;
   const [records, setRecords] = useState(cached || []);
   const [loading, setLoading] = useState(!cached);
   const [tab, setTab]         = useState("internal"); // internal | external
-  const [addOpen, setAddOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(!!autoAdd); // 加号入口直接打开添加
   const [toast, setToast]     = useState(null);
 
   const showToast = (msg, type = "success") => {

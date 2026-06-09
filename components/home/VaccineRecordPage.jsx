@@ -27,11 +27,11 @@ const fmtSlash = (d) => (d ? String(d).slice(0, 10).replace(/-/g, "/") : "");
 /* 疫苗内存缓存：再次打开秒显 */
 const vaxCache = {};
 
-export default function VaccineRecordPage({ pet, user, onBack }) {
+export default function VaccineRecordPage({ pet, user, onBack, autoAdd = false }) {
   const cached = pet?.id ? vaxCache[pet.id] : null;
   const [records, setRecords] = useState(cached || []);
   const [loading, setLoading] = useState(!cached);
-  const [addOpen, setAddOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(!!autoAdd); // 加号入口直接打开添加
   const [toast, setToast]     = useState(null);
 
   const showToast = (msg, type = "success") => {
