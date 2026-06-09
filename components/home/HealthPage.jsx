@@ -14,6 +14,7 @@ import {
 import { HealthIcon } from "@/components/icons/HomeModuleIcons";
 import { toastColors } from "@/services/toastTheme";
 import PetTrashIcon from "@/components/icons/PetTrashIcon";
+import PetHealthPlaceholderIcon from "@/components/icons/PetHealthPlaceholderIcon";
 import {
   ChevronLeft, ChevronRight, ChevronDown, Dog, Cat, Pill, Bell, Clock,
   CircleCheck, ClipboardList, HeartPulse, Syringe, ShieldCheck,
@@ -831,22 +832,6 @@ function QuickEntryCard({ onVaccine, onDeworm }) {
 }
 
 /* 可爱宠物脸（线性 SVG，绿色）—— 生病护理空状态 */
-function PetFaceSVG({ size = 46 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none"
-         stroke="#4FA85D" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 14 L10 6 L19 11"/>
-      <path d="M34 14 L38 6 L29 11"/>
-      <circle cx="24" cy="26" r="13"/>
-      <circle cx="19" cy="24" r="1.5" fill="#4FA85D" stroke="none"/>
-      <circle cx="29" cy="24" r="1.5" fill="#4FA85D" stroke="none"/>
-      <path d="M24 28 L24 30"/>
-      <path d="M24 30 Q21 32.5 19.5 30"/>
-      <path d="M24 30 Q27 32.5 28.5 30"/>
-    </svg>
-  );
-}
-
 /* 生病护理：当前护理状态卡（无 active→可爱空状态；有→ spotlight + 快捷操作）*/
 function CareStatusCard({ diseases, pets, medTick, onAdd, onOpen, onToggleMed, onRecover }) {
   const active = (diseases || []).filter((d) => d.status !== "recovered");
@@ -857,7 +842,7 @@ function CareStatusCard({ diseases, pets, medTick, onAdd, onOpen, onToggleMed, o
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"18px 10px 8px" }}>
           <div style={{ width:84, height:84, borderRadius:999, background:"rgba(95,167,102,0.1)",
                         display:"flex", alignItems:"center", justifyContent:"center", marginBottom:14 }}>
-            <PetFaceSVG size={46}/>
+            <PetHealthPlaceholderIcon size={46}/>
           </div>
           <div style={{ fontSize:16, fontWeight:800, color:TEXT }}>暂无生病护理</div>
           <div style={{ fontSize:12.5, color:SUB, marginTop:6, textAlign:"center", lineHeight:1.6 }}>
