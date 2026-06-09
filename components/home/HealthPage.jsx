@@ -19,7 +19,7 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, Dog, Cat, Pill, Bell, Clock,
   CircleCheck, ClipboardList, HeartPulse, Syringe, ShieldCheck,
   Stethoscope, Calendar, Check, Plus, Ellipsis, Pencil, MapPin, Bug,
-  PawPrint, Filter, X,
+  PawPrint, X,
 } from "lucide-react";
 import { avatarForBreed } from "@/services/breedAvatar";
 import { formatPetAge } from "@/services/petAge";
@@ -81,7 +81,7 @@ export async function prefetchHealth(petId, userId) {
   } catch {}
 }
 
-export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate, onBack }) {
+export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate, onBack, onSwitchPet }) {
   // view：overview 总览(含3 tab) / vaccine 疫苗记录 / deworm 驱虫记录
   const [view, setView]   = useState("overview");
   // 总览内部 3 tab：overview 健康概览 / care 生病护理 / archive 健康档案
@@ -100,6 +100,9 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
   const [diseaseInit,   setDiseaseInit]   = useState("sick");
   // 打开通用记录弹窗时的初始类型（体检入口预设 checkup）
   const [recordInit,    setRecordInit]    = useState("checkup");
+  // 健康档案分类筛选
+  const [archiveFilter,   setArchiveFilter]   = useState("all");
+  const [archiveMenuOpen, setArchiveMenuOpen] = useState(false);
 
   const h0 = pet?.id ? healthCache[pet.id] : null;
   const [records,    setRecords]    = useState(h0?.records || []);
@@ -265,29 +268,55 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
   }
 
   // 健康档案：彩色分类时间线（数据来自合并 timeline）
-  const renderArchive = () => (
+  const FILTER_OPTS = [
+    { k:"all", l:"全部类型" }, { k:"vaccine", l:"疫苗" }, { k:"deworm", l:"驱虫" },
+    { k:"diagnosis", l:"诊断" }, { k:"medication", l:"用药" }, { k:"recovery", l:"康复" },
+    { k:"checkup", l:"体检" }, { k:"other", l:"其他" },
+  ];
+  const renderArchive = () => {
+    const curLabel = FILTER_OPTS.find((o) => o.k === archiveFilter)?.l || "全部类型";
+    const filtered = archiveFilter === "all" ? timeline : timeline.filter((t) => t.cat === archiveFilter);
+    return (
     <>
-      {/* 筛选行（UI 占位）*/}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 2px" }}>
-        <div style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"7px 14px",
-                      borderRadius:999, background:"rgba(95,167,102,0.12)", color:GREEN,
-                      fontSize:13, fontWeight:700 }}>
-          全部类型 <ChevronDown size={14} strokeWidth={2.4}/>
-        </div>
-        <div style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"7px 14px",
-                      borderRadius:999, background:"rgba(255,255,255,0.7)", color:SUB,
-                      fontSize:13, fontWeight:700 }}>
-          <Filter size={14} strokeWidth={2}/> 筛选
-        </div>
+      {/* 分类筛选（可用下拉）*/}
+      <div style={{ position:"relative", padding:"0 2px" }}>
+        <button onClick={() => setArchiveMenuOpen((o) => !o)}
+          style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"7px 14px",
+                   borderRadius:999, background:"rgba(95,167,102,0.12)", color:GREEN,
+                   border:"none", cursor:"pointer", fontSize:13, fontWeight:700 }}>
+          {curLabel} <ChevronDown size={14} strokeWidth={2.4}
+            style={{ transform: archiveMenuOpen ? "rotate(180deg)" : "none", transition:"transform .2s" }}/>
+        </button>
+        {archiveMenuOpen && (
+          <>
+            <div onClick={() => setArchiveMenuOpen(false)} style={{ position:"fixed", inset:0, zIndex:290 }}/>
+            <div style={{ position:"absolute", top:42, left:2, zIndex:300, background:"#fff",
+                          borderRadius:14, padding:"6px 0", minWidth:140,
+                          boxShadow:"0 10px 28px rgba(0,0,0,0.16)" }}>
+              {FILTER_OPTS.map((o) => {
+                const on = archiveFilter === o.k;
+                return (
+                  <button key={o.k} onClick={() => { setArchiveFilter(o.k); setArchiveMenuOpen(false); }}
+                    style={{ width:"100%", textAlign:"left", padding:"9px 16px", border:"none",
+                             cursor:"pointer", background: on ? "rgba(95,167,102,0.08)" : "transparent",
+                             fontSize:13, fontWeight: on ? 700 : 500, color: on ? GREEN : TEXT }}>
+                    {o.l}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       <div style={{ ...CARD, padding:"6px 18px" }}>
         {loading && timeline.length === 0 ? (
           <div style={{ textAlign:"center", color:SUB, padding:18, fontSize:13 }}>加载中…</div>
-        ) : timeline.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <EmptyCard icon={<ClipboardList size={32} color="rgba(95,167,102,0.4)" strokeWidth={1.5}/>}
-            text="还没有健康记录" sub="点击右上角 + 添加记录"/>
-        ) : timeline.map((item, i) => {
+            text={archiveFilter === "all" ? "还没有健康记录" : "该分类暂无记录"}
+            sub={archiveFilter === "all" ? "点击右上角 + 添加记录" : "换个分类看看"}/>
+        ) : filtered.map((item, i) => {
           const meta = CAT_META[item.cat] || CAT_META.other;
           const Icon = meta.Icon;
           const rec  = records.find((r) => r.id === item.id);
@@ -295,7 +324,7 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
             <div key={item.id} style={{ display:"flex", gap:12, padding:"12px 0", position:"relative",
                                         cursor: item.disease ? "pointer" : "default" }}
                  onClick={() => item.disease && setViewDisease(item.disease)}>
-              {i < timeline.length - 1 && (
+              {i < filtered.length - 1 && (
                 <div style={{ position:"absolute", left:17, top:42, bottom:-4, width:2,
                               background:"rgba(95,167,102,0.16)", zIndex:0 }}/>
               )}
@@ -330,7 +359,8 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
         })}
       </div>
     </>
-  );
+    );
+  };
 
   return (
     <div style={{ height:"100%", overflowY:"auto", background:BG }}>
@@ -367,7 +397,8 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
 
           {/* ── 0. 宠物切换（多宠时可切，决定狗版 / 猫版内容）── */}
           <PetTypeSwitch pets={pets} curPet={pet} open={petMenuOpen}
-            setOpen={setPetMenuOpen} onSelect={setSelId} />
+            setOpen={setPetMenuOpen}
+            onSelect={(id) => { setSelId(id); const np = pets.find((p) => p.id === id); if (np) onSwitchPet?.(np); }} />
 
           {/* ── 内部 3 段 tab：健康概览 / 生病护理 / 健康档案 ── */}
           <HealthTabs tab={healthTab} setTab={setHealthTab} />

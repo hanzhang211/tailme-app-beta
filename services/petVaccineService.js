@@ -95,17 +95,19 @@ export function buildVaccineOverview(records, petType) {
     };
   });
 
-  // 进度：核心疫苗里「已打针数（有 dose_date）」 / 方案总针数
-  const doneDoses = rows.filter(
-    (r) => r.vaccine_group === "core" && r.dose_date
-  ).length;
-  const total = plan.core.totalDoses;
-  const progress = { done: Math.min(doneDoses, total), total };
+  // 进度：核心疫苗按「种类」计（每种打过≥1针算1），再 + 狂犬（打过算1）；总数 = 核心种类 + 1(狂犬)
+  const coreTypeCount = plan.core.vaccines.length; // 狗/猫核心都是 3 种
+  const doneCoreTypes = new Set(
+    rows.filter((r) => r.vaccine_group === "core" && r.dose_date).map((r) => r.vaccine_code)
+  ).size;
+  const rabiesDone = rows.some((r) => r.vaccine_group === "rabies" && r.dose_date) ? 1 : 0;
+  const total = coreTypeCount + 1;
+  const progress = { done: Math.min(doneCoreTypes, coreTypeCount) + rabiesDone, total };
 
-  // 下次补种：核心疫苗未来 next_due_date 的最小值
+  // 下次补种：所有未来 next_due_date 的最小值（含核心 + 狂犬）
   const today = new Date().toISOString().slice(0, 10);
   const futureNexts = rows
-    .filter((r) => r.vaccine_group === "core" && r.next_due_date && r.next_due_date >= today)
+    .filter((r) => r.next_due_date && r.next_due_date >= today)
     .map((r) => r.next_due_date)
     .sort();
   const nextDueDate = futureNexts[0] || null;

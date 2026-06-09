@@ -955,6 +955,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   }
   if (subPage === "health") {
     return <HealthPage user={user} pet={pet} pets={pets} onPetUpdate={onPetUpdate}
+                       onSwitchPet={onSwitchPet}
                        onBack={() => { setSubPage(null); setHealthRefresh((n) => n + 1); }} />;
   }
   if (subPage === "petchat") {
