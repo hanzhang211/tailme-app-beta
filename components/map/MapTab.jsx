@@ -61,7 +61,9 @@ export default function MapTab({ user, onOpenVerify }) {
   const mapRef = useRef(null);
   const mksRef = useRef([]);
   const poiCacheRef = useRef({}); // 每分类搜索结果缓存：catId -> pois[]
+  const clusterRef = useRef(null); // 设施地图 marker 点聚合实例
   const [gateOpen, setGateOpen] = useState(false); // 认证拦截弹窗（上报需认证）
+  const [visibleCount, setVisibleCount] = useState(50); // 列表分页：先显示最近 50
 
   const [location, setLocation] = useState(null);
   const [locating, setLocating] = useState(true);
@@ -139,6 +141,7 @@ export default function MapTab({ user, onOpenVerify }) {
       alive = false;
       mksRef.current.forEach((m) => { try { m.setMap(null); } catch {} });
       mksRef.current = [];
+      if (clusterRef.current) { try { clusterRef.current.setMap(null); } catch {} clusterRef.current = null; }
       if (mapRef.current) { try { mapRef.current.destroy(); } catch {} mapRef.current = null; }
     };
   }, []); // eslint-disable-line
@@ -153,6 +156,7 @@ export default function MapTab({ user, onOpenVerify }) {
   useEffect(() => {
     if (!location) return;
     let alive = true;
+    setVisibleCount(50); // 切分类时列表回到前 50
     const cat = CATEGORY_BY_ID[facilityCat] || ALL_CATEGORY;
     const cached = poiCacheRef.current[facilityCat];
     if (cached) { setAllPois(cached); setPoiErr(null); return; }
@@ -170,6 +174,7 @@ export default function MapTab({ user, onOpenVerify }) {
     if (!AMap || !mapRef.current) return;
     mksRef.current.forEach((m) => { try { m.setMap(null); } catch {} });
     mksRef.current = [];
+    if (clusterRef.current) { try { clusterRef.current.setMap(null); } catch {} clusterRef.current = null; }
     const addCircle = (lng, lat, content, onClick, z = 100) => {
       const mk = new AMap.Marker({ map: mapRef.current, position: new AMap.LngLat(lng, lat), content, offset: new AMap.Pixel(-17, -17), zIndex: z });
       if (onClick) mk.on("click", onClick);
@@ -182,10 +187,36 @@ export default function MapTab({ user, onOpenVerify }) {
     };
 
     if (tab === "facility") {
-      (pois || []).slice(0, 60).forEach((poi) => {
-        const c = getCoords(poi.location); if (!c) return;
-        addCircle(c.lng, c.lat, poiMarker(), () => { setSelPoi(poi); mapRef.current?.setCenter(new AMap.LngLat(c.lng, c.lat)); });
-      });
+      // 全城范围 marker 多 → 点聚合（MarkerCluster），缩放时自动聚合/展开，避免卡顿
+      const points = (pois || []).map((poi) => {
+        const c = getCoords(poi.location);
+        return c ? { lnglat: [c.lng, c.lat], poi } : null;
+      }).filter(Boolean);
+
+      if (AMap.MarkerCluster && points.length) {
+        clusterRef.current = new AMap.MarkerCluster(mapRef.current, points, {
+          gridSize: 60,
+          renderClusterMarker: (ctx) => {
+            const n = ctx.count;
+            const s = n < 10 ? 38 : n < 50 ? 46 : 54;
+            ctx.marker.setContent(
+              `<div style="width:${s}px;height:${s}px;border-radius:50%;background:rgba(230,134,69,0.92);border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;box-shadow:0 3px 12px rgba(230,134,69,0.5)">${n}</div>`
+            );
+            ctx.marker.setOffset(new AMap.Pixel(-s / 2, -s / 2));
+          },
+          renderMarker: (ctx) => {
+            ctx.marker.setContent(poiMarker());
+            ctx.marker.setOffset(new AMap.Pixel(-17, -17));
+            const poi = ctx.data?.[0]?.poi;
+            if (poi) ctx.marker.on("click", () => { setSelPoi(poi); const c = getCoords(poi.location); if (c) mapRef.current?.setCenter(new AMap.LngLat(c.lng, c.lat)); });
+          },
+        });
+      } else {
+        // 兜底（插件未就绪）：直接画 marker，限量防卡
+        points.slice(0, 80).forEach(({ lnglat, poi }) => {
+          addCircle(lnglat[0], lnglat[1], poiMarker(), () => { setSelPoi(poi); mapRef.current?.setCenter(new AMap.LngLat(lnglat[0], lnglat[1])); });
+        });
+      }
     } else if (tab === "friendly") {
       fris.forEach((r) => {
         if (r.latitude == null || r.longitude == null) return;
@@ -337,15 +368,22 @@ export default function MapTab({ user, onOpenVerify }) {
           <div style={{ fontSize: 11.5, color: C.sub, marginBottom: 10, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, minHeight: 20 }}>
             {poiLoading
               ? <><span style={{ animation: "tm-spin 1s linear infinite", display: "inline-block" }}>⟳</span> 搜索附近宠物设施...</>
-              : <><span style={{ color: C.accent }}>●</span> 共发现 {pois?.length || 0} 个宠物设施</>}
+              : <><span style={{ color: C.accent }}>●</span> 共发现 {pois?.length || 0} 个宠物设施{(pois?.length || 0) > visibleCount ? `（按距离显示前 ${visibleCount} 个）` : ""}</>}
           </div>
           {!poiLoading && (pois?.length ?? 0) === 0 && (
             <EmptyState cat={facilityCatObj} hasOthers={false} />
           )}
-          {(pois || []).map((poi) => (
+          {(pois || []).slice(0, visibleCount).map((poi) => (
             <PoiCard key={poi.id} poi={poi} tags={matchedCategoryLabels(poi)} selected={selPoi?.id === poi.id}
               onSelect={() => { setSelPoi(poi); const c = getCoords(poi.location); if (c && mapRef.current && window.AMap) mapRef.current.setCenter(new window.AMap.LngLat(c.lng, c.lat)); }} />
           ))}
+          {!poiLoading && (pois?.length || 0) > visibleCount && (
+            <button onClick={() => setVisibleCount((n) => n + 50)}
+              style={{ width: "100%", padding: "12px 0", marginTop: 4, borderRadius: 14, border: `1.5px solid ${C.border}`,
+                       background: "#fff", color: C.pri, fontSize: 13.5, fontWeight: 800, cursor: "pointer" }}>
+              加载更多（还有 {(pois.length - visibleCount)} 个）
+            </button>
+          )}
         </div>
       )}
 

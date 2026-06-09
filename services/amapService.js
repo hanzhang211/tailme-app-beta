@@ -95,7 +95,7 @@ export function loadMapSDK() {
       s.src =
         "https://webapi.amap.com/maps?v=2.0" +
         "&key="    + jsKey +
-        "&plugin=AMap.Geolocation,AMap.Scale,AMap.ToolBar";
+        "&plugin=AMap.Geolocation,AMap.Scale,AMap.ToolBar,AMap.MarkerCluster";
       s.async = true;
       s.onerror = () => {
         _sdkPromise = null;
@@ -133,8 +133,8 @@ export function loadMapSDK() {
 ══════════════════════════════════════════════════════════ */
 const REST_BASE = "https://restapi.amap.com/v3/place/around";
 
-/** 单关键词搜索，失败返回空数组 */
-async function searchOneREST(lat, lng, keyword, radius) {
+/** 单关键词单页搜索，失败返回空数组 */
+async function searchOneREST(lat, lng, keyword, radius, page = 1) {
   const key = process.env.NEXT_PUBLIC_AMAP_WEB_KEY;
   if (!key) {
     console.warn("[amapService] 缺少 NEXT_PUBLIC_AMAP_WEB_KEY，POI 搜索跳过");
@@ -148,7 +148,7 @@ async function searchOneREST(lat, lng, keyword, radius) {
     "&keywords=" + encodeURIComponent(keyword) +
     "&radius="   + radius +
     "&offset=25" +
-    "&page=1"    +
+    "&page="     + page +
     "&extensions=all";   // all：返回 photos / biz_ext.rating 等（base 不返回）
 
   try {
@@ -167,10 +167,20 @@ async function searchOneREST(lat, lng, keyword, radius) {
   }
 }
 
-/** 11 个关键词并发搜索，合并去重，按距离排序 */
-async function mergeSearchREST(lat, lng, radius) {
+/** 单关键词多页搜索（page 1..pages 合并） */
+async function searchKeywordPaged(lat, lng, keyword, radius, pages = 2) {
+  const reqs = [];
+  for (let pg = 1; pg <= pages; pg++) reqs.push(searchOneREST(lat, lng, keyword, radius, pg));
+  const arrs = await Promise.allSettled(reqs);
+  const out = [];
+  arrs.forEach((r) => { if (r.status === "fulfilled") out.push(...r.value); });
+  return out;
+}
+
+/** 11 个关键词多页并发搜索，合并去重，按距离排序 */
+async function mergeSearchREST(lat, lng, radius, pages = 2) {
   const results = await Promise.allSettled(
-    ALL_KEYWORDS.map((kw) => searchOneREST(lat, lng, kw, radius))
+    ALL_KEYWORDS.map((kw) => searchKeywordPaged(lat, lng, kw, radius, pages))
   );
   const seen = new Set();
   const list = [];
@@ -190,17 +200,18 @@ async function mergeSearchREST(lat, lng, radius) {
  * 先搜 5000m，< 5 个自动扩至 10000m
  */
 export async function searchPetPOI(lat, lng) {
-  let result = await mergeSearchREST(lat, lng, 5000);
+  // 城市中等范围（~18km），每关键词翻 2 页；过少再扩到 30km
+  let result = await mergeSearchREST(lat, lng, 18000, 2);
   if (result.length < 5) {
-    result = await mergeSearchREST(lat, lng, 10000);
+    result = await mergeSearchREST(lat, lng, 30000, 2);
   }
   return result;
 }
 
-/* 通用多关键词搜索：并行 + 去重(id/name+address) + 距离排序 */
-async function searchByKeywords(lat, lng, keywords, radius) {
+/* 通用多关键词搜索：多页并行 + 去重(id/name+address) + 距离排序 */
+async function searchByKeywords(lat, lng, keywords, radius, pages = 2) {
   const results = await Promise.allSettled(
-    (keywords || []).map((kw) => searchOneREST(lat, lng, kw, radius))
+    (keywords || []).map((kw) => searchKeywordPaged(lat, lng, kw, radius, pages))
   );
   const seen = new Set();
   const list = [];
@@ -236,12 +247,12 @@ export async function searchCategoryPOI(lat, lng, category) {
     return list;
   };
 
-  let list = await searchByKeywords(lat, lng, category.keywords, 5000);
-  if (list.length < 6 && category.fallback?.length) {
-    mergeInto(list, await searchByKeywords(lat, lng, category.fallback, 5000));
+  let list = await searchByKeywords(lat, lng, category.keywords, 18000, 2);
+  if (list.length < 8 && category.fallback?.length) {
+    mergeInto(list, await searchByKeywords(lat, lng, category.fallback, 18000, 2));
   }
   if (list.length < 5) {
-    const wide = await searchByKeywords(lat, lng, [...(category.keywords || []), ...(category.fallback || [])], 10000);
+    const wide = await searchByKeywords(lat, lng, [...(category.keywords || []), ...(category.fallback || [])], 30000, 2);
     mergeInto(list, wide);
   }
   return list.sort((a, b) => (a.distance ?? 99999) - (b.distance ?? 99999));
