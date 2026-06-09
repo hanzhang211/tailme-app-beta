@@ -12,18 +12,20 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
-  getMyLocation, loadMapSDK, searchPetPOI,
+  getMyLocation, loadMapSDK, searchCategoryPOI,
   getCoords, fmtDist, fmtTel, openNavigation,
 } from "@/services/amapService";
-import { FRIENDLY_CATEGORIES } from "@/services/facilityMock";
+import { ALL_CATEGORY, PET_CATEGORIES, QUICK_CATEGORY_IDS, CATEGORY_BY_ID, matchedCategoryLabels } from "@/services/facilityMock";
 import { typeInfo, riskInfo, distanceMeters } from "@/services/warningTypes";
 import { listApprovedWarnings } from "@/services/warningService";
 import { listFriendlyReports } from "@/services/friendlyService";
 import MapIcon from "@/components/MapIcon";
 import {
-  FacilityTopTabs, FacilityCategoryChips,
+  FacilityTopTabs, FacilityCategoryFilter,
   WarningDetail, FriendlyDetail,
 } from "./FacilityParts";
+
+const ALL_CATEGORIES = [ALL_CATEGORY, ...PET_CATEGORIES];
 import DangerReportForm from "./DangerReportForm";
 import FriendlyReportForm from "./FriendlyReportForm";
 import VerifyGateModal from "@/components/profile/VerifyGateModal";
@@ -58,6 +60,7 @@ export default function MapTab({ user, onOpenVerify }) {
   const divRef = useRef(null);
   const mapRef = useRef(null);
   const mksRef = useRef([]);
+  const poiCacheRef = useRef({}); // 每分类搜索结果缓存：catId -> pois[]
   const [gateOpen, setGateOpen] = useState(false); // 认证拦截弹窗（上报需认证）
 
   const [location, setLocation] = useState(null);
@@ -97,12 +100,9 @@ export default function MapTab({ user, onOpenVerify }) {
     return () => { alive = false; };
   }, [friVer]);
 
-  const facilityCatObj = FRIENDLY_CATEGORIES.find((c) => c.id === facilityCat) || FRIENDLY_CATEGORIES[0];
-  const pois = useMemo(() => {
-    if (!allPois) return null;
-    if (facilityCat === "partner") return [];
-    return allPois.filter(facilityCatObj.poiTest);
-  }, [allPois, facilityCat]); // eslint-disable-line
+  const facilityCatObj = CATEGORY_BY_ID[facilityCat] || ALL_CATEGORY;
+  // allPois 已是「当前分类」的搜索结果，直接用
+  const pois = allPois;
 
   const baseLoc = location || { lng: 121.4737, lat: 31.2304 };
 
@@ -134,11 +134,6 @@ export default function MapTab({ user, onOpenVerify }) {
           setTimeout(() => { if (alive && mapPhase === "loading") setMapPhase("ready"); }, 12000);
         } catch (e) { if (alive) { setMapPhase("error"); setMapErr("new AMap.Map() 失败: " + e.message); } }
       }).catch((e) => { if (alive) { setMapPhase("error"); setMapErr(e.message); } });
-
-      setPoiLoading(true);
-      try { const r = await searchPetPOI(loc.lat, loc.lng); if (alive) setAllPois(r); }
-      catch (e) { if (alive) setPoiErr(e.message); }
-      finally { if (alive) setPoiLoading(false); }
     })();
     return () => {
       alive = false;
@@ -153,6 +148,21 @@ export default function MapTab({ user, onOpenVerify }) {
     const t = setTimeout(() => { try { mapRef.current?.resize(); } catch {} }, 60);
     return () => clearTimeout(t);
   }, [tab]);
+
+  /* ── 按分类搜索设施 POI（带缓存，切回不重复请求）───────── */
+  useEffect(() => {
+    if (!location) return;
+    let alive = true;
+    const cat = CATEGORY_BY_ID[facilityCat] || ALL_CATEGORY;
+    const cached = poiCacheRef.current[facilityCat];
+    if (cached) { setAllPois(cached); setPoiErr(null); return; }
+    setPoiLoading(true); setPoiErr(null);
+    searchCategoryPOI(location.lat, location.lng, cat)
+      .then((r) => { if (!alive) return; poiCacheRef.current[facilityCat] = r; setAllPois(r); })
+      .catch((e) => { if (alive) { setAllPois([]); setPoiErr(e.message); } })
+      .finally(() => { if (alive) setPoiLoading(false); });
+    return () => { alive = false; };
+  }, [location, facilityCat]);
 
   /* ── markers 随 Tab / 数据更新 ───────────────────────── */
   useEffect(() => {
@@ -227,9 +237,9 @@ export default function MapTab({ user, onOpenVerify }) {
       {/* 设施地图：分类 chips */}
       {tab === "facility" && (
         <div style={{ background: "rgba(255,255,255,0.72)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-                      borderBottom: `1px solid ${C.border}`, padding: "10px 14px", flexShrink: 0 }}>
-          <FacilityCategoryChips categories={FRIENDLY_CATEGORIES} activeId={facilityCat}
-            onPick={(id) => { setFacilityCat(id); setSelPoi(null); }} />
+                      borderBottom: `1px solid ${C.border}`, padding: "10px 14px", flexShrink: 0, position: "relative", zIndex: 7 }}>
+          <FacilityCategoryFilter categories={ALL_CATEGORIES} quickIds={QUICK_CATEGORY_IDS} gridCategories={PET_CATEGORIES}
+            activeId={facilityCat} onPick={(id) => { setFacilityCat(id); setSelPoi(null); }} />
         </div>
       )}
 
@@ -329,17 +339,11 @@ export default function MapTab({ user, onOpenVerify }) {
               ? <><span style={{ animation: "tm-spin 1s linear infinite", display: "inline-block" }}>⟳</span> 搜索附近宠物设施...</>
               : <><span style={{ color: C.accent }}>●</span> 共发现 {pois?.length || 0} 个宠物设施</>}
           </div>
-          {poiErr && (
-            <div style={{ background: C.err, border: `1.5px solid ${C.errT}44`, borderRadius: 16, padding: "12px 14px", marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.errT, marginBottom: 6 }}>❌ POI 搜索失败</div>
-              <div style={{ fontSize: 11, color: C.errT, lineHeight: 1.6, wordBreak: "break-all", whiteSpace: "pre-wrap" }}>{poiErr}</div>
-            </div>
-          )}
-          {!poiLoading && !poiErr && (pois?.length ?? 0) === 0 && (
-            <EmptyState cat={facilityCatObj} hasOthers={(allPois?.length ?? 0) > 0} />
+          {!poiLoading && (pois?.length ?? 0) === 0 && (
+            <EmptyState cat={facilityCatObj} hasOthers={false} />
           )}
           {(pois || []).map((poi) => (
-            <PoiCard key={poi.id} poi={poi} icon={facilityCatObj.icon} selected={selPoi?.id === poi.id}
+            <PoiCard key={poi.id} poi={poi} icon={facilityCatObj.icon} tags={matchedCategoryLabels(poi)} selected={selPoi?.id === poi.id}
               onSelect={() => { setSelPoi(poi); const c = getCoords(poi.location); if (c && mapRef.current && window.AMap) mapRef.current.setCenter(new window.AMap.LngLat(c.lng, c.lat)); }} />
           ))}
         </div>
@@ -393,7 +397,7 @@ function RoundBtn({ children, onClick, ariaLabel }) {
 }
 
 /* ════════ 设施地图：POI 卡片（保留原能力）════════ */
-function PoiCard({ poi, icon, selected, onSelect }) {
+function PoiCard({ poi, icon, tags = [], selected, onSelect }) {
   const dist = fmtDist(poi.distance);
   const type = poi.type?.split(";").slice(-1)[0] ?? "";
   const addr = poi.address || [poi.pname, poi.cityname, poi.adname].filter(Boolean).join("") || "地址未知";
@@ -411,8 +415,10 @@ function PoiCard({ poi, icon, selected, onSelect }) {
         <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{poi.name}</div>
         {rating && <div style={{ fontSize: 12, fontWeight: 700, color: "#F0A030", marginBottom: 2 }}>⭐ {rating}</div>}
         <div style={{ fontSize: 11.5, color: C.sub, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📍 {addr}</div>
-        <div style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-          {type && <span style={{ fontSize: 10, background: C.tint, color: C.accent, padding: "3px 9px", borderRadius: 999, fontWeight: 600, flexShrink: 0, maxWidth: 96, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{type}</span>}
+        <div style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+          {(tags.length ? tags : (type ? [type] : [])).slice(0, 3).map((t, i) => (
+            <span key={i} style={{ fontSize: 10, background: C.tint, color: C.accent, padding: "3px 9px", borderRadius: 999, fontWeight: 700, flexShrink: 0, maxWidth: 84, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t}</span>
+          ))}
           <span style={{ flex: 1 }} />
           {dist && <span style={{ fontSize: 12, fontWeight: 700, color: C.sub, flexShrink: 0 }}>{dist}</span>}
           <button onClick={(e) => { e.stopPropagation(); openNavigation(poi); }}

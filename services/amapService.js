@@ -197,6 +197,56 @@ export async function searchPetPOI(lat, lng) {
   return result;
 }
 
+/* 通用多关键词搜索：并行 + 去重(id/name+address) + 距离排序 */
+async function searchByKeywords(lat, lng, keywords, radius) {
+  const results = await Promise.allSettled(
+    (keywords || []).map((kw) => searchOneREST(lat, lng, kw, radius))
+  );
+  const seen = new Set();
+  const list = [];
+  results.forEach((r) => {
+    if (r.status !== "fulfilled") return;
+    r.value.forEach((poi) => {
+      const key = poi?.id || `${poi?.name}-${poi?.address}`;
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      list.push(poi);
+    });
+  });
+  return list.sort((a, b) => (a.distance ?? 99999) - (b.distance ?? 99999));
+}
+
+/**
+ * 按分类搜索宠物 POI：
+ *  - 用该分类 keywords 多关键词搜索(5km)
+ *  - 结果过少且配置了 fallback → 合并 fallback 大类
+ *  - 仍过少 → 扩到 10km
+ *  - 去重 + 距离排序
+ * category.id === "all" 时走通用 searchPetPOI。
+ */
+export async function searchCategoryPOI(lat, lng, category) {
+  if (!category || category.id === "all") return searchPetPOI(lat, lng);
+
+  const mergeInto = (list, extra) => {
+    const seen = new Set(list.map((p) => p.id || `${p.name}-${p.address}`));
+    extra.forEach((p) => {
+      const k = p.id || `${p.name}-${p.address}`;
+      if (!seen.has(k)) { seen.add(k); list.push(p); }
+    });
+    return list;
+  };
+
+  let list = await searchByKeywords(lat, lng, category.keywords, 5000);
+  if (list.length < 6 && category.fallback?.length) {
+    mergeInto(list, await searchByKeywords(lat, lng, category.fallback, 5000));
+  }
+  if (list.length < 5) {
+    const wide = await searchByKeywords(lat, lng, [...(category.keywords || []), ...(category.fallback || [])], 10000);
+    mergeInto(list, wide);
+  }
+  return list.sort((a, b) => (a.distance ?? 99999) - (b.distance ?? 99999));
+}
+
 /**
  * 地点搜索（滴滴式输入提示）。用高德 inputtips，返回带坐标的候选地点。
  * @returns [{ id, name, address, district, lng, lat }]

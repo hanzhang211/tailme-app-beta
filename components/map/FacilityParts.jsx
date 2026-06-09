@@ -11,6 +11,7 @@
  *   WarningDetail        宠物警示详情底部弹层（脱敏用户号）
  */
 
+import { useState } from "react";
 import { fmtDist, openNavigation } from "@/services/amapService";
 import { typeInfo, riskInfo, reporterLabel, fmtAgo } from "@/services/warningTypes";
 
@@ -79,24 +80,74 @@ export function FacilityModeSwitch({ mode, onChange }) {
 }
 
 /* ── 分类胶囊 ─────────────────────────────────────────── */
-export function FacilityCategoryChips({ categories, activeId, onPick, accent = C.pri }) {
+/* ── 分类筛选：默认一行快捷分类 + 「全部分类」宫格面板 ───────── */
+export function FacilityCategoryFilter({ categories, quickIds, gridCategories, activeId, onPick, accent = C.pri }) {
+  const [open, setOpen] = useState(false);
+  const quick = quickIds.map((id) => categories.find((c) => c.id === id)).filter(Boolean);
+  const activeIsQuick = quickIds.includes(activeId);
+
+  const Chip = ({ c }) => {
+    const on = activeId === c.id;
+    return (
+      <button onClick={() => { onPick(c.id); setOpen(false); }}
+        style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 5, padding: "8px 14px",
+                 borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", fontSize: 13,
+                 fontWeight: on ? 800 : 600, transition: "all .15s",
+                 background: on ? accent : "#fff", color: on ? "#fff" : C.text,
+                 border: `1px solid ${on ? "transparent" : C.border}`,
+                 boxShadow: on ? `0 3px 10px ${accent}44` : "0 1px 4px rgba(0,0,0,0.04)" }}>
+        <span style={{ fontSize: 14 }}>{c.icon}</span>{c.label}
+      </button>
+    );
+  };
+
+  const moreActive = open || !activeIsQuick;
+
   return (
-    <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", padding: "2px 0" }}
-         className="shop-noscroll">
-      {categories.map((c) => {
-        const on = activeId === c.id;
-        return (
-          <button key={c.id} onClick={() => onPick(c.id)}
-            style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 5, padding: "8px 14px",
-                     borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", fontSize: 13,
-                     fontWeight: on ? 800 : 600, transition: "all .15s",
-                     background: on ? accent : "#fff", color: on ? "#fff" : C.text,
-                     border: `1px solid ${on ? "transparent" : C.border}`,
-                     boxShadow: on ? `0 3px 10px ${accent}44` : "0 1px 4px rgba(0,0,0,0.04)" }}>
-            <span style={{ fontSize: 14 }}>{c.icon}</span>{c.label}
-          </button>
-        );
-      })}
+    <div style={{ position: "relative", zIndex: 7 }}>
+      {/* 快捷行 */}
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", padding: "2px 0" }}
+           className="shop-noscroll">
+        {quick.map((c) => <Chip key={c.id} c={c} />)}
+        <button onClick={() => setOpen((o) => !o)}
+          style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 5, padding: "8px 14px",
+                   borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", fontSize: 13,
+                   fontWeight: moreActive ? 800 : 600, transition: "all .15s",
+                   background: moreActive ? accent : "#fff", color: moreActive ? "#fff" : C.text,
+                   border: `1px solid ${moreActive ? "transparent" : C.border}`,
+                   boxShadow: moreActive ? `0 3px 10px ${accent}44` : "0 1px 4px rgba(0,0,0,0.04)" }}>
+          <span style={{ fontSize: 14 }}>▦</span>全部分类
+          <span style={{ fontSize: 11, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>⌄</span>
+        </button>
+      </div>
+
+      {/* 全部分类宫格面板 */}
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)}
+               style={{ position: "fixed", inset: 0, zIndex: 6, background: "transparent" }} />
+          <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0, zIndex: 8,
+                        background: "#fff", borderRadius: 18, padding: "14px 10px 8px",
+                        boxShadow: "0 10px 30px rgba(0,0,0,0.14)", border: `1px solid ${C.border}`,
+                        animation: "tm-cat-panel .2s ease-out" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "6px 4px" }}>
+              {gridCategories.map((c) => {
+                const on = activeId === c.id;
+                return (
+                  <button key={c.id} onClick={() => { onPick(c.id); setOpen(false); }}
+                    style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "10px 2px",
+                             borderRadius: 14, cursor: "pointer", transition: "all .15s",
+                             background: on ? accent : "#fff", border: `1px solid ${on ? "transparent" : C.border}` }}>
+                    <span style={{ fontSize: 21, lineHeight: 1 }}>{c.icon}</span>
+                    <span style={{ fontSize: 11.5, fontWeight: on ? 800 : 600, color: on ? "#fff" : C.text }}>{c.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <style>{`@keyframes tm-cat-panel{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}`}</style>
+        </>
+      )}
     </div>
   );
 }
