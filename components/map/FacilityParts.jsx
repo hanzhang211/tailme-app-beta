@@ -132,14 +132,14 @@ export function FacilityCategoryFilter({ categories, quickIds, gridCategories, a
 
   return (
     <div style={{ position: "relative", zIndex: 7 }}>
-      {/* 快捷行：不滚动，一行内紧凑展示；窄屏自动换行而非横滑 */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+      {/* 快捷行：一行内完整显示，不换行、不横滑 */}
+      <div style={{ display: "flex", flexWrap: "nowrap", gap: 5, alignItems: "center" }}>
         {quick.map((c) => {
           const on = activeId === c.id;
           return (
             <button key={c.id} onClick={() => { onPick(c.id); setOpen(false); }}
-              style={{ flexShrink: 0, padding: "8px 13px", borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap",
-                       fontSize: 12.5, fontWeight: on ? 800 : 600, transition: "all .15s",
+              style={{ flexShrink: 0, padding: "7px 10px", borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap",
+                       fontSize: 12, fontWeight: on ? 800 : 600, transition: "all .15s",
                        background: on ? accent : "#FFFDF9", color: on ? "#fff" : "#2A2A2A",
                        border: `1px solid ${on ? "transparent" : "#E8DED3"}`,
                        boxShadow: on ? `0 3px 10px ${accent}44` : "0 1px 4px rgba(0,0,0,0.04)" }}>
@@ -147,14 +147,14 @@ export function FacilityCategoryFilter({ categories, quickIds, gridCategories, a
             </button>
           );
         })}
-        {/* 全部分类（永远显示在右侧，不滚动）*/}
+        {/* 全部分类（永远显示在右侧，不换行）*/}
         <button onClick={() => setOpen((o) => !o)}
-          style={{ flexShrink: 0, marginLeft: "auto", display: "flex", alignItems: "center", gap: 5, padding: "8px 12px",
-                   borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", fontSize: 12.5, fontWeight: 800, transition: "all .15s",
+          style={{ flexShrink: 0, marginLeft: "auto", display: "flex", alignItems: "center", gap: 4, padding: "7px 10px",
+                   borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", fontSize: 12, fontWeight: 800, transition: "all .15s",
                    background: "#FFFDF9", color: accent, border: `1.4px solid ${accent}`,
                    boxShadow: moreActive ? `0 3px 10px ${accent}33` : "none" }}>
-          <GridIcon size={14} color={accent} />全部分类
-          <span style={{ fontSize: 11, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s", lineHeight: 1 }}>⌄</span>
+          <GridIcon size={13} color={accent} />全部分类
+          <span style={{ fontSize: 10, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s", lineHeight: 1 }}>⌄</span>
         </button>
       </div>
 
