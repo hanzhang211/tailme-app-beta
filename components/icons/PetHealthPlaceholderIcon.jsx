@@ -38,18 +38,17 @@ export default function PetHealthPlaceholderIcon({
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        {/* 爱心外框（对称、饱满、底部柔和收尖） */}
-        <path d="M32 23.5 C29.5 19.5 24 17.5 19.5 20 C14 23 13 30 17.5 35.5 C21 40 26.5 45 32 49.5 C37.5 45 43 40 46.5 35.5 C51 30 50 23 44.5 20 C40 17.5 34.5 19.5 32 23.5 Z" />
-        {/* 医疗加号（附着在爱心右上角外侧） */}
-        <path d="M49 11.5 L49 20.5" />
-        <path d="M44.5 16 L53.5 16" />
+        {/* 爱心外框（放大、对称、饱满、底部柔和收尖） */}
+        <path d="M32 21 C29 16 23 13 18 15 C11 18 9 26 12 33 C15 39 23 47 32 53 C41 47 49 39 52 33 C55 26 53 18 46 15 C41 13 35 16 32 21 Z" />
+        {/* 医疗加号（空心十字轮廓，附着在爱心右上角外侧） */}
+        <path d="M47.6 8 L52.4 8 L52.4 11.1 L55.5 11.1 L55.5 15.9 L52.4 15.9 L52.4 19 L47.6 19 L47.6 15.9 L44.5 15.9 L44.5 11.1 L47.6 11.1 Z" />
         {/* paw — 上方 4 个趾垫 */}
-        <ellipse cx="26.5" cy="33"   rx="2.1" ry="2.8" transform="rotate(-22 26.5 33)" />
-        <ellipse cx="30.2" cy="30.3" rx="2.1" ry="2.9" transform="rotate(-7 30.2 30.3)" />
-        <ellipse cx="33.8" cy="30.3" rx="2.1" ry="2.9" transform="rotate(7 33.8 30.3)" />
-        <ellipse cx="37.5" cy="33"   rx="2.1" ry="2.8" transform="rotate(22 37.5 33)" />
+        <ellipse cx="25"   cy="34"   rx="2.6" ry="3.4" transform="rotate(-22 25 34)" />
+        <ellipse cx="29.7" cy="30.5" rx="2.6" ry="3.5" transform="rotate(-7 29.7 30.5)" />
+        <ellipse cx="34.3" cy="30.5" rx="2.6" ry="3.5" transform="rotate(7 34.3 30.5)" />
+        <ellipse cx="39"   cy="34"   rx="2.6" ry="3.4" transform="rotate(22 39 34)" />
         {/* paw — 下方主肉垫 */}
-        <path d="M28.5 38 C28.5 35 35.5 35 35.5 38 C36.5 41.8 34 44 32 44 C30 44 27.5 41.8 28.5 38 Z" />
+        <path d="M27 41 C27 37.5 37 37.5 37 41 C38 45.5 34.5 49 32 49 C29.5 49 26 45.5 27 41 Z" />
       </g>
     </svg>
   );
