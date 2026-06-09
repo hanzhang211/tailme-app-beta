@@ -54,6 +54,32 @@ export default function VaccineRecordPage({ pet, user, onBack }) {
 
   useEffect(() => { reload(); }, [pet?.id]); // eslint-disable-line
 
+  // 乐观添加：瞬间关弹层 + 本地插入 + toast；insert 后台跑，成功替换/失败回滚（无等待）
+  const handleAdd = (form) => {
+    const tempId = "temp_" + Date.now();
+    const optimistic = {
+      id: tempId, pet_id: pet?.id, user_id: user?.id,
+      vaccine_group: form.vaccineGroup, vaccine_code: form.vaccineCode,
+      vaccine_name: form.vaccineName,
+      dose_no: form.doseNo ? Number(form.doseNo) : null,
+      dose_date: form.doseDate || null,
+      next_due_date: form.nextDueDate || null,
+      note: form.note || null,
+    };
+    setAddOpen(false);
+    setRecords((prev) => { const next = [optimistic, ...prev]; vaxCache[pet.id] = next; return next; });
+    showToast("疫苗记录已添加 ✨");
+    (async () => {
+      try {
+        const real = await addVaccineRecord({ userId: user?.id, petId: pet?.id, ...form });
+        setRecords((prev) => { const next = prev.map((r) => (r.id === tempId ? real : r)); vaxCache[pet.id] = next; return next; });
+      } catch (e) {
+        setRecords((prev) => { const next = prev.filter((r) => r.id !== tempId); vaxCache[pet.id] = next; return next; });
+        showToast(e.message || "添加失败，请重试", "error");
+      }
+    })();
+  };
+
   const ov = useMemo(
     () => buildVaccineOverview(records, pet?.pet_type),
     [records, pet?.pet_type]
@@ -153,7 +179,7 @@ export default function VaccineRecordPage({ pet, user, onBack }) {
       {addOpen && (
         <AddVaccineModal pet={pet} user={user}
           onClose={() => setAddOpen(false)}
-          onAdded={() => { setAddOpen(false); reload(); showToast("疫苗记录已添加 ✨"); }}
+          onSubmit={handleAdd}
           onError={(m) => showToast(m, "error")} />
       )}
 
@@ -262,7 +288,7 @@ function SectionTitle({ title, note }) {
 }
 
 /* ── 添加疫苗记录弹层 ─────────────────────────── */
-function AddVaccineModal({ pet, user, onClose, onAdded, onError }) {
+function AddVaccineModal({ pet, user, onClose, onSubmit, onError }) {
   const plan = vaccinePlan(pet?.pet_type);
   // 可选疫苗 = 核心疫苗 + 狂犬
   const options = [
@@ -274,22 +300,13 @@ function AddVaccineModal({ pet, user, onClose, onAdded, onError }) {
   const [doseDate, setDoseDate]   = useState(new Date().toISOString().slice(0, 10));
   const [nextDate, setNextDate]   = useState("");
   const [note, setNote]       = useState("");
-  const [saving, setSaving]   = useState(false);
 
-  const save = async () => {
+  const save = () => {
     if (!sel) { onError?.("请选择疫苗"); return; }
-    setSaving(true);
-    try {
-      await addVaccineRecord({
-        userId: user?.id, petId: pet?.id,
-        vaccineGroup: sel.group, vaccineCode: sel.code, vaccineName: sel.name,
-        doseNo, doseDate, nextDueDate: nextDate, note,
-      });
-      onAdded?.();
-    } catch (e) {
-      onError?.(e.message);
-      setSaving(false);
-    }
+    onSubmit?.({
+      vaccineGroup: sel.group, vaccineCode: sel.code, vaccineName: sel.name,
+      doseNo, doseDate, nextDueDate: nextDate, note,
+    });
   };
 
   return (
@@ -328,11 +345,11 @@ function AddVaccineModal({ pet, user, onClose, onAdded, onError }) {
       <input value={note} maxLength={100} onChange={(e) => setNote(e.target.value)}
         placeholder="比如：医院名称 / 疫苗品牌" style={inputStyle} />
 
-      <button onClick={save} disabled={saving}
+      <button onClick={save}
         style={{ width: "100%", height: 48, borderRadius: 14, border: "none", marginTop: 18,
                  background: GREEN, color: "white", fontSize: 15, fontWeight: 700,
-                 cursor: saving ? "default" : "pointer", opacity: saving ? 0.7 : 1 }}>
-        {saving ? "保存中…" : "保存"}
+                 cursor: "pointer" }}>
+        保存
       </button>
     </Sheet>
   );

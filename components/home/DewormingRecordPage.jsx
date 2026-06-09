@@ -53,6 +53,34 @@ export default function DewormingRecordPage({ pet, user, onBack }) {
 
   useEffect(() => { reload(); }, [pet?.id]); // eslint-disable-line
 
+  // 乐观添加：瞬间关弹层 + 本地插入 + toast；insert 后台跑，成功替换/失败回滚（无等待）
+  const handleAdd = (form) => {
+    const tempId = "temp_" + Date.now();
+    const today = new Date().toISOString().slice(0, 10);
+    const optimistic = {
+      id: tempId, pet_id: pet?.id, user_id: user?.id,
+      deworm_type: form.dewormType,
+      product_name: form.productName || null,
+      product_desc: form.productDesc || null,
+      target_pests: form.targetPests || null,
+      done_date: form.doneDate || today,
+      next_due_date: form.nextDueDate || null,
+    };
+    setAddOpen(false);
+    setTab(form.dewormType); // 切到对应 tab，确保新记录可见
+    setRecords((prev) => { const next = [optimistic, ...prev]; dewormCache[pet.id] = next; return next; });
+    showToast("驱虫记录已添加 ✨");
+    (async () => {
+      try {
+        const real = await addDewormRecord({ userId: user?.id, petId: pet?.id, ...form });
+        setRecords((prev) => { const next = prev.map((r) => (r.id === tempId ? real : r)); dewormCache[pet.id] = next; return next; });
+      } catch (e) {
+        setRecords((prev) => { const next = prev.filter((r) => r.id !== tempId); dewormCache[pet.id] = next; return next; });
+        showToast(e.message || "添加失败，请重试", "error");
+      }
+    })();
+  };
+
   const ov = useMemo(() => buildDewormOverview(records), [records]);
   const list = tab === "internal" ? ov.internal : ov.external;
 
@@ -152,7 +180,7 @@ export default function DewormingRecordPage({ pet, user, onBack }) {
       {addOpen && (
         <AddDewormModal pet={pet} user={user} defaultType={tab}
           onClose={() => setAddOpen(false)}
-          onAdded={() => { setAddOpen(false); reload(); showToast("驱虫记录已添加 ✨"); }}
+          onSubmit={handleAdd}
           onError={(m) => showToast(m, "error")} />
       )}
 
@@ -202,28 +230,18 @@ function DewormCard({ rec }) {
 }
 
 /* ── 添加驱虫记录弹层 ─────────────────────────── */
-function AddDewormModal({ pet, user, defaultType, onClose, onAdded, onError }) {
+function AddDewormModal({ pet, user, defaultType, onClose, onSubmit, onError }) {
   const [type, setType]   = useState(defaultType || "internal");
   const [product, setProduct] = useState("");
   const [desc, setDesc]   = useState("");
   const [pests, setPests] = useState("");
   const [doneDate, setDoneDate] = useState(new Date().toISOString().slice(0, 10));
   const [nextDate, setNextDate] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      await addDewormRecord({
-        userId: user?.id, petId: pet?.id, dewormType: type,
-        productName: product, productDesc: desc, targetPests: pests,
-        doneDate, nextDueDate: nextDate,
-      });
-      onAdded?.();
-    } catch (e) {
-      onError?.(e.message);
-      setSaving(false);
-    }
+  const save = () => {
+    onSubmit?.({
+      dewormType: type, productName: product, productDesc: desc,
+      targetPests: pests, doneDate, nextDueDate: nextDate,
+    });
   };
 
   return (
@@ -269,11 +287,11 @@ function AddDewormModal({ pet, user, defaultType, onClose, onAdded, onError }) {
       <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)}
         style={inputStyle} />
 
-      <button onClick={save} disabled={saving}
+      <button onClick={save}
         style={{ width: "100%", height: 48, borderRadius: 14, border: "none", marginTop: 18,
                  background: GREEN, color: "white", fontSize: 15, fontWeight: 700,
-                 cursor: saving ? "default" : "pointer", opacity: saving ? 0.7 : 1 }}>
-        {saving ? "保存中…" : "保存"}
+                 cursor: "pointer" }}>
+        保存
       </button>
     </Sheet>
   );
