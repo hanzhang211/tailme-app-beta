@@ -7,8 +7,8 @@
  * 暂不做关联记录模块。
  */
 
-import React, { useState } from "react";
-import { ChevronLeft, MoreHorizontal, Pencil } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { ChevronLeft, MoreHorizontal, Pencil, X } from "lucide-react";
 import { checkupResultMeta, deleteCheckupRecord } from "@/services/petCheckupService";
 import PetTrashIcon from "@/components/icons/PetTrashIcon";
 
@@ -23,6 +23,7 @@ const fmtSlash = (d) => (d ? String(d).slice(0, 10).replace(/-/g, "/") : "—");
 export default function CheckupDetail({ record, user, onBack, onEdit, onDeleted, onError }) {
   const [page, setPage] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [lbIndex, setLbIndex] = useState(null); // 大图查看器：当前打开的图片索引，null=关闭
   const images = Array.isArray(record?.image_urls) ? record.image_urls : [];
   const rs = checkupResultMeta(record?.result_status);
   const rsGreen = rs.tone === "green";
@@ -97,8 +98,9 @@ export default function CheckupDetail({ record, user, onBack, onEdit, onDeleted,
                           borderRadius: 16, WebkitOverflowScrolling: "touch" }}>
               {images.map((url, i) => (
                 <img key={i} src={url} alt={"体检图" + (i + 1)}
-                  style={{ width: "100%", flexShrink: 0, height: 220, objectFit: "cover",
-                           borderRadius: 16, scrollSnapAlign: "start", background: "#F2F1ED" }} />
+                  onClick={() => setLbIndex(i)}
+                  style={{ width: "100%", flexShrink: 0, height: 240, objectFit: "contain",
+                           borderRadius: 16, scrollSnapAlign: "start", background: "#F2F1ED", cursor: "zoom-in" }} />
               ))}
             </div>
             {images.length > 1 && (
@@ -138,6 +140,62 @@ export default function CheckupDetail({ record, user, onBack, onEdit, onDeleted,
                    boxShadow: "0 6px 16px rgba(79,168,93,0.32)" }}>
           编辑记录
         </button>
+      </div>
+
+      {/* 大图查看器（全屏浮层，点击缩略图打开）*/}
+      {lbIndex !== null && (
+        <ImageLightbox images={images} index={lbIndex} onClose={() => setLbIndex(null)} />
+      )}
+    </div>
+  );
+}
+
+/* 全屏大图查看器：图片完整显示(contain) + 左右滑动 + 页码 + 点背景/关闭按钮退出 */
+function ImageLightbox({ images, index, onClose }) {
+  const scRef = useRef(null);
+  const [page, setPage] = useState(index);
+
+  // 打开时定位到点击的那张
+  useEffect(() => {
+    const el = scRef.current;
+    if (el) el.scrollLeft = index * (el.clientWidth || 0);
+  }, [index]);
+
+  return (
+    <div onClick={onClose}
+      style={{ position: "fixed", inset: 0, zIndex: 2000, background: "rgba(0,0,0,0.92)",
+               display: "flex", flexDirection: "column" }}>
+      {/* 顶栏：页码 + 关闭 */}
+      <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "48px 18px 10px" }}>
+        <span style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>
+          {images.length > 1 ? `${page + 1}/${images.length}` : ""}
+        </span>
+        <button onClick={onClose}
+          style={{ width: 38, height: 38, borderRadius: 999, border: "none", cursor: "pointer",
+                   background: "rgba(255,255,255,0.16)",
+                   display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <X size={22} color="#fff" strokeWidth={2.4} />
+        </button>
+      </div>
+
+      {/* 横滑大图区（每张 contain 完整居中显示）*/}
+      <div ref={scRef}
+           onScroll={(e) => {
+             const w = e.currentTarget.clientWidth || 1;
+             setPage(Math.round(e.currentTarget.scrollLeft / w));
+           }}
+           style={{ flex: 1, display: "flex", overflowX: "auto", overflowY: "hidden",
+                    scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}>
+        {images.map((url, i) => (
+          <div key={i}
+               style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "center",
+                        display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <img src={url} alt={"体检图" + (i + 1)}
+              onClick={(e) => e.stopPropagation()}
+              style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+          </div>
+        ))}
       </div>
     </div>
   );
