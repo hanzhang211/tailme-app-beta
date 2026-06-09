@@ -59,6 +59,14 @@ function WalkChip({ text }) {
                    padding:"3px 9px", borderRadius:20 }}>{text}</span>
   );
 }
+/* 健康标签（真实疫苗状态）：已打/齐全=绿，待补=红 */
+function HealthChip({ ok, text }) {
+  return (
+    <span style={{ fontSize:10.5, fontWeight:700, padding:"3px 9px", borderRadius:20,
+                   background: ok ? "rgba(95,167,102,0.14)" : "rgba(214,64,64,0.12)",
+                   color: ok ? "#5FA766" : "#D64040" }}>{text}</span>
+  );
+}
 function WalkCardBubble({ card }) {
   const age  = formatPetAge(card.birthday) || "";
   const sub  = [card.petBreed, age, card.gender === "male" ? "♂" : card.gender === "female" ? "♀" : ""].filter(Boolean).join(" · ");
@@ -85,6 +93,13 @@ function WalkCardBubble({ card }) {
             {sub && <div style={{ fontSize:11.5, color:C.sub, marginTop:2 }}>{sub}</div>}
           </div>
         </div>
+        {(card.rabiesDone !== undefined || card.coreComplete) && (
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:8 }}>
+            {card.rabiesDone !== undefined &&
+              <HealthChip ok={!!card.rabiesDone} text={card.rabiesDone ? "狂犬 ✓" : "狂犬待补"} />}
+            {card.coreComplete && <HealthChip ok text="核心齐全" />}
+          </div>
+        )}
         {times.length > 0 && (
           <div style={{ fontSize:11.5, color:C.pri, fontWeight:600, marginTop:8 }}>⏰ {times.join(" / ")}</div>
         )}

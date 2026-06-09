@@ -18,6 +18,7 @@ import {
   getNearbyDogFriends, getCurrentPosition,
 } from "@/services/dogFriendService";
 import { getOrCreateConversation, sendWalkInvite } from "@/services/privateChatService";
+import { getWalkVaccineMap } from "@/services/petVaccineService";
 import { toastColors } from "@/services/toastTheme";
 import { formatPetAge } from "@/services/petAge";
 import { avatarForBreed } from "@/services/breedAvatar";
@@ -145,6 +146,7 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile, onOpenV
     const myPet = pets.find((p) => p.id === profile?.pet_id) || pet || null;
     return {
       v: 1,
+      petId: myPet?.id || null,
       ownerName: user?.username || "",
       petName: myPet?.name || "",
       petBreed: myPet?.breed || "",
@@ -187,6 +189,14 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile, onOpenV
     });
   }, [nearby]);
 
+  /* 拉附近列表并注入真实疫苗状态（狂犬已打 / 核心齐全），一条批量查询 */
+  const loadNearbyList = async (coords) => {
+    const list = await getNearbyDogFriends({ userId: user.id, ...coords, radiusKm: RADIUS_KM });
+    let vmap = {};
+    try { vmap = await getWalkVaccineMap(list.map((d) => d.pet_id)); } catch {}
+    return list.map((d) => ({ ...d, ...(vmap[d.pet_id] || {}) }));
+  };
+
   /* ── 拉附近（需当前定位；拿不到则保留旧列表 + 提示）── */
   const refreshNearby = async (silent = false) => {
     if (!user?.id) return;
@@ -206,8 +216,7 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile, onOpenV
         return;
       }
       await updateDogLocation({ userId: user.id, ...coords }).catch(() => {});
-      const list = await getNearbyDogFriends({ userId: user.id, ...coords, radiusKm: RADIUS_KM });
-      setNearby(list);
+      setNearby(await loadNearbyList(coords));
     } catch (e) {
       toast(e.message, "error");
     } finally {
@@ -234,8 +243,7 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile, onOpenV
         setStaleNote(false);
         // 名片已完善才拉附近；否则提示去完善（避免空卡片）
         if (cardReady) {
-          const list = await getNearbyDogFriends({ userId: user.id, ...coords, radiusKm: RADIUS_KM });
-          setNearby(list);
+          setNearby(await loadNearbyList(coords));
           toast("距离可见已开启 🐾", "success");
         } else {
           toast("距离可见已开启，完善名片后即可查看附近狗友", "info");
@@ -271,8 +279,15 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile, onOpenV
     toast("已发送遛弯申请 🐾", "success");
     try {
       const conv = await getOrCreateConversation(user.id, card.user_id);
+      const myCard = buildMyCard();
+      if (myCard.petId) {
+        try {
+          const m = await getWalkVaccineMap([myCard.petId]);
+          Object.assign(myCard, m[myCard.petId] || {});
+        } catch {}
+      }
       await sendWalkInvite({
-        convId: conv.id, senderId: user.id, receiverId: card.user_id, card: buildMyCard(),
+        convId: conv.id, senderId: user.id, receiverId: card.user_id, card: myCard,
       });
     } catch (e) {
       // 失败回滚
@@ -478,7 +493,9 @@ function DogCard({ d, onInvite, onOpenProfile, inviteStatus = "idle" }) {
   const age = formatPetAge(d.pet_birthday) || (d.pet_age != null ? `${d.pet_age}岁` : null);
   const tags = [];
   tags.push({ lbl: d.neutered ? "已绝育" : "未绝育", ok: d.neutered });
-  tags.push({ lbl: d.vaccinated ? "疫苗齐全" : "疫苗未齐", ok: d.vaccinated });
+  if (d.rabiesDone !== undefined)
+    tags.push({ lbl: d.rabiesDone ? "狂犬 ✓" : "狂犬待补", ok: d.rabiesDone });
+  if (d.coreComplete) tags.push({ lbl: "核心齐全", ok: true });
 
   return (
     <div style={{ background:"white", borderRadius:20, padding:16, marginBottom:12,

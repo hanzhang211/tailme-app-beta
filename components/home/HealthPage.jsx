@@ -16,12 +16,17 @@ import { HealthIcon } from "@/components/icons/HomeModuleIcons";
 import { toastColors } from "@/services/toastTheme";
 import PetTrashIcon from "@/components/icons/PetTrashIcon";
 import {
-  ChevronLeft, ChevronRight, Dog, Pill, Bell, Clock,
+  ChevronLeft, ChevronRight, ChevronDown, Dog, Cat, Pill, Bell, Clock,
   CircleCheck, ClipboardList, HeartPulse, Syringe, ShieldCheck,
-  Stethoscope, Calendar, Check, Plus, Ellipsis, Pencil,
+  Stethoscope, Calendar, Check, Plus, Ellipsis, Pencil, MapPin, Bug,
 } from "lucide-react";
 import { avatarForBreed } from "@/services/breedAvatar";
 import { formatPetAge } from "@/services/petAge";
+import { listVaccineRecords, buildVaccineOverview } from "@/services/petVaccineService";
+import { listDewormRecords, buildDewormOverview } from "@/services/petDewormService";
+import { regionRisk } from "@/services/petHealthPlan";
+import VaccineRecordPage from "@/components/home/VaccineRecordPage";
+import DewormingRecordPage from "@/components/home/DewormingRecordPage";
 
 const BG    = "#ECEEE8";
 const PRI   = "#E68645";
@@ -61,23 +66,33 @@ const healthCache = {};
 export async function prefetchHealth(petId, userId) {
   if (!petId || healthCache[petId]) return;
   try {
-    const [rs, dis] = await Promise.all([
+    const [rs, dis, vax, dw] = await Promise.all([
       listHealthRecords(petId).catch(() => []),
       listDiseaseRecords(null, userId).catch(() => []),
+      listVaccineRecords(petId).catch(() => []),
+      listDewormRecords(petId).catch(() => []),
     ]);
-    healthCache[petId] = { records: rs, diseases: dis };
+    healthCache[petId] = { records: rs, diseases: dis, vax, dw };
   } catch {}
 }
 
-export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }) {
+export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate, onBack }) {
+  // view：overview 总览 / vaccine 疫苗记录 / deworm 驱虫记录
+  const [view, setView]   = useState("overview");
+  // 顶部「狗狗 / 猫咪」切换 = 在当前用户的宠物间切换（默认当前 activePet）
+  const [selId, setSelId] = useState(petProp?.id || null);
+  const [petMenuOpen, setPetMenuOpen] = useState(false);
+  const pet = pets.find((p) => p.id === selId) || petProp;
+
   const h0 = pet?.id ? healthCache[pet.id] : null;
   const [records,    setRecords]    = useState(h0?.records || []);
   const [diseases,   setDiseases]   = useState(h0?.diseases || []);
+  const [vaxRecords, setVaxRecords]       = useState(h0?.vax || []);
+  const [dewormRecords, setDewormRecords] = useState(h0?.dw || []);
   const [loading,    setLoading]    = useState(!h0);
   const [err,        setErr]        = useState(null);
 
   const [neutered,   setNeutered]   = useState(!!pet?.neutered);
-  const [vaccinated, setVaccinated] = useState(!!pet?.vaccinated);
   const [savingFlag, setSavingFlag] = useState(false);
 
   const [addRecordOpen,  setAddRecordOpen]  = useState(false);
@@ -97,15 +112,24 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
 
   const reload = async () => {
     if (!pet?.id) { setLoading(false); return; }
-    if (!healthCache[pet.id]) setLoading(true);
+    const cache = healthCache[pet.id];
+    if (cache) {
+      // 切换宠物时先用缓存秒显，再后台静默刷新
+      setRecords(cache.records || []); setDiseases(cache.diseases || []);
+      setVaxRecords(cache.vax || []);  setDewormRecords(cache.dw || []);
+    } else {
+      setLoading(true);
+    }
     setErr(null);
     try {
-      const [rs, dis] = await Promise.all([
+      const [rs, dis, vax, dw] = await Promise.all([
         listHealthRecords(pet.id).catch(() => []),
         listDiseaseRecords(null, user?.id).catch(() => []),
+        listVaccineRecords(pet.id).catch(() => []),
+        listDewormRecords(pet.id).catch(() => []),
       ]);
-      setRecords(rs); setDiseases(dis);
-      healthCache[pet.id] = { records: rs, diseases: dis };
+      setRecords(rs); setDiseases(dis); setVaxRecords(vax); setDewormRecords(dw);
+      healthCache[pet.id] = { records: rs, diseases: dis, vax, dw };
     } catch (e) { if (!healthCache[pet.id]) setErr(e.message); }
     finally { setLoading(false); }
   };
@@ -113,20 +137,17 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
   useEffect(() => { reload(); }, [pet?.id]); // eslint-disable-line
   useEffect(() => {
     setNeutered(!!pet?.neutered);
-    setVaccinated(!!pet?.vaccinated);
-  }, [pet?.neutered, pet?.vaccinated]);
+  }, [pet?.neutered]);
 
   const toggleFlag = async (key, next) => {
     if (!pet?.id || !user?.id) return;
-    if (key === "neutered")   setNeutered(next);
-    if (key === "vaccinated") setVaccinated(next);
+    if (key === "neutered") setNeutered(next);
     setSavingFlag(true);
     try {
       await updatePetHealth(pet.id, user.id, { [key]: next });
       onPetUpdate?.({ ...pet, [key]: next });
     } catch (e) {
-      if (key === "neutered")   setNeutered(!next);
-      if (key === "vaccinated") setVaccinated(!next);
+      if (key === "neutered") setNeutered(!next);
       alert(e.message);
     } finally { setSavingFlag(false); }
   };
@@ -163,6 +184,16 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
   // 合并时间线
   const timeline = useMemo(() => {
     const items = [
+      ...vaxRecords.filter(r => r.dose_date).map(r => ({
+        id:"vax_"+r.id, date:r.dose_date, kind:"vaccine",
+        label:`疫苗：${r.vaccine_name}${r.dose_no ? ` 第${r.dose_no}针` : ""}`,
+        iconEl:<Syringe size={15} color={GREEN} strokeWidth={1.8}/>,
+      })),
+      ...dewormRecords.map(r => ({
+        id:"dw_"+r.id, date:r.done_date, kind:"deworm",
+        label:`驱虫：${r.deworm_type === "internal" ? "内驱" : "外驱"}${r.product_name ? `・${r.product_name}` : ""}`,
+        iconEl:<ShieldCheck size={15} color={GREEN} strokeWidth={1.8}/>,
+      })),
       ...records.map(r => ({
         id:r.id, date:r.record_date, kind:"record",
         label: typeMeta(r.record_type).label + (r.title ? `・${r.title}` : ""),
@@ -185,7 +216,35 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
       })),
     ];
     return items.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-  }, [records, diseases]);
+  }, [records, diseases, vaxRecords, dewormRecords]);
+
+  // 疫苗 / 驱虫 / 地区虫害 概览（驱动总览页提醒标签 + 基础健康行）
+  const vaxOv    = useMemo(() => buildVaccineOverview(vaxRecords, pet?.pet_type), [vaxRecords, pet?.pet_type]);
+  const dewormOv = useMemo(() => buildDewormOverview(dewormRecords), [dewormRecords]);
+  const risk     = useMemo(() => regionRisk(user?.city, pet?.pet_type), [user?.city, pet?.pet_type]);
+
+  // 当前状态卡的提醒标签（最多 2 个，复现设计图：狗=狂犬待补+驱虫N天 / 猫=猫三联待补+驱虫N天）
+  const reminders = useMemo(() => {
+    const out = [];
+    if (vaxOv.core.items.some((it) => it.status.key === "pending")) out.push(`${vaxOv.core.shortName}待补`);
+    if (vaxOv.rabies.status.key === "pending") out.push("狂犬待补");
+    const dd = dewormOv.nextDays;
+    if (dd == null) {
+      if (dewormOv.internal.length === 0 && dewormOv.external.length === 0) out.push("驱虫待补");
+    } else if (dd < 0) out.push("驱虫待补");
+    else out.push(`驱虫 ${dd}天后到期`);
+    return out.slice(0, 2);
+  }, [vaxOv, dewormOv]);
+
+  // 子页面路由（疫苗 / 驱虫记录页）；返回时刷新总览数据，保持进度/日期同步
+  if (view === "vaccine") {
+    return <VaccineRecordPage pet={pet} user={user}
+      onBack={() => { setView("overview"); reload(); }} />;
+  }
+  if (view === "deworm") {
+    return <DewormingRecordPage pet={pet} user={user}
+      onBack={() => { setView("overview"); reload(); }} />;
+  }
 
   return (
     <div style={{ height:"100%", overflowY:"auto", background:BG }}>
@@ -220,6 +279,10 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
       ) : (
         <div style={{ padding:"0 16px 90px", display:"flex", flexDirection:"column", gap:14 }}>
 
+          {/* ── 0. 宠物切换（多宠时可切，决定狗版 / 猫版内容）── */}
+          <PetTypeSwitch pets={pets} curPet={pet} open={petMenuOpen}
+            setOpen={setPetMenuOpen} onSelect={setSelId} />
+
           {/* ── 1. 当前状态 Hero ── */}
           <div style={{ ...CARD, padding:"22px 20px", position:"relative", overflow:"hidden" }}>
             <div style={{ position:"absolute", bottom:-15, right:-15, opacity:0.08,
@@ -234,27 +297,56 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
             <div style={{ fontSize:40, fontWeight:800, color:TEXT, lineHeight:1.1, marginBottom:12 }}>
               {neutered ? "已绝育" : "未绝育"}
             </div>
-            <div style={{ display:"inline-flex", alignItems:"center", gap:6, borderRadius:999,
-                          padding:"5px 12px",
-                          background: vaccinated ? "rgba(95,167,102,0.12)" : "rgba(230,134,69,0.12)" }}>
-              <span style={{ fontSize:11, fontWeight:600,
-                             color: vaccinated ? GREEN : PRI }}>
-                {vaccinated ? "疫苗齐全" : "疫苗待补"}
-              </span>
-              {vaccinated && <CircleCheck size={14} color={GREEN} strokeWidth={2}/>}
-            </div>
+            {reminders.length > 0 && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                {reminders.map((r, i) => (
+                  <span key={i} style={{ display:"inline-flex", alignItems:"center",
+                                         borderRadius:999, padding:"5px 12px",
+                                         background:"rgba(230,134,69,0.12)",
+                                         fontSize:11.5, fontWeight:600, color:PRI }}>
+                    {r}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* ── 2. 基础健康状态 ── */}
+          {/* ── 2. 基础健康状态（4 行）── */}
           <div style={{ ...CARD, padding:"18px 20px" }}>
             <HTitle>基础健康状态</HTitle>
+
+            {/* 绝育状态：保留开关（可手动切换，写 pets 表）*/}
             <HealthRow label="绝育状态" done={neutered} disabled={savingFlag}
               onToggle={(v) => toggleFlag("neutered", v)}
               icon={<CircleCheck size={18} color={neutered ? GREEN : "#C5B9B0"} strokeWidth={2}/>}/>
-            <div style={{ height:1, background:"rgba(0,0,0,0.06)", margin:"2px 0" }}/>
-            <HealthRow label="疫苗状态" done={vaccinated} disabled={savingFlag}
-              onToggle={(v) => toggleFlag("vaccinated", v)}
-              icon={<Syringe size={18} color={vaccinated ? GREEN : "#C5B9B0"} strokeWidth={1.8}/>}/>
+            <div style={{ height:1, background:"rgba(0,0,0,0.06)" }}/>
+
+            {/* 核心疫苗：整行点击进入疫苗记录页 */}
+            <InfoRow
+              icon={<Syringe size={18} color={GREEN} strokeWidth={1.8}/>}
+              title={vaxOv.core.title}
+              sub={vaxOv.core.subText}
+              warn={vaxOv.rabies.status.key === "pending" ? "狂犬疫苗：待补" : null}
+              rightTop={`${vaxOv.progress.done}/${vaxOv.progress.total} 针`}
+              rightBottom={vaxOv.nextDueDate ? `下次补苗\n${fmtFull(vaxOv.nextDueDate)}` : null}
+              onClick={() => setView("vaccine")} divider/>
+
+            {/* 驱虫状态：整行点击进入驱虫记录页 */}
+            <InfoRow
+              icon={<Bug size={18} color={GREEN} strokeWidth={1.8}/>}
+              title="驱虫状态"
+              rightBottom={
+                `内驱 ${(dewormOv.innerNext || dewormOv.innerLast) ? fmtFull(dewormOv.innerNext || dewormOv.innerLast) : "未记录"}\n` +
+                `外驱 ${(dewormOv.outerNext || dewormOv.outerLast) ? fmtFull(dewormOv.outerNext || dewormOv.outerLast) : "未记录"}`
+              }
+              onClick={() => setView("deworm")} divider/>
+
+            {/* 地区虫害提醒 */}
+            <InfoRow
+              icon={<MapPin size={18} color={GREEN} strokeWidth={1.8}/>}
+              title="地区虫害提醒"
+              sub={risk.area}
+              rightBottom={`高发\n${risk.risks.join(" / ")}`}/>
           </div>
 
           {/* ── 3. 生病记录（含用药摘要）── */}
@@ -587,6 +679,83 @@ export default function HealthPage({ user, pet, pets = [], onPetUpdate, onBack }
 }
 
 /* ══ Shared UI ═══════════════════════════════════ */
+function PetTypeSwitch({ pets, curPet, open, setOpen, onSelect }) {
+  const multi = (pets?.length || 0) > 1;
+  const iconFor = (p) => p?.pet_type === "cat"
+    ? <Cat size={16} color={GREEN} strokeWidth={2}/>
+    : <Dog size={16} color={GREEN} strokeWidth={2}/>;
+  return (
+    <div style={{ display:"flex", justifyContent:"center", position:"relative" }}>
+      <button onClick={() => multi && setOpen(!open)}
+        style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"7px 16px",
+                 borderRadius:999, background:"rgba(95,167,102,0.12)", border:"none",
+                 cursor: multi ? "pointer" : "default" }}>
+        {iconFor(curPet)}
+        <span style={{ fontSize:13.5, fontWeight:700, color:GREEN }}>
+          {curPet?.name || (curPet?.pet_type === "cat" ? "猫咪" : "狗狗")}
+        </span>
+        {multi && <ChevronDown size={15} color={GREEN} strokeWidth={2.4}
+                    style={{ transform: open ? "rotate(180deg)" : "none", transition:"transform .2s" }}/>}
+      </button>
+      {open && multi && (
+        <div onClick={() => setOpen(false)}
+          style={{ position:"fixed", inset:0, zIndex:290 }}/>
+      )}
+      {open && multi && (
+        <div style={{ position:"absolute", top:42, zIndex:300, background:"#fff",
+                      borderRadius:14, padding:"6px 0", minWidth:170,
+                      boxShadow:"0 10px 28px rgba(0,0,0,0.16)" }}>
+          {pets.map((p) => {
+            const on = p.id === curPet?.id;
+            return (
+              <button key={p.id} onClick={() => { onSelect(p.id); setOpen(false); }}
+                style={{ width:"100%", display:"flex", alignItems:"center", gap:9,
+                         padding:"10px 16px", border:"none", cursor:"pointer", textAlign:"left",
+                         background: on ? "rgba(95,167,102,0.08)" : "transparent" }}>
+                {iconFor(p)}
+                <span style={{ fontSize:13.5, fontWeight: on ? 700 : 500, color:TEXT, flex:1 }}>
+                  {p.name}
+                </span>
+                {on && <Check size={15} color={GREEN} strokeWidth={2.6}/>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InfoRow({ icon, title, sub, warn, rightTop, rightBottom, onClick, divider }) {
+  return (
+    <>
+      <div onClick={onClick}
+        style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"13px 0",
+                 cursor: onClick ? "pointer" : "default" }}>
+        <div style={{ width:34, height:34, borderRadius:10, flexShrink:0, marginTop:1,
+                      background:"rgba(95,167,102,0.1)", display:"flex",
+                      alignItems:"center", justifyContent:"center" }}>
+          {icon}
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize:14.5, fontWeight:700, color:TEXT }}>{title}</div>
+          {sub  && <div style={{ fontSize:12, color:SUB, marginTop:3 }}>{sub}</div>}
+          {warn && <div style={{ fontSize:12, fontWeight:700, color:PRI, marginTop:4 }}>{warn}</div>}
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0, maxWidth:160 }}>
+          <div style={{ textAlign:"right" }}>
+            {rightTop    && <div style={{ fontSize:13.5, fontWeight:700, color:TEXT }}>{rightTop}</div>}
+            {rightBottom && <div style={{ fontSize:11, color:SUB, marginTop:3,
+                                          whiteSpace:"pre-line", lineHeight:1.5 }}>{rightBottom}</div>}
+          </div>
+          {onClick && <ChevronRight size={16} color="#C2C8BE" strokeWidth={2}/>}
+        </div>
+      </div>
+      {divider && <div style={{ height:1, background:"rgba(0,0,0,0.06)" }}/>}
+    </>
+  );
+}
+
 function HTitle({ children, noMargin }) {
   return (
     <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom: noMargin ? 0 : 14 }}>
