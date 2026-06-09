@@ -25,7 +25,7 @@ const warnTitle = (r) => r.admin_title || r.title || typeInfo(r.event_type).labe
 /* ══════════ 分类线性 SVG 图标（统一风格，替代 emoji）══════════ */
 export function CategoryIcon({ id, size = 24, color = "#2A2A2A" }) {
   const p = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor",
-              strokeWidth: 1.9, strokeLinecap: "round", strokeLinejoin: "round", style: { color, display: "block" } };
+              strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", style: { color, display: "block" } };
   switch (id) {
     case "bath": return (<svg {...p}><path d="M12 3v4"/><path d="M5 11a7 7 0 0 1 14 0Z"/><path d="M8 15v1.6M12 16v1.6M16 15v1.6"/></svg>);
     case "neuter": return (<svg {...p}><circle cx="6" cy="6.5" r="2.2"/><circle cx="6" cy="17.5" r="2.2"/><path d="M8 7.5l12 9M8 16.5l12-9"/></svg>);
@@ -127,57 +127,57 @@ export function FacilityModeSwitch({ mode, onChange }) {
 export function FacilityCategoryFilter({ categories, quickIds, gridCategories, activeId, onPick, accent = C.pri }) {
   const [open, setOpen] = useState(false);
   const quick = quickIds.map((id) => categories.find((c) => c.id === id)).filter(Boolean);
-  const activeIsQuick = quickIds.includes(activeId);
-  const moreActive = open || !activeIsQuick;
 
   return (
     <div style={{ position: "relative", zIndex: 7 }}>
-      {/* 快捷行：一行内完整显示，不换行、不横滑 */}
-      <div style={{ display: "flex", flexWrap: "nowrap", gap: 5, alignItems: "center" }}>
+      {/* 快捷行：CSS grid 固定一行 6 列，不换行、不横滑、无多余间隔 */}
+      <div style={{ display: "grid", gridTemplateColumns: "0.82fr 0.82fr 0.82fr 0.82fr 1.18fr 1.42fr", gap: 8 }}>
         {quick.map((c) => {
           const on = activeId === c.id;
           return (
             <button key={c.id} onClick={() => { onPick(c.id); setOpen(false); }}
-              style={{ flexShrink: 0, padding: "7px 10px", borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap",
-                       fontSize: 12, fontWeight: on ? 800 : 600, transition: "all .15s",
-                       background: on ? accent : "#FFFDF9", color: on ? "#fff" : "#2A2A2A",
-                       border: `1px solid ${on ? "transparent" : "#E8DED3"}`,
-                       boxShadow: on ? `0 3px 10px ${accent}44` : "0 1px 4px rgba(0,0,0,0.04)" }}>
+              style={{ height: 38, borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", boxSizing: "border-box",
+                       display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 600, transition: "all .15s",
+                       background: on ? "#E68645" : "#FFFDF9", color: on ? "#fff" : "#2B2B2B",
+                       border: `1px solid ${on ? "#E68645" : "#E9DFD2"}`,
+                       boxShadow: on ? "0 4px 10px rgba(230,134,69,0.18)" : "0 2px 6px rgba(0,0,0,0.03)" }}>
               {c.label}
             </button>
           );
         })}
-        {/* 全部分类（永远显示在右侧，不换行）*/}
+        {/* 全部分类（最右列，紧贴食品用品）*/}
         <button onClick={() => setOpen((o) => !o)}
-          style={{ flexShrink: 0, marginLeft: "auto", display: "flex", alignItems: "center", gap: 4, padding: "7px 10px",
-                   borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", fontSize: 12, fontWeight: 800, transition: "all .15s",
-                   background: "#FFFDF9", color: accent, border: `1.4px solid ${accent}`,
-                   boxShadow: moreActive ? `0 3px 10px ${accent}33` : "none" }}>
-          <GridIcon size={13} color={accent} />全部分类
-          <span style={{ fontSize: 10, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s", lineHeight: 1 }}>⌄</span>
+          style={{ height: 38, borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", boxSizing: "border-box",
+                   display: "flex", alignItems: "center", justifyContent: "center", gap: 4, fontSize: 13, fontWeight: 600, transition: "all .15s",
+                   background: "#FFFDF9", color: "#E68645", border: "1px solid #E68645" }}>
+          <GridIcon size={13} color="#E68645" />全部分类
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#E68645" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+               style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}><path d="M6 9l6 6 6-6"/></svg>
         </button>
       </div>
 
-      {/* 全部分类宫格面板 */}
+      {/* 全部分类宫格面板（轻量）*/}
       {open && (
         <>
           <div onClick={() => setOpen(false)}
                style={{ position: "fixed", inset: 0, zIndex: 6, background: "transparent" }} />
-          <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0, zIndex: 8,
-                        background: "#FFFDF9", borderRadius: 22, padding: "13px 10px",
-                        boxShadow: "0 12px 34px rgba(0,0,0,0.14)", border: `1px solid ${C.border}`,
+          <div style={{ position: "absolute", top: "calc(100% + 10px)", left: 0, right: 0, zIndex: 8,
+                        background: "#FFFDF9", borderRadius: 20, padding: 12,
+                        boxShadow: "0 8px 22px rgba(75,45,20,0.08)", border: "1px solid #F1E7DB",
                         animation: "tm-cat-panel .2s ease-out" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px 5px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
               {gridCategories.map((c) => {
                 const on = activeId === c.id;
                 return (
                   <button key={c.id} onClick={() => { onPick(c.id); setOpen(false); }}
-                    style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 7,
-                             height: 70, borderRadius: 14, cursor: "pointer", transition: "all .15s",
-                             background: on ? "#FFF3E8" : "#fff",
-                             border: `1.4px solid ${on ? accent : "#EFE7DC"}` }}>
-                    <CategoryIcon id={c.id} size={24} color={on ? accent : "#3A352F"} />
-                    <span style={{ fontSize: 12, fontWeight: on ? 800 : 600, color: on ? accent : "#2A2A2A" }}>{c.label}</span>
+                    style={{ height: 66, borderRadius: 14, cursor: "pointer", transition: "all .15s",
+                             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
+                             fontSize: 13, fontWeight: 600,
+                             background: on ? "#FFF5EC" : "#FFFFFF", color: on ? "#E68645" : "#2B2B2B",
+                             border: on ? "1.5px solid #E68645" : "1px solid #EFE5D9",
+                             boxShadow: "0 1px 4px rgba(0,0,0,0.025)" }}>
+                    <CategoryIcon id={c.id} size={21} color={on ? "#E68645" : "#2B2B2B"} />
+                    {c.label}
                   </button>
                 );
               })}

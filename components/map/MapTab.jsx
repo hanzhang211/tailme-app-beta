@@ -455,7 +455,7 @@ function PoiCard({ poi, icon, tags = [], selected, onSelect }) {
         <div style={{ fontSize: 11.5, color: C.sub, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📍 {addr}</div>
         <div style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 6 }}>
           {(tags.length ? tags : (type ? [type] : [])).slice(0, 3).map((t, i) => (
-            <span key={i} style={{ fontSize: 10, background: C.tint, color: C.accent, padding: "3px 9px", borderRadius: 999, fontWeight: 700, flexShrink: 0, maxWidth: 84, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t}</span>
+            <span key={i} style={{ fontSize: 11, background: "#FCE7D8", color: "#E68645", padding: "3px 8px", borderRadius: 999, fontWeight: 700, flexShrink: 0, maxWidth: 84, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t}</span>
           ))}
           <span style={{ flex: 1 }} />
           {dist && <span style={{ fontSize: 12, fontWeight: 700, color: C.sub, flexShrink: 0 }}>{dist}</span>}
