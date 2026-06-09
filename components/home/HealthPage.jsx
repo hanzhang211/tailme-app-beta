@@ -7,8 +7,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  listHealthRecords, addHealthRecord, deleteHealthRecord,
-  updatePetHealth, RECORD_TYPES,
+  updatePetHealth,
   listDiseaseRecords, addDiseaseRecord, deleteDiseaseRecord, updateDiseaseRecord,
   isMedDoneToday, setMedDoneToday,
 } from "@/services/petHealthService";
@@ -28,6 +27,9 @@ import { listDewormRecords, buildDewormOverview } from "@/services/petDewormServ
 import { regionRisk } from "@/services/petHealthPlan";
 import VaccineRecordPage from "@/components/home/VaccineRecordPage";
 import DewormingRecordPage from "@/components/home/DewormingRecordPage";
+import { listCheckupRecords } from "@/services/petCheckupService";
+import CheckupRecordForm from "@/components/home/CheckupRecordForm";
+import CheckupDetail from "@/components/home/CheckupDetail";
 
 const BG    = "#ECEEE8";
 const PRI   = "#E68645";
@@ -63,21 +65,19 @@ const CAT_META = {
   other:      { label:"其他", color:"#777777", bg:"#F3F3F3", Icon: ClipboardList },
 };
 
-const typeMeta = (k) => RECORD_TYPES.find((t) => t.key === k) || RECORD_TYPES[3];
-
 /* ══════════════════════════════════════════════ */
 // 健康内存缓存（petId → {records, diseases}）：再次打开秒显，后台静默刷新
 const healthCache = {};
 export async function prefetchHealth(petId, userId) {
   if (!petId || healthCache[petId]) return;
   try {
-    const [rs, dis, vax, dw] = await Promise.all([
-      listHealthRecords(petId).catch(() => []),
+    const [chk, dis, vax, dw] = await Promise.all([
+      listCheckupRecords(petId).catch(() => []),
       listDiseaseRecords(null, userId).catch(() => []),
       listVaccineRecords(petId).catch(() => []),
       listDewormRecords(petId).catch(() => []),
     ]);
-    healthCache[petId] = { records: rs, diseases: dis, vax, dw };
+    healthCache[petId] = { checkups: chk, diseases: dis, vax, dw };
   } catch {}
 }
 
@@ -98,14 +98,12 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
   const [dewormAutoAdd, setDewormAutoAdd] = useState(false);
   // 打开疾病弹窗时的初始状态（生病/用药/康复 三个入口预设）
   const [diseaseInit,   setDiseaseInit]   = useState("sick");
-  // 打开通用记录弹窗时的初始类型（体检入口预设 checkup）
-  const [recordInit,    setRecordInit]    = useState("checkup");
   // 健康档案分类筛选
   const [archiveFilter,   setArchiveFilter]   = useState("all");
   const [archiveMenuOpen, setArchiveMenuOpen] = useState(false);
 
   const h0 = pet?.id ? healthCache[pet.id] : null;
-  const [records,    setRecords]    = useState(h0?.records || []);
+  const [checkups,   setCheckups]   = useState(h0?.checkups || []);
   const [diseases,   setDiseases]   = useState(h0?.diseases || []);
   const [vaxRecords, setVaxRecords]       = useState(h0?.vax || []);
   const [dewormRecords, setDewormRecords] = useState(h0?.dw || []);
@@ -115,11 +113,14 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
   const [neutered,   setNeutered]   = useState(!!pet?.neutered);
   const [savingFlag, setSavingFlag] = useState(false);
 
-  const [addRecordOpen,  setAddRecordOpen]  = useState(false);
   const [addDiseaseOpen, setAddDiseaseOpen] = useState(false);
   const [viewDisease,    setViewDisease]    = useState(null);
   const [menuOpenId,     setMenuOpenId]     = useState(null);  // 更多菜单
   const [editMedDisease, setEditMedDisease] = useState(null);  // 编辑用药
+  // 体检：表单弹层 / 详情浮层 / 编辑中的记录
+  const [checkupFormOpen, setCheckupFormOpen] = useState(false);
+  const [editingCheckup,  setEditingCheckup]  = useState(null);
+  const [viewCheckup,     setViewCheckup]     = useState(null);
 
   // toast
   const [toast,     setToast]     = useState(null);
@@ -135,21 +136,21 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
     const cache = healthCache[pet.id];
     if (cache) {
       // 切换宠物时先用缓存秒显，再后台静默刷新
-      setRecords(cache.records || []); setDiseases(cache.diseases || []);
-      setVaxRecords(cache.vax || []);  setDewormRecords(cache.dw || []);
+      setCheckups(cache.checkups || []); setDiseases(cache.diseases || []);
+      setVaxRecords(cache.vax || []);    setDewormRecords(cache.dw || []);
     } else {
       setLoading(true);
     }
     setErr(null);
     try {
-      const [rs, dis, vax, dw] = await Promise.all([
-        listHealthRecords(pet.id).catch(() => []),
+      const [chk, dis, vax, dw] = await Promise.all([
+        listCheckupRecords(pet.id).catch(() => []),
         listDiseaseRecords(null, user?.id).catch(() => []),
         listVaccineRecords(pet.id).catch(() => []),
         listDewormRecords(pet.id).catch(() => []),
       ]);
-      setRecords(rs); setDiseases(dis); setVaxRecords(vax); setDewormRecords(dw);
-      healthCache[pet.id] = { records: rs, diseases: dis, vax, dw };
+      setCheckups(chk); setDiseases(dis); setVaxRecords(vax); setDewormRecords(dw);
+      healthCache[pet.id] = { checkups: chk, diseases: dis, vax, dw };
     } catch (e) { if (!healthCache[pet.id]) setErr(e.message); }
     finally { setLoading(false); }
   };
@@ -172,11 +173,6 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
     } finally { setSavingFlag(false); }
   };
 
-  const handleDeleteRecord  = async (r) => {
-    if (!confirm("删除？")) return;
-    try { await deleteHealthRecord(r.id, user.id); reload(); }
-    catch (e) { alert(e.message); }
-  };
   const handleDeleteDisease = async (d) => {
     if (!confirm("删除这条疾病记录？")) return;
     try { await deleteDiseaseRecord(d.id, user.id); reload(); }
@@ -214,13 +210,11 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
         title: r.deworm_type === "internal" ? "体内驱虫" : "体外驱虫",
         sub: r.product_name ? (r.product_desc ? `${r.product_name}（${r.product_desc}）` : r.product_name) : (r.product_desc || ""),
       })),
-      ...records.map(r => ({
-        id:r.id, date:r.record_date,
-        cat: r.record_type === "checkup" ? "checkup"
-           : r.record_type === "vaccine" ? "vaccine"
-           : r.record_type === "deworm" ? "deworm" : "other",
-        title: typeMeta(r.record_type).label + (r.title ? `：${r.title}` : ""),
-        sub: r.note || "",
+      ...checkups.map(c => ({
+        id:"chk_"+c.id, date:c.checkup_date, cat:"checkup",
+        title: "体检" + (c.checkup_items ? `：${c.checkup_items}` : (c.clinic_name ? `：${c.clinic_name}` : "")),
+        sub: c.clinic_name || c.notes || "",
+        checkup: c,
       })),
       ...diseases.map(d => ({
         id:"diag_"+d.id, date:d.diagnosis_date, cat:"diagnosis",
@@ -237,7 +231,7 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
       })),
     ];
     return items.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-  }, [records, diseases, vaxRecords, dewormRecords]);
+  }, [checkups, diseases, vaxRecords, dewormRecords]);
 
   // 疫苗 / 驱虫 / 地区虫害 概览（驱动总览页提醒标签 + 基础健康行）
   const vaxOv    = useMemo(() => buildVaccineOverview(vaxRecords, pet?.pet_type), [vaxRecords, pet?.pet_type]);
@@ -265,6 +259,24 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
   if (view === "deworm") {
     return <DewormingRecordPage pet={pet} user={user} autoAdd={dewormAutoAdd}
       onBack={() => { setView("overview"); setDewormAutoAdd(false); reload(); }} />;
+  }
+  // 体检记录详情（浮层）+ 其上的编辑表单
+  if (viewCheckup) {
+    return (
+      <>
+        <CheckupDetail record={viewCheckup} user={user}
+          onBack={() => setViewCheckup(null)}
+          onEdit={() => { setEditingCheckup(viewCheckup); setCheckupFormOpen(true); }}
+          onDeleted={() => { setViewCheckup(null); reload(); showToast("体检记录已删除"); }}
+          onError={(m) => showToast(m, "error")} />
+        {checkupFormOpen && (
+          <CheckupRecordForm pet={pet} user={user} initial={editingCheckup}
+            onClose={() => setCheckupFormOpen(false)}
+            onSaved={(saved) => { setCheckupFormOpen(false); if (saved) setViewCheckup(saved); reload(); showToast("体检记录已保存 ✨"); }}
+            onError={(m) => showToast(m, "error")} />
+        )}
+      </>
+    );
   }
 
   // 健康档案：彩色分类时间线（数据来自合并 timeline）
@@ -319,11 +331,11 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
         ) : filtered.map((item, i) => {
           const meta = CAT_META[item.cat] || CAT_META.other;
           const Icon = meta.Icon;
-          const rec  = records.find((r) => r.id === item.id);
+          const clickable = !!(item.disease || item.checkup);
           return (
             <div key={item.id} style={{ display:"flex", gap:12, padding:"12px 0", position:"relative",
-                                        cursor: item.disease ? "pointer" : "default" }}
-                 onClick={() => item.disease && setViewDisease(item.disease)}>
+                                        cursor: clickable ? "pointer" : "default" }}
+                 onClick={() => { if (item.disease) setViewDisease(item.disease); else if (item.checkup) setViewCheckup(item.checkup); }}>
               {i < filtered.length - 1 && (
                 <div style={{ position:"absolute", left:17, top:42, bottom:-4, width:2,
                               background:"rgba(95,167,102,0.16)", zIndex:0 }}/>
@@ -344,16 +356,8 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
                                 textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.sub}</div>
                 )}
               </div>
-              {rec ? (
-                <button onClick={(e) => { e.stopPropagation(); handleDeleteRecord(rec); }}
-                  style={{ background:"transparent", border:"none", cursor:"pointer", padding:2,
-                           alignSelf:"center", flexShrink:0 }}>
-                  <PetTrashIcon size={16}/>
-                </button>
-              ) : (
-                <ChevronRight size={16} color="#C2C8BE" strokeWidth={2}
-                  style={{ alignSelf:"center", flexShrink:0 }}/>
-              )}
+              <ChevronRight size={16} color="#C2C8BE" strokeWidth={2}
+                style={{ alignSelf:"center", flexShrink:0 }}/>
             </div>
           );
         })}
@@ -717,17 +721,18 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
             setAddSheetOpen(false);
             if (key === "vaccine") { setVaxAutoAdd(true); setView("vaccine"); }
             else if (key === "deworm") { setDewormAutoAdd(true); setView("deworm"); }
-            else if (key === "checkup") { setRecordInit("checkup"); setAddRecordOpen(true); }
+            else if (key === "checkup") { setEditingCheckup(null); setCheckupFormOpen(true); }
             else { // disease / medication / recovery 都落到生病记录表单，预设状态
               setDiseaseInit(key === "medication" ? "medicating" : key === "recovery" ? "recovered" : "sick");
               setAddDiseaseOpen(true);
             }
           }} />
       )}
-      {addRecordOpen && pet?.id && (
-        <AddRecordModal user={user} pet={pet} initialType={recordInit}
-          onClose={() => setAddRecordOpen(false)}
-          onAdded={() => { setAddRecordOpen(false); reload(); showToast("健康记录已添加 ✨"); }}/>
+      {checkupFormOpen && (
+        <CheckupRecordForm pet={pet} user={user} initial={editingCheckup}
+          onClose={() => setCheckupFormOpen(false)}
+          onSaved={() => { setCheckupFormOpen(false); reload(); showToast("体检记录已保存 ✨"); }}
+          onError={(m) => showToast(m, "error")}/>
       )}
       {addDiseaseOpen && (
         <AddDiseaseModal user={user} pet={pet} pets={pets} initialStatus={diseaseInit}
@@ -1094,23 +1099,6 @@ function HealthRow({ label, done, onToggle, disabled, icon }) {
     </div>
   );
 }
-function Sheet({ onClose, children }) {
-  return (
-    <div onClick={(e) => e.target === e.currentTarget && onClose()}
-      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:1000,
-               display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ width:"100%", maxWidth:430, background:"#ECEEE8",
-                    borderRadius:"28px 28px 0 0", maxHeight:"92vh", overflowY:"auto",
-                    paddingBottom:"env(safe-area-inset-bottom, 20px)" }}>
-        <div style={{ display:"flex", justifyContent:"center", paddingTop:14, paddingBottom:4 }}>
-          <div style={{ width:48, height:5, borderRadius:999, background:"#D0CFC9" }}/>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 /* ══ PetSelector — shared by Add modals ══════════ */
 function PetSelector({ allPets, selPetId, setSelPetId }) {
   return (
@@ -1781,77 +1769,5 @@ function EditMedicationModal({ disease: d, user, onClose, onSaved }) {
   );
 }
 
-/* ══ AddRecordModal (vaccine/deworm/checkup) ════ */
-function AddRecordModal({ user, pet, onClose, onAdded, initialType = "vaccine" }) {
-  const [recordType,  setRecordType]  = useState(initialType);
-  const [title,       setTitle]       = useState("");
-  const [recordDate,  setRecordDate]  = useState(new Date().toISOString().slice(0, 10));
-  const [nextDueDate, setNextDueDate] = useState("");
-  const [note,        setNote]        = useState("");
-  const [saving,      setSaving]      = useState(false);
-  const [err,         setErr]         = useState(null);
-
-  const handleSave = async () => {
-    setErr(null); setSaving(true);
-    try {
-      await addHealthRecord({ userId:user.id, petId:pet.id, recordType, title, recordDate,
-                              nextDueDate:nextDueDate||null, note });
-      onAdded();
-    } catch (e) { setErr(e.message); }
-    finally { setSaving(false); }
-  };
-
-  return (
-    <Sheet onClose={onClose}>
-      <div style={{ padding:"12px 20px 24px" }}>
-        <div style={{ fontSize:18, fontWeight:800, color:TEXT, marginBottom:16 }}>新增健康记录</div>
-        <div style={{ display:"flex", gap:8, marginBottom:16 }}>
-          {RECORD_TYPES.map((t) => (
-            <button key={t.key} onClick={() => setRecordType(t.key)}
-              style={{ flex:1, padding:"10px 0", borderRadius:14, fontSize:12,
-                       background: recordType===t.key ? GREEN : "white",
-                       color: recordType===t.key ? "white" : TEXT,
-                       border:`1px solid ${recordType===t.key ? GREEN : "#D6D5D8"}`,
-                       cursor:"pointer",
-                       display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-              <span style={{ fontSize:18 }}>{t.emoji}</span>{t.label}
-            </button>
-          ))}
-        </div>
-        <SLabel>标题（可选）</SLabel>
-        <input value={title} onChange={(e) => setTitle(e.target.value)}
-          placeholder="比如：狂犬疫苗" maxLength={100} style={iStyle()}/>
-        <SLabel>记录日期</SLabel>
-        <input type="date" value={recordDate} onChange={(e) => setRecordDate(e.target.value)} style={iStyle()}/>
-        <SLabel>下次提醒（可选）</SLabel>
-        <input type="date" value={nextDueDate} onChange={(e) => setNextDueDate(e.target.value)} style={iStyle()}/>
-        <SLabel>备注（可选）</SLabel>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2}
-          placeholder="医院、剂量等" style={{ ...iStyle(), resize:"none" }}/>
-        {err && <div style={{ color:"#D94040", fontSize:12, marginBottom:8 }}>❌ {err}</div>}
-        <div style={{ display:"flex", gap:10 }}>
-          <button onClick={onClose}
-            style={{ flex:1, height:50, borderRadius:14, fontSize:14, fontWeight:600,
-                     background:"white", color:TEXT, border:"1px solid #D6D5D8", cursor:"pointer" }}>
-            取消
-          </button>
-          <button onClick={handleSave} disabled={saving}
-            style={{ flex:1, height:50, borderRadius:14, fontSize:14, fontWeight:700,
-                     background: saving ? "#D6D5D8" : GREEN, color:"white",
-                     border:"none", cursor: saving ? "default" : "pointer" }}>
-            {saving ? "保存中…" : "保存"}
-          </button>
-        </div>
-      </div>
-    </Sheet>
-  );
-}
-
-function SLabel({ children }) {
-  return <div style={{ fontSize:12, fontWeight:600, color:TEXT, marginBottom:6 }}>{children}</div>;
-}
-const iStyle = () => ({
-  width:"100%", borderRadius:12, padding:"10px 12px", fontSize:14,
-  border:"1.5px solid #D6D5D8", background:"white", color:TEXT,
-  outline:"none", boxSizing:"border-box", marginBottom:14, fontFamily:"inherit",
-});
+/* 旧的通用「新增健康记录」(AddRecordModal/Sheet/SLabel/iStyle) 已废弃，
+   体检改用 CheckupRecordForm，疫苗/驱虫各自独立页面。 */
