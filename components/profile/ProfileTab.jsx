@@ -649,12 +649,12 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
             <MenuRow icon={<PawOutlineIcon size={28} />}
               label="我的宠物" hint={`${pets.length} 只`} onClick={() => setSubView("pets")} />
             <MenuRow icon={
-                <span style={{ width:38, height:38, display:"inline-block", backgroundColor:C.pri,
+                <span style={{ width:42, height:42, display:"inline-block", backgroundColor:C.pri,
                                WebkitMaskImage:"url(/logo.png)", maskImage:"url(/logo.png)",
                                WebkitMaskRepeat:"no-repeat", maskRepeat:"no-repeat",
                                WebkitMaskPosition:"center", maskPosition:"center",
                                WebkitMaskSize:"contain", maskSize:"contain",
-                               filter:"drop-shadow(0.7px 0 0 #E68645) drop-shadow(-0.7px 0 0 #E68645) drop-shadow(0 0.7px 0 #E68645) drop-shadow(0 -0.7px 0 #E68645)" }} />
+                               filter:"drop-shadow(0.9px 0 0 #E68645) drop-shadow(-0.9px 0 0 #E68645) drop-shadow(0 0.9px 0 #E68645) drop-shadow(0 -0.9px 0 #E68645) drop-shadow(0.65px 0.65px 0 #E68645) drop-shadow(-0.65px 0.65px 0 #E68645) drop-shadow(0.65px -0.65px 0 #E68645) drop-shadow(-0.65px -0.65px 0 #E68645)" }} />
               }
               label="联系我们" sub="客服 · 合作 · 建议反馈" onClick={() => setContactOpen(true)} />
             <MenuRow icon={<Settings size={26} color={C.pri} strokeWidth={2.2} />}
