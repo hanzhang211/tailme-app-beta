@@ -7,8 +7,8 @@
  *  1. 校验入参（无 Auth：上线前迁 Supabase Auth）
  *  2. 调 Replicate flux-kontext-pro，输入 photoUrl + prompt，等待生成（Prefer: wait）
  *  3. 若仍未完成则轮询 prediction id 直到 succeeded / failed / 超时
- *  4. 下载 Replicate 输出图（白底），本地去白底（flood-fill）转透明 PNG
- *  5. 上传到 Supabase Storage pet-avatars/<userId>/<petId>/ai-*.png，返回 public URL
+ *  4. 下载 Replicate 输出图，上传到 Supabase Storage pet-avatars/<userId>/<petId>/ai-*.png
+ *  5. 返回 public URL
  *
  * 环境变量：
  *  - REPLICATE_API_TOKEN
@@ -18,14 +18,13 @@
 
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { PNG } from "pngjs";
 
-// 方案B：只剩一次 flux 生成(~20s) + 本地去白底(毫秒级)，Vercel Hobby 60s 上限足够
-export const maxDuration = 60;
+// 单次生成可能 30-60s，给函数足够时间
+export const maxDuration = 90;
 
 const REPLICATE_MODEL = "black-forest-labs/flux-kontext-pro";
 
-// 风格只管「写实 3D 渲染」，背景由后续本地去白底(flood-fill)负责，不再用 sticker/transparent 等词
+// 风格只管「写实 3D 渲染」，背景由后续 rembg 抠图负责，不再用 sticker/transparent 等词
 const BASE_REQUIREMENTS = [
   "Requirements:",
   "- preserve the original pet's fur color, face shape, ears, and expression",
@@ -33,7 +32,7 @@ const BASE_REQUIREMENTS = [
   "- realistic detailed 3D render with soft volumetric lighting and fluffy fur",
   "- centered composition",
   "- full body pet character",
-  "- pure flat solid white background (#ffffff), no shadow, no floor, no gradient",
+  "- simple clean plain background",
   "- app icon style",
   "- adorable and premium",
   "- no text",
@@ -121,37 +120,53 @@ async function callReplicate(photoUrl: string, token: string, petType?: string) 
   return String(url);
 }
 
-// 去白底（方案B）：把"从画面四边连通进来的纯白背景"变透明，输出透明 PNG buffer。
-// 用 flood-fill 而非全局阈值 —— 只删与边缘连通的白，宠物身上的白毛/高光因不与背景
-// 连通而被完整保留（白色狗/猫不会被掏空）。失败时由调用方回退原图，不中断生成。
-function whiteToTransparent(pngBuffer: Buffer): Buffer {
-  const png = PNG.sync.read(pngBuffer);
-  const { width, height, data } = png; // data: RGBA，长度 = w*h*4
-  const NEAR_WHITE = 243; // RGB 三通道都 ≥ 此值才算"背景白"（白毛多带暖调/阴影，可区分）
-  const isWhite = (i: number) =>
-    data[i] >= NEAR_WHITE && data[i + 1] >= NEAR_WHITE && data[i + 2] >= NEAR_WHITE;
-
-  const visited = new Uint8Array(width * height);
-  const stack: number[] = [];
-  const tryPush = (x: number, y: number) => {
-    if (x < 0 || y < 0 || x >= width || y >= height) return;
-    const p = y * width + x;
-    if (visited[p]) return;
-    visited[p] = 1;
-    if (isWhite(p << 2)) stack.push(p); // 非白像素被标记为已访问→成为 flood 的边界
-  };
-  // 种子：四条边
-  for (let x = 0; x < width; x++) { tryPush(x, 0); tryPush(x, height - 1); }
-  for (let y = 0; y < height; y++) { tryPush(0, y); tryPush(width - 1, y); }
-  // flood-fill：只把与边缘连通的白设为透明
-  while (stack.length) {
-    const p = stack.pop()!;
-    data[(p << 2) + 3] = 0;
-    const x = p % width;
-    const y = (p / width) | 0;
-    tryPush(x + 1, y); tryPush(x - 1, y); tryPush(x, y + 1); tryPush(x, y - 1);
+// 抠图去背景，输出透明 PNG URL。
+// 用 men1scus/birefnet 抠图：和原来 851-labs 同为 BiRefNet 算法（质量同级），
+// 但跑在 A100、~2s、约 $0.0025/张 —— 比 bria 便宜约 10 倍，速度/质量基本不变。
+// 社区模型不支持 /v1/models/<owner>/<name> 端点，必须用 /v1/predictions + version hash。
+const REMBG_VERSION = "f74986db0355b58403ed20963af156525e2891ea3c2d499bfbfb2a28cd87c5d7";
+async function callRembg(imageUrl: string, token: string) {
+  const resp = await fetch(
+    `https://api.replicate.com/v1/predictions`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type":  "application/json",
+        "Prefer":        "wait=55",
+      },
+      body: JSON.stringify({
+        version: REMBG_VERSION,
+        input: { image: imageUrl },
+      }),
+    }
+  );
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`抠图调用失败 (${resp.status}): ${text.slice(0, 160)}`);
   }
-  return PNG.sync.write(png);
+  let prediction: any = await resp.json();
+  const start = Date.now();
+  while (
+    prediction.status !== "succeeded" &&
+    prediction.status !== "failed" &&
+    prediction.status !== "canceled" &&
+    Date.now() - start < 55_000
+  ) {
+    await new Promise((r) => setTimeout(r, 1200));
+    const poll = await fetch(
+      `https://api.replicate.com/v1/predictions/${prediction.id}`,
+      { headers: { "Authorization": `Bearer ${token}` } }
+    );
+    if (!poll.ok) throw new Error(`抠图轮询失败: ${poll.status}`);
+    prediction = await poll.json();
+  }
+  if (prediction.status !== "succeeded" || !prediction.output) {
+    throw new Error(`抠图失败：${prediction.status || "timeout"}`);
+  }
+  const url = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
+  if (!url) throw new Error("抠图未返回图片 URL");
+  return String(url);
 }
 
 export async function POST(req: Request) {
@@ -191,20 +206,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e.message || "生成失败" }, { status: 502 });
   }
 
-  // 2) 下载 flux 生成图（白底 PNG）
-  const imgResp = await fetch(replicateUrl);
+  // 1.5) 抠图：把生成图背景去掉，输出透明 PNG（失败则回退原图，不中断生成）
+  let finalImageUrl = replicateUrl;
+  try {
+    finalImageUrl = await callRembg(replicateUrl, token);
+  } catch (e: any) {
+    console.error("rembg 抠图失败，回退原图:", e?.message);
+  }
+
+  // 2) 下载最终图（透明图或回退原图）
+  const imgResp = await fetch(finalImageUrl);
   if (!imgResp.ok) {
     return NextResponse.json({ error: "下载生成图失败" }, { status: 502 });
   }
   const arrayBuf = await imgResp.arrayBuffer();
-  let bytes: Uint8Array = new Uint8Array(arrayBuf);
-
-  // 2.5) 去白底：把背景白变透明（失败则回退原图，不中断生成）
-  try {
-    bytes = whiteToTransparent(Buffer.from(arrayBuf));
-  } catch (e: any) {
-    console.error("去白底失败，回退原图:", e?.message);
-  }
+  const bytes    = new Uint8Array(arrayBuf);
 
   // 3) 上传到 Supabase Storage（service_role 绕过 RLS）
   // 用时间戳路径：每次生成 URL 都不同，避免 CDN 缓存导致"重新生成却显示旧图"
