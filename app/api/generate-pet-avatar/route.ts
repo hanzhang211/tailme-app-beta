@@ -7,8 +7,8 @@
  *  1. 校验入参（无 Auth：上线前迁 Supabase Auth）
  *  2. 调 Replicate flux-kontext-pro，输入 photoUrl + prompt，等待生成（Prefer: wait）
  *  3. 若仍未完成则轮询 prediction id 直到 succeeded / failed / 超时
- *  4. 下载 Replicate 输出图，上传到 Supabase Storage pet-avatars/<userId>/<petId>/ai-*.png
- *  5. 返回 public URL
+ *  4. 下载 Replicate 输出图（白底），本地去白底（flood-fill）转透明 PNG
+ *  5. 上传到 Supabase Storage pet-avatars/<userId>/<petId>/ai-*.png，返回 public URL
  *
  * 环境变量：
  *  - REPLICATE_API_TOKEN
@@ -25,7 +25,7 @@ export const maxDuration = 60;
 
 const REPLICATE_MODEL = "black-forest-labs/flux-kontext-pro";
 
-// 风格只管「写实 3D 渲染」，背景由后续 rembg 抠图负责，不再用 sticker/transparent 等词
+// 风格只管「写实 3D 渲染」，背景由后续本地去白底(flood-fill)负责，不再用 sticker/transparent 等词
 const BASE_REQUIREMENTS = [
   "Requirements:",
   "- preserve the original pet's fur color, face shape, ears, and expression",

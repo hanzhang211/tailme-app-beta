@@ -505,7 +505,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   const [avatarLoaded,     setAvatarLoaded] = useState(false);
   const [cachedAvatar,     setCachedAvatar] = useState(null); // 该宠物上次成功显示的头像（localStorage 占位）
   const avatarImgRef = useRef(null);
-  // 优先用 thumb（300 WebP 小图，加载快）；rembg 抠图后 thumb 也是透明的
+  // 优先用 thumb（300 WebP 小图，加载快）；去白底后 thumb 也是透明的
   // URL 含时间戳，每次生成都不同，天然绕开缓存
   const avatarSrc = pet.pet_avatar_thumb_url || pet.ai_avatar_url || null;
   const avatarCacheKey = pet?.id ? `tailme_pet_avatar_cache_${pet.id}` : null;
