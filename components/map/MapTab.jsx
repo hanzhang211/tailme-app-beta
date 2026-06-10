@@ -49,6 +49,7 @@ const ME_MARKER = `
 const poiMarker = () =>
   `<div style="width:32px;height:32px;border-radius:50%;background:#E68645;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,0.4)"><svg width="17" height="17" viewBox="0 0 24 24" fill="#fff"><ellipse cx="6.2" cy="11" rx="2" ry="2.6"/><ellipse cx="11" cy="8.4" rx="2.1" ry="2.8"/><ellipse cx="16.4" cy="9.6" rx="2" ry="2.6"/><ellipse cx="19.2" cy="13.6" rx="1.7" ry="2.2"/><path d="M12.4 13c2.4 0 4.4 1.7 4.4 3.8 0 1.7-1.5 2.5-3.2 2.5-1 0-1.4-.3-2.2-.3s-1.2.3-2.2.3c-1.7 0-3.2-.8-3.2-2.5 0-2.1 2-3.8 4.4-3.8Z"/></svg></div>`;
 // 带文字 label 的 marker（友好/警示大地图用），anchor=bottom-center
+const FRIENDLY_BLUE = "#4A90D9"; // 友好地图 marker：文字/边框/小三角（偏浅蓝；警示仍用风险色）
 const labelMarker = (text, color, lead = "") =>
   `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer">
      <div style="max-width:150px;background:#fff;border:1.5px solid ${color};color:${color};font-size:11px;font-weight:800;padding:4px 9px;border-radius:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 8px rgba(0,0,0,0.18)">${lead}${esc(text)}</div>
@@ -195,7 +196,7 @@ export default function MapTab({ user, onOpenVerify }) {
     } else if (tab === "friendly") {
       fris.forEach((r) => {
         if (r.latitude == null || r.longitude == null) return;
-        addLabel(r.longitude, r.latitude, labelMarker(short6(r.title || r.place_name || "友好地点"), C.pri, "🐾 "),
+        addLabel(r.longitude, r.latitude, labelMarker(short6(r.title || r.place_name || "友好地点"), FRIENDLY_BLUE, "🐾 "),
           () => { setSelFriendly(r); mapRef.current?.setCenter(new AMap.LngLat(r.longitude, r.latitude)); });
       });
     } else {
