@@ -1047,7 +1047,8 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                            pointerEvents: "auto",
                            cursor: "pointer",
                            transition:"opacity 0.3s ease" }}>
-                  <PetAvatar pet={prevPet} size={90} bg="transparent" blendMode="multiply" />
+                  <PetAvatar pet={prevPet} size={90} bg="transparent" blendMode="multiply"
+                             fallbackImg={prevPet?.pet_type === "cat" ? "/cat.png" : "/dog.png"} />
                   <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
                                 textAlign:"center", maxWidth:70,
                                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
@@ -1067,11 +1068,9 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                         style={{ position:"absolute", inset:0, width:210, height:210, objectFit:"contain",
                                  animation:"float 3s ease-in-out infinite", mixBlendMode:"multiply" }} />
                     ) : (
-                      <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center",
-                                    justifyContent:"center", fontSize:150, lineHeight:1,
-                                    animation:"float 3s ease-in-out infinite" }}>
-                        🐶
-                      </div>
+                      <img src={pet?.pet_type === "cat" ? "/cat.png" : "/dog.png"} alt="" aria-hidden="true"
+                        style={{ position:"absolute", inset:0, width:210, height:210, objectFit:"contain",
+                                 animation:"float 3s ease-in-out infinite" }} />
                     )
                   )}
                   {/* 真实头像：加载完成后淡入覆盖占位层；broken 时不渲染，占位层继续兜底 */}
@@ -1117,7 +1116,8 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                            pointerEvents: "auto",
                            cursor: "pointer",
                            transition:"opacity 0.3s ease" }}>
-                  <PetAvatar pet={nextPet} size={90} bg="transparent" blendMode="multiply" />
+                  <PetAvatar pet={nextPet} size={90} bg="transparent" blendMode="multiply"
+                             fallbackImg={nextPet?.pet_type === "cat" ? "/cat.png" : "/dog.png"} />
                   <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
                                 textAlign:"center", maxWidth:70,
                                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
