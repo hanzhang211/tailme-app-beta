@@ -21,7 +21,6 @@ import {
   getFollowCounts, listFollowing, listFollowers, getFollowingSet, followUser,
 } from "@/services/communityService";
 import { formatPetAge, formatBirthday } from "@/services/petAge";
-import { avatarForBreed } from "@/services/breedAvatar";
 
 import PostDetail      from "@/components/community/PostDetail";
 import PetAvatar       from "@/components/PetAvatar";
@@ -1073,7 +1072,11 @@ function EditNameModal({ user, onClose, onSaved, toast }) {
 /* ────────────────────────────────────────────────────── */
 function AvatarPickerModal({ user, pets, onClose, onSelect, toast }) {
   const petAvatars = pets.filter((p) => p.ai_avatar_url || p.pet_avatar_thumb_url);
-  const defaultEmoji = avatarForBreed(pets[0]?.breed, pets[0]?.pet_type);
+  // 通用「可爱形象」头像：猫 / 狗占位图，代替原来的默认 emoji 头像（用户可自选）
+  const CUTE_AVATARS = [
+    { url: "/cat.png", label: "猫咪" },
+    { url: "/dog.png", label: "狗狗" },
+  ];
 
   return (
     <div onClick={(e) => e.target === e.currentTarget && onClose()}
@@ -1119,17 +1122,30 @@ function AvatarPickerModal({ user, pets, onClose, onSelect, toast }) {
         {petAvatars.length === 0 && (
           <div style={{ background:"white", borderRadius:14, padding:"16px 14px", marginBottom:10,
                         textAlign:"center", fontSize:13, color:C.sub, lineHeight:1.6, border:`1px solid ${C.border}` }}>
-            还没有 AI 宠物形象<br/>先到首页为宠物生成一个，即可设为头像 🐾
+            可以先用下面的「可爱形象」<br/>或到首页为宠物生成专属 AI 形象，也能设为头像 🐾
           </div>
         )}
 
-        {/* 恢复默认 emoji */}
-        <button onClick={() => onSelect(null)}
-          style={{ width:"100%", padding:"13px 0", borderRadius:14, fontSize:14, fontWeight:600,
-                   background:"white", color:C.text, border:`1px solid ${C.border}`, cursor:"pointer",
-                   display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-          <span style={{ fontSize:20 }}>{defaultEmoji}</span> 使用默认头像
-        </button>
+        {/* 可爱形象：猫 / 狗占位图（代替原默认头像，用户可自选） */}
+        <div style={{ fontSize:12, fontWeight:700, color:C.sub, marginBottom:10 }}>可爱形象</div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12 }}>
+          {CUTE_AVATARS.map((it) => {
+            const selected = user?.avatar_url === it.url;
+            return (
+              <button key={it.url} onClick={() => onSelect(it.url)}
+                style={{ background:"transparent", border:"none", cursor:"pointer", padding:0,
+                         display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+                <div style={{ width:60, height:60, borderRadius:"50%", overflow:"hidden",
+                              border: selected ? `3px solid ${C.pri}` : `2px solid ${C.border}`,
+                              background:C.tint }}>
+                  <img src={it.url} alt={it.label}
+                    style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
+                </div>
+                <span style={{ fontSize:10, color:C.sub }}>{it.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
