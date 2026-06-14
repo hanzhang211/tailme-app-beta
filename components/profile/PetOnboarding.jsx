@@ -107,7 +107,7 @@ export default function PetOnboarding({ userId, onComplete, onClose }) {
 
   // 把多选性格拼成现有单字段；update 用映射后的字段
   const mapFields = () => ({
-    name: f.name.trim(), breed: f.breed || null, birthday: f.birthday || null,
+    name: f.name.trim(), pet_type: f.pet_type || null, breed: f.breed || null, birthday: f.birthday || null,
     personality: personalities.join("、") || null,
     weight: f.weight ? parseFloat(f.weight) : null,
     gender: f.gender || null,

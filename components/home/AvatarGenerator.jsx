@@ -14,6 +14,7 @@ import {
   saveAIAvatarToPet,
 } from "@/services/petAvatarService";
 import { compressImage } from "@/services/imageCompress";
+import { isCatPet } from "@/services/breedAvatar";
 import PetCameraIllustration from "@/components/illustrations/PetCameraIllustration";
 
 const C = {
@@ -189,6 +190,7 @@ export default function AvatarGenerator({ user, pet, onSaved, onClose }) {
             previewSrc={previewSrc}
             elapsed={elapsed}
             onCancel={handleCancelGen}
+            isCat={isCatPet(pet)}
           />
         )}
 
@@ -359,7 +361,7 @@ const GEN_TIPS = [
   "小爪印正在努力创作中 🐾",
 ];
 
-function GeneratingStep({ previewSrc, elapsed, onCancel }) {
+function GeneratingStep({ previewSrc, elapsed, onCancel, isCat }) {
   const [tipIdx, setTipIdx] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setTipIdx((i) => (i + 1) % GEN_TIPS.length), 3500);
@@ -387,7 +389,7 @@ function GeneratingStep({ previewSrc, elapsed, onCancel }) {
               style={{ width:"100%", height:"100%", objectFit:"cover", filter:"saturate(0.9) blur(1.5px)" }} />
           ) : (
             <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center",
-                          justifyContent:"center", fontSize:80, animation:"aiFloat 2.6s ease-in-out infinite" }}>🐶</div>
+                          justifyContent:"center", fontSize:80, animation:"aiFloat 2.6s ease-in-out infinite" }}>{isCat ? "🐱" : "🐶"}</div>
           )}
           {/* 柔光米白遮罩 */}
           <div style={{ position:"absolute", inset:0, background:"rgba(238,233,225,0.32)" }} />

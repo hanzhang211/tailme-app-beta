@@ -59,3 +59,18 @@ export function avatarForBreed(breed, petType = "dog") {
 export function avatarForPet(pet) {
   return avatarForBreed(pet?.breed, pet?.pet_type);
 }
+
+/**
+ * 判断一只宠物是不是猫。
+ * 优先看 pets.pet_type（新数据有，注册时存的，连「其他」品种的猫也准）；
+ * 老数据没有 pet_type → 用品种兜底：仅「猫专属品种」判为猫，
+ * 「其他」这类猫狗通用品种无法区分，按默认（狗）处理。
+ * @param {{pet_type?:string, breed?:string}} pet
+ * @returns {boolean}
+ */
+export function isCatPet(pet) {
+  if (pet?.pet_type === "cat") return true;
+  if (pet?.pet_type === "dog") return false;
+  const breed = pet?.breed;
+  return !!breed && CAT_BREEDS.includes(breed) && !DOG_BREEDS.includes(breed);
+}

@@ -27,7 +27,13 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {/* 首页猫狗占位图预加载：进首页即完整显示、不再从上往下逐行刷
+            （ghost 与主形象同 URL，共享缓存）。React 19 会把 link 提升到 <head> */}
+        <link rel="preload" as="image" href="/cat.png" />
+        <link rel="preload" as="image" href="/dog.png" />
+        {children}
+      </body>
     </html>
   );
 }

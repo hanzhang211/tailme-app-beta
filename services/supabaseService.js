@@ -93,6 +93,7 @@ export async function savePetProfile(formData, userId) {
   const payload = {
     user_id:    userId,
     name:        formData.name?.trim(),
+    pet_type:    formData.pet_type    || null,           // 物种：cat / dog（注册时用户明确选的）
     breed:       formData.breed       || null,
     birthday:    formData.birthday    || null,           // YYYY-MM-DD
     personality: formData.personality || null,

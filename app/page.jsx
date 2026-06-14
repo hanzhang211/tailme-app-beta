@@ -45,7 +45,7 @@ import {
   Sparkles, ChevronRight, PawPrint, Heart, CalendarDays, Scale, Venus, Mars,
   Utensils, Settings, Sun, Moon, MoonStar, CheckCircle, Clock, Calculator, Lightbulb,
 } from "lucide-react";
-import { DOG_BREEDS, CAT_BREEDS } from "@/services/breedAvatar";
+import { DOG_BREEDS, CAT_BREEDS, isCatPet } from "@/services/breedAvatar";
 import { getMonthlyTotal } from "@/services/petExpenseService";
 import { getTodayRecipe }  from "@/services/petRecipeService";
 import { listDiseaseRecords, isMedDoneToday } from "@/services/petHealthService";
@@ -1048,7 +1048,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                            cursor: "pointer",
                            transition:"opacity 0.3s ease" }}>
                   <PetAvatar pet={prevPet} size={90} bg="transparent" blendMode="multiply"
-                             fallbackImg={prevPet?.pet_type === "cat" ? "/cat.png" : "/dog.png"} />
+                             fallbackImg={isCatPet(prevPet) ? "/cat.png" : "/dog.png"} />
                   <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
                                 textAlign:"center", maxWidth:70,
                                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
@@ -1068,7 +1068,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                         style={{ position:"absolute", inset:0, width:210, height:210, objectFit:"contain",
                                  animation:"float 3s ease-in-out infinite", mixBlendMode:"multiply" }} />
                     ) : (
-                      <img src={pet?.pet_type === "cat" ? "/cat.png" : "/dog.png"} alt="" aria-hidden="true"
+                      <img src={isCatPet(pet) ? "/cat.png" : "/dog.png"} alt="" aria-hidden="true"
                         style={{ position:"absolute", inset:0, width:210, height:210, objectFit:"contain",
                                  animation:"float 3s ease-in-out infinite" }} />
                     )
@@ -1117,7 +1117,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                            cursor: "pointer",
                            transition:"opacity 0.3s ease" }}>
                   <PetAvatar pet={nextPet} size={90} bg="transparent" blendMode="multiply"
-                             fallbackImg={nextPet?.pet_type === "cat" ? "/cat.png" : "/dog.png"} />
+                             fallbackImg={isCatPet(nextPet) ? "/cat.png" : "/dog.png"} />
                   <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
                                 textAlign:"center", maxWidth:70,
                                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
