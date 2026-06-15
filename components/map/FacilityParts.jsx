@@ -25,14 +25,14 @@ const warnTitle = (r) => r.admin_title || r.title || typeInfo(r.event_type).labe
 /* ══════════ 分类线性 SVG 图标（统一风格，替代 emoji）══════════ */
 export function CategoryIcon({ id, size = 24, color = "#2A2A2A" }) {
   const p = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor",
-              strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", style: { color, display: "block" } };
+              strokeWidth: 2.4, strokeLinecap: "round", strokeLinejoin: "round", style: { color, display: "block" } };
   switch (id) {
     case "bath": return (<svg {...p}><path d="M12 3v4"/><path d="M5 11a7 7 0 0 1 14 0Z"/><path d="M8 15v1.6M12 16v1.6M16 15v1.6"/></svg>);
     case "neuter": return (<svg {...p}><circle cx="6" cy="6.5" r="2.2"/><circle cx="6" cy="17.5" r="2.2"/><path d="M8 7.5l12 9M8 16.5l12-9"/></svg>);
     case "hospital": return (<svg {...p}><rect x="3" y="8" width="18" height="12" rx="2.2"/><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M12 11.5v5M9.5 14h5"/></svg>);
-    case "vaccine": return (<svg {...p}><path d="M4 20l4-4"/><path d="M14.5 3.5l6 6"/><path d="M17 6l-9 9 3 3 9-9z"/><path d="M11 9l3 3"/></svg>);
+    case "vaccine": return (<svg {...p}><path d="m18 2 4 4"/><path d="m17 7 3-3"/><path d="M19 9 8.7 19.3c-1 1-2.5 1-3.4 0l-.6-.6c-1-1-1-2.5 0-3.4L15 5"/><path d="m9 11 4 4"/><path d="m5 19-3 3"/><path d="m14 4 6 6"/></svg>);
     case "grooming": return (<svg {...p}><circle cx="6" cy="7" r="2"/><circle cx="6" cy="17" r="2"/><path d="M8 8l11 8M8 16l11-8"/><path d="M20 4l.6 1.6L22 6l-1.4.4L20 8l-.6-1.6L18 6l1.4-.4z"/></svg>);
-    case "petting": return (<svg {...p}><ellipse cx="9" cy="13.5" rx="2.4" ry="3"/><ellipse cx="15" cy="13.5" rx="2.4" ry="3"/><ellipse cx="11" cy="9.5" rx="1.7" ry="2.2"/><ellipse cx="16.5" cy="10" rx="1.5" ry="2"/><path d="M5 6c2 2 4 2 6 1"/></svg>);
+    case "petting": return (<svg {...p}><ellipse cx="7.5" cy="10" rx="1.7" ry="2.2"/><ellipse cx="16.5" cy="10" rx="1.7" ry="2.2"/><ellipse cx="11" cy="7.8" rx="1.6" ry="2.1"/><ellipse cx="14.5" cy="7.8" rx="1.4" ry="1.9"/><path d="M12 12.5c2.4 0 4.3 1.7 4.3 3.7 0 1.6-1.4 2.4-3 2.4-1 0-1.3-.3-2-.3s-1 .3-2 .3c-1.6 0-3-.8-3-2.4 0-2 1.9-3.7 4.3-3.7z"/></svg>);
     case "buy": return (<svg {...p}><circle cx="9" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/><path d="M3 4h2l2.2 11h10l1.8-7H6.2"/><circle cx="12" cy="9" r="0.6" fill="currentColor"/><circle cx="14" cy="9" r="0.6" fill="currentColor"/></svg>);
     case "checkup": return (<svg {...p}><path d="M6 3v6a4 4 0 0 0 8 0V3"/><path d="M10 17a4.5 4.5 0 0 0 9 0v-3"/><circle cx="19" cy="12.5" r="2"/></svg>);
     case "deworm": return (<svg {...p}><ellipse cx="12" cy="13" rx="4.5" ry="5.5"/><path d="M12 8.5V7M10 9L8 7M14 9l2-2"/><path d="M7.5 12H5M16.5 12H19M7.5 15.5l-2 1M16.5 15.5l2 1"/></svg>);
@@ -176,7 +176,7 @@ export function FacilityCategoryFilter({ categories, quickIds, gridCategories, a
                              background: on ? "#FFF5EC" : "#FFFFFF", color: on ? "#E68645" : "#2B2B2B",
                              border: on ? "1.5px solid #E68645" : "1px solid #EFE5D9",
                              boxShadow: "0 1px 4px rgba(0,0,0,0.025)" }}>
-                    <CategoryIcon id={c.id} size={21} color={on ? "#E68645" : "#2B2B2B"} />
+                    <CategoryIcon id={c.id} size={21} color="#E68645" />
                     {c.label}
                   </button>
                 );
