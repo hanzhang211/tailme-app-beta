@@ -316,10 +316,7 @@ export default function PostDetail({
               style={{ background:"transparent", border:"none", cursor:"pointer",
                        color:C.sub, display:"flex", alignItems:"center", padding:4, borderRadius:8 }}>
               {own ? <PetTrashIcon size={20} /> : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 22V4" /><path d="M5 5h13l-2.3 3.5L18 12H5z" />
-                </svg>
+                <img src="/jubao.png" alt="举报" style={{ width:38, height:38, display:"block" }} />
               )}
             </button>
           )}
