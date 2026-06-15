@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useState } from "react";
 import BackButton from "@/components/icons/BackButton";
 import { listMyReports, takeOffline, relist, removeReport, withdrawReport } from "@/services/myReportsService";
+import { listMyPostModeration } from "@/services/myPostModerationService";
 import { riskInfo, typeInfo, fmtAgo } from "@/services/warningTypes";
 
 const C = { pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006", sub:"#8A8074", border:"#E4DDD2" };
@@ -280,8 +281,89 @@ function DetailSheet({ detail, onClose, onAction, busy }) {
   );
 }
 
+/* ── 举报记录状态 ── */
+const REPORT_STATUS_META = {
+  pending:  { label:"审核中", color:"#C0612A", bg:"#FBE6D4" },
+  resolved: { label:"已处理", color:"#3E8E5A", bg:"#E2F1E6" },
+  rejected: { label:"未通过", color:"#8A8074", bg:"#ECE7DE" },
+};
+
+/* 我被下架的帖子卡片（只读，重新上架是后台权利）*/
+function MyPostCard({ p }) {
+  const cover = p.cover_thumbnail_url
+    || (Array.isArray(p.thumbnail_urls) && p.thumbnail_urls[0])
+    || (Array.isArray(p.display_image_urls) && p.display_image_urls[0]) || null;
+  const summary = (p.title || p.content || "").trim();
+  return (
+    <div style={{ background:"#fff", borderRadius:20, padding:12, display:"flex", gap:12, boxShadow:"0 2px 14px rgba(0,0,0,0.05)" }}>
+      <div style={{ width:92, height:92, borderRadius:14, overflow:"hidden", flexShrink:0, background:C.tint,
+                    display:"flex", alignItems:"center", justifyContent:"center" }}>
+        {cover ? <img src={cover} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+               : <span style={{ fontSize:30 }}>📝</span>}
+      </div>
+      <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column" }}>
+        <div style={{ display:"flex", alignItems:"flex-start", gap:8 }}>
+          <div style={{ flex:1, minWidth:0, fontSize:14.5, fontWeight:700, color:C.text, lineHeight:1.5,
+                        display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+            {summary || "（无文字内容）"}
+          </div>
+          <Badge color="#C0392B" bg="#FBDAD7">已下架</Badge>
+        </div>
+        <div style={{ fontSize:11.5, color:C.sub, marginTop:6, lineHeight:1.5 }}>
+          该帖子已被管理员下架。如有疑问可联系我们。
+        </div>
+        <div style={{ fontSize:11, color:C.sub, marginTop:"auto", paddingTop:8 }}>发布于 {fmtAgo(p.created_at)}</div>
+      </div>
+    </div>
+  );
+}
+
+/* 我的举报记录卡片 */
+function MyReportCard({ r }) {
+  const sm = REPORT_STATUS_META[r.status] || REPORT_STATUS_META.pending;
+  const post = r.post;
+  const cover = post ? (post.cover_thumbnail_url
+    || (Array.isArray(post.thumbnail_urls) && post.thumbnail_urls[0])
+    || (Array.isArray(post.display_image_urls) && post.display_image_urls[0])) : null;
+  const summary = post ? (post.title || post.content || "").trim() : "";
+  const postState = !post ? { label:"该帖已删除", color:"#C0392B" }
+    : post.status === "hidden" ? { label:"该帖已下架", color:"#C0392B" }
+    : { label:"该帖仍在展示", color:C.sub };
+  return (
+    <div style={{ background:"#fff", borderRadius:20, padding:12, boxShadow:"0 2px 14px rgba(0,0,0,0.05)" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+        <span style={{ fontSize:14, fontWeight:800, color:C.text }}>举报：{r.reason}</span>
+        <Badge color={sm.color} bg={sm.bg}>{sm.label}</Badge>
+        <span style={{ marginLeft:"auto", fontSize:11, color:C.sub }}>{fmtAgo(r.created_at)}</span>
+      </div>
+      <div style={{ display:"flex", gap:10, alignItems:"center", background:C.bg, borderRadius:12, padding:10 }}>
+        <div style={{ width:48, height:48, borderRadius:10, overflow:"hidden", flexShrink:0, background:C.tint,
+                      display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>
+          {cover ? <img src={cover} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🐾"}
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize:12.5, color:C.text, lineHeight:1.4,
+                        display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+            {post ? (summary || "（无文字内容）") : "（该帖已删除）"}
+          </div>
+          <div style={{ fontSize:11, fontWeight:700, color:postState.color, marginTop:3 }}>{postState.label}</div>
+        </div>
+      </div>
+      {r.detail && <div style={{ fontSize:11.5, color:C.sub, marginTop:8, lineHeight:1.5 }}>补充说明：{r.detail}</div>}
+      {r.status === "pending" && <div style={{ fontSize:11.5, color:C.sub, marginTop:8 }}>我们正在审核处理，感谢你的反馈 🐾</div>}
+      {r.status === "rejected" && <div style={{ fontSize:11.5, color:C.sub, marginTop:8 }}>经审核，该内容暂未违反社区规范。</div>}
+    </div>
+  );
+}
+
 /* 空状态 */
-function Empty() {
+function Empty({ kind }) {
+  const txt = {
+    friendly:  { t:"还没有提交过内容", d:<>你上传的宠物友好地点和宠物警示<br/>会显示在这里</> },
+    warning:   { t:"还没有提交过内容", d:<>你上传的宠物友好地点和宠物警示<br/>会显示在这里</> },
+    myposts:   { t:"没有被下架的帖子", d:<>如果你的帖子被管理员下架<br/>会显示在这里</> },
+    myreports: { t:"还没有举报记录", d:<>你举报过的帖子和处理结果<br/>会显示在这里</> },
+  }[kind] || { t:"还没有提交过内容", d:"" };
   return (
     <div style={{ textAlign:"center", padding:"70px 30px" }}>
       <div style={{ width:84, height:84, borderRadius:"50%", background:C.tint, margin:"0 auto 16px",
@@ -292,8 +374,8 @@ function Empty() {
           <path d="M12.4 13c2.4 0 4.4 1.7 4.4 3.8 0 1.7-1.5 2.5-3.2 2.5-1 0-1.4-.3-2.2-.3s-1.2.3-2.2.3c-1.7 0-3.2-.8-3.2-2.5 0-2.1 2-3.8 4.4-3.8Z"/>
         </svg>
       </div>
-      <div style={{ fontSize:15, fontWeight:800, color:C.text, marginBottom:6 }}>还没有提交过内容</div>
-      <div style={{ fontSize:13, color:C.sub, lineHeight:1.6 }}>你上传的宠物友好地点和宠物警示<br/>会显示在这里</div>
+      <div style={{ fontSize:15, fontWeight:800, color:C.text, marginBottom:6 }}>{txt.t}</div>
+      <div style={{ fontSize:13, color:C.sub, lineHeight:1.6 }}>{txt.d}</div>
     </div>
   );
 }
@@ -302,7 +384,7 @@ export default function MyReviews({ user, onClose, toast }) {
   const userId = user?.id || null;
   const [kind, setKind] = useState("friendly");   // friendly | warning
   const [status, setStatus] = useState("all");
-  const [data, setData] = useState({ friendly:null, warning:null }); // null=未加载
+  const [data, setData] = useState({ friendly:null, warning:null, myposts:null, myreports:null }); // null=未加载
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState(null);      // { report, kind }
   const [confirm, setConfirm] = useState(null);
@@ -311,7 +393,15 @@ export default function MyReviews({ user, onClose, toast }) {
   const reload = useCallback(async (k) => {
     if (!userId) { setData((d) => ({ ...d, [k]: [] })); return; }
     setLoading(true);
-    try { const rows = await listMyReports(userId, k); setData((d) => ({ ...d, [k]: rows })); }
+    try {
+      if (k === "friendly" || k === "warning") {
+        const rows = await listMyReports(userId, k);
+        setData((d) => ({ ...d, [k]: rows }));
+      } else {
+        const { posts, reports } = await listMyPostModeration(userId);
+        setData((d) => ({ ...d, myposts: posts, myreports: reports }));
+      }
+    }
     catch (e) { toast?.(e.message || "加载失败", "error"); setData((d) => ({ ...d, [k]: [] })); }
     finally { setLoading(false); }
   }, [userId, toast]);
@@ -319,7 +409,10 @@ export default function MyReviews({ user, onClose, toast }) {
   useEffect(() => { reload(kind); }, [kind, reload]);
 
   const list = data[kind];
-  const filtered = (list || []).filter((r) => status === "all" || r.status === status);
+  // 友好/警示按状态筛选；我的帖子/举报记录不筛选
+  const filtered = (kind === "friendly" || kind === "warning")
+    ? (list || []).filter((r) => status === "all" || r.status === status)
+    : (list || []);
 
   const runAction = async (action, r) => {
     const map = {
@@ -355,7 +448,12 @@ export default function MyReviews({ user, onClose, toast }) {
     }
   };
 
-  const TABS = [{ id:"friendly", label:"宠物友好", icon:"🐾" }, { id:"warning", label:"宠物警示", icon:"⚠️" }];
+  const TABS = [
+    { id:"friendly", label:"宠物友好", icon:"🐾" },
+    { id:"warning", label:"宠物警示", icon:"⚠️" },
+    { id:"myposts", label:"我的帖子", icon:"📝" },
+    { id:"myreports", label:"举报记录", icon:"🚩" },
+  ];
 
   return (
     <div style={{ position:"fixed", inset:0, zIndex:400, background:C.bg, display:"flex", flexDirection:"column" }}>
@@ -366,17 +464,18 @@ export default function MyReviews({ user, onClose, toast }) {
         <div style={{ width:34 }} />
       </div>
 
-      {/* 双 Tab 胶囊 */}
+      {/* Tab 胶囊（横向滚动，4 个）*/}
       <div style={{ padding:"4px 16px 10px" }}>
         <div style={{ display:"flex", background:"#fff", borderRadius:14, padding:4, gap:4,
-                      boxShadow:"0 2px 10px rgba(0,0,0,0.04)" }}>
+                      boxShadow:"0 2px 10px rgba(0,0,0,0.04)", overflowX:"auto", scrollbarWidth:"none" }}>
           {TABS.map((t) => {
             const on = kind === t.id;
             return (
               <button key={t.id} onClick={() => { setKind(t.id); setStatus("all"); }}
-                style={{ flex:1, padding:"10px 0", borderRadius:11, border:"none", cursor:"pointer",
+                style={{ flex:"1 0 auto", padding:"10px 14px", borderRadius:11, border:"none", cursor:"pointer",
+                         whiteSpace:"nowrap",
                          background: on ? C.tint : "transparent", color: on ? C.pri : C.sub,
-                         fontSize:14.5, fontWeight: on ? 800 : 600 }}>
+                         fontSize:14, fontWeight: on ? 800 : 600 }}>
                 {t.icon} {t.label}
               </button>
             );
@@ -384,27 +483,31 @@ export default function MyReviews({ user, onClose, toast }) {
         </div>
       </div>
 
-      {/* 状态筛选 chips */}
-      <div style={{ display:"flex", gap:8, overflowX:"auto", padding:"0 16px 10px", flexShrink:0 }}>
-        {STATUS_FILTERS.map((f) => {
-          const on = status === f.id;
-          return (
-            <button key={f.id} onClick={() => setStatus(f.id)}
-              style={{ padding:"7px 15px", borderRadius:999, fontSize:13, fontWeight: on ? 800 : 600, cursor:"pointer",
-                       whiteSpace:"nowrap", border:`1.4px solid ${on ? C.pri : C.border}`,
-                       background: on ? C.tint : "#fff", color: on ? C.pri : C.sub }}>
-              {f.label}
-            </button>
-          );
-        })}
-      </div>
+      {/* 状态筛选 chips（仅友好/警示）*/}
+      {(kind === "friendly" || kind === "warning") && (
+        <div style={{ display:"flex", gap:8, overflowX:"auto", padding:"0 16px 10px", flexShrink:0 }}>
+          {STATUS_FILTERS.map((f) => {
+            const on = status === f.id;
+            return (
+              <button key={f.id} onClick={() => setStatus(f.id)}
+                style={{ padding:"7px 15px", borderRadius:999, fontSize:13, fontWeight: on ? 800 : 600, cursor:"pointer",
+                         whiteSpace:"nowrap", border:`1.4px solid ${on ? C.pri : C.border}`,
+                         background: on ? C.tint : "#fff", color: on ? C.pri : C.sub }}>
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* 列表 */}
       <div style={{ flex:1, overflowY:"auto", padding:"4px 16px calc(24px + env(safe-area-inset-bottom))",
                     display:"flex", flexDirection:"column", gap:12 }}>
         {list === null && <div style={{ textAlign:"center", color:C.sub, fontSize:13, padding:"50px 0" }}>加载中…</div>}
-        {list !== null && filtered.length === 0 && <Empty />}
-        {filtered.map((r) => (
+        {list !== null && filtered.length === 0 && <Empty kind={kind} />}
+        {kind === "myposts" && filtered.map((p) => <MyPostCard key={p.id} p={p} />)}
+        {kind === "myreports" && filtered.map((r) => <MyReportCard key={r.id} r={r} />)}
+        {(kind === "friendly" || kind === "warning") && filtered.map((r) => (
           <ReportCard key={r.id} r={r} kind={kind} busy={busyId === r.id}
             onOpen={(rep) => setDetail({ report: rep, kind })} onAction={onAction} />
         ))}
