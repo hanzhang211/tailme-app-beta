@@ -9,6 +9,9 @@
  *  - 退出登录
  */
 
+import PetAvatar from "@/components/PetAvatar";
+import { isCatPet } from "@/services/breedAvatar";
+
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
   sub:"#8A8074", light:"#D6D5D8", border:"#7A6F62", err:"#D94040",
@@ -57,6 +60,11 @@ export default function SettingsModal({
               style={{ display:"flex", alignItems:"center", padding:"12px 18px",
                        background:"white", margin:"0 14px 8px",
                        borderRadius:14, border:`1px solid ${C.light}` }}>
+              {/* 头像：有真实/AI 头像优先显示，没有则按猫/狗类型占位；加载失败 PetAvatar 自动 fallback */}
+              <div style={{ marginRight:12, flexShrink:0 }}>
+                <PetAvatar pet={pet} size={52} bg={C.tint}
+                  fallbackImg={isCatPet(pet) ? "/cat.png" : "/dog.png"} />
+              </div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:14, fontWeight:700, color:C.text,
                               overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
