@@ -40,7 +40,7 @@ export function CategoryIcon({ id, size = 24, color = "#2A2A2A" }) {
     case "park": return (<svg {...p}><path d="M7 21V4"/><path d="M7 5h10l-2.2 3L17 11H7"/></svg>);
     case "training": return (<svg {...p}><circle cx="9" cy="14" r="5"/><path d="M13.5 12l7-3v4.2l-6 1"/><path d="M9 9V6h3"/></svg>);
     case "boarding": return (<svg {...p}><path d="M4 11l8-6 8 6"/><path d="M6 10v9h12v-9"/><circle cx="12" cy="14.5" r="1.4"/><circle cx="9.6" cy="13" r="0.7" fill="currentColor"/><circle cx="14.4" cy="13" r="0.7" fill="currentColor"/></svg>);
-    case "transport": return (<svg {...p}><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M9 7V5h6v2"/><circle cx="12" cy="13" r="2.4"/><path d="M4 11h2M18 11h2"/></svg>);
+    case "transport": return (<svg {...p}><path d="M5 10h14l-1.1 8.2a1.2 1.2 0 0 1-1.2 1.1H7.3a1.2 1.2 0 0 1-1.2-1.1z"/><path d="M9 10V9a3 3 0 0 1 6 0v1"/><circle cx="12" cy="14.3" r="2.2"/></svg>);
     case "photo": return (<svg {...p}><rect x="3" y="7" width="18" height="12" rx="2.4"/><circle cx="12" cy="13" r="3.2"/><path d="M8.5 7l1.3-2h4.4L15.5 7"/></svg>);
     default: return (<svg {...p}><ellipse cx="8" cy="12" rx="1.8" ry="2.4"/><ellipse cx="16" cy="12" rx="1.8" ry="2.4"/><ellipse cx="11" cy="8.5" rx="1.6" ry="2.1"/><ellipse cx="15" cy="9" rx="1.4" ry="1.9"/><path d="M12 13.5c2.2 0 4 1.5 4 3.4 0 1.5-1.3 2.2-2.8 2.2-.9 0-1.2-.3-1.9-.3s-1 .3-1.9.3C7.9 19.1 6.5 18.4 6.5 16.9c0-1.9 1.8-3.4 4-3.4z"/></svg>);
   }
