@@ -29,6 +29,7 @@ import { avatarForBreed } from "@/services/breedAvatar";
 import { StoreReviewManager, ProductReviewManager } from "@/components/admin/MerchantReviews";
 import { DangerReviewManager, FriendlyManager } from "@/components/admin/DangerReviews";
 import { VerificationManager } from "@/components/admin/VerificationReviews";
+import { ReportManager } from "@/components/admin/ReportReviews";
 
 const C = {
   pri:    "#E68645",
@@ -324,6 +325,7 @@ function AdminTabs({ me }) {
     { key: "warning",  label: "宠物警示", render: () => <DangerReviewManager adminId={me?.id} /> },
     { key: "friendly", label: "友好地点", render: () => <FriendlyManager adminId={me?.id} /> },
     { key: "content",  label: "内容",     render: () => <FlaggedModeration adminId={me?.id} /> },
+    { key: "reports",  label: "举报管理", render: () => <ReportManager adminId={me?.id} /> },
     { key: "recipe",   label: "食谱",     render: () => <RecipeManager adminId={me?.id} /> },
   ];
   const [active, setActive] = useState("merchant");
