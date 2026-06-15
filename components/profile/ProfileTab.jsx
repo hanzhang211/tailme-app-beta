@@ -21,6 +21,7 @@ import {
   getFollowCounts, listFollowing, listFollowers, getFollowingSet, followUser,
 } from "@/services/communityService";
 import { formatPetAge, formatBirthday } from "@/services/petAge";
+import { isCatPet } from "@/services/breedAvatar";
 
 import PostDetail      from "@/components/community/PostDetail";
 import PetAvatar       from "@/components/PetAvatar";
@@ -1173,7 +1174,8 @@ function PetCard({ pet, isActive, onAvatar, onEdit }) {
       )}
 
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
-        <PetAvatar pet={pet} size={30} bg={C.tint} />
+        <PetAvatar pet={pet} size={30} bg={C.tint}
+          fallbackImg={isCatPet(pet) ? "/cat.png" : "/dog.png"} />
         <div style={{ fontSize:14, fontWeight:800, color:C.text,
                       overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>
           {pet.name || "未命名"}
