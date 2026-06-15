@@ -17,7 +17,7 @@ import {
   likeComment, unlikeComment, getMyLikedCommentIds,
   likePost, unlikePost,
   favoritePost, unfavoritePost, isPostFavorited,
-  deleteOwnContent, reportContent,
+  deleteOwnContent,
   subscribeComments, unsubscribeChannel,
   isFollowing, followUser, unfollowUser,
 } from "@/services/communityService";
@@ -25,6 +25,7 @@ import PetAvatar from "@/components/PetAvatar";
 import PawLikeIcon from "@/components/icons/PawLikeIcon";
 import PetTrashIcon from "@/components/icons/PetTrashIcon";
 import EmptyCommentsDogCat from "@/components/illustrations/EmptyCommentsDogCat";
+import ReportSheet from "@/components/community/ReportSheet";
 import BackButton from "@/components/icons/BackButton";
 import { ChevronLeft } from "lucide-react";
 import { fmtDuration } from "@/services/videoThumb";
@@ -65,6 +66,7 @@ export default function PostDetail({
   const [viewerIdx, setViewerIdx] = useState(null);
   const [viewerSrc, setViewerSrc] = useState(null);
   const [following, setFollowing] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const display = post?.user?.username || "未命名宠物";
   const own     = post?.user_id === user?.id;
@@ -244,16 +246,7 @@ export default function PostDetail({
     } catch (e) { toast?.(e.message, "error"); }
   };
 
-  const handleReport = async () => {
-    const reason = prompt("举报理由（可选）");
-    if (reason === null) return;
-    try {
-      await reportContent({
-        reporterId: user.id, targetType: "post", targetId: postId, reason,
-      });
-      toast?.("已举报，管理员会处理", "info");
-    } catch (e) { toast?.(e.message, "error"); }
-  };
+  const handleReport = () => setReportOpen(true);
 
   const topLevels = comments.filter((c) => !c.parent_id);
   const repliesByParent = comments.reduce((map, c) => {
@@ -261,11 +254,17 @@ export default function PostDetail({
     return map;
   }, {});
 
+  // 举报弹层（视频帖 / 图文帖两个 return 都渲染它）
+  const reportSheet = reportOpen && post ? (
+    <ReportSheet post={post} user={user} toast={toast} onClose={() => setReportOpen(false)} />
+  ) : null;
+
   /* ── 视频帖 → 全屏沉浸式（图片/文字帖走下面原布局）── */
   const videoMedia = media.find((m) => m.type === "video");
   const isVideoPost = post ? (media[0]?.type === "video") : !!initialIsVideo;
   if (isVideoPost) {
     return (
+      <>
       <ImmersiveVideo
         loadingPost={loadingPost}
         videoUrl={videoMedia?.url || null}
@@ -282,11 +281,14 @@ export default function PostDetail({
         onOpenTopic={onOpenTopic ? (tag) => { onOpenTopic(tag); onClose?.(); } : null}
         onMore={own ? handleDeletePost : handleReport}
       />
+      {reportSheet}
+      </>
     );
   }
 
   /* ── render ───────────────────────────────────────── */
   return (
+    <>
     <div onClick={(e) => e.target === e.currentTarget && onClose?.()}
       style={{ position:"fixed", inset:0, zIndex:150, background:"rgba(0,0,0,0.45)",
                display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
@@ -310,9 +312,15 @@ export default function PostDetail({
           </div>
           {post && (
             <button onClick={own ? handleDeletePost : handleReport}
+              aria-label={own ? "删除帖子" : "举报"}
               style={{ background:"transparent", border:"none", cursor:"pointer",
-                       color:C.sub, fontSize:14, display:"flex", alignItems:"center", padding:0 }}>
-              {own ? <PetTrashIcon size={20} /> : "⚐"}
+                       color:C.sub, display:"flex", alignItems:"center", padding:4, borderRadius:8 }}>
+              {own ? <PetTrashIcon size={20} /> : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 22V4" /><path d="M5 5h13l-2.3 3.5L18 12H5z" />
+                </svg>
+              )}
             </button>
           )}
         </div>
@@ -538,6 +546,8 @@ export default function PostDetail({
       </div>
       <style>{`@keyframes detail-up { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
     </div>
+    {reportSheet}
+    </>
   );
 }
 
