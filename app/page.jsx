@@ -122,6 +122,13 @@ const CHAT_BUBBLE_PHRASES = [
   "快来摸摸我 🐾",
   "想听你说说今天 ✨",
 ];
+// 饿了状态下的温和气泡文案（喂食提醒主功能在下方卡片，气泡只温和点缀）
+const HUNGRY_BUBBLE_PHRASES = [
+  "肚子咕咕叫啦～",
+  "有点想吃饭饭了 🐾",
+  "今天过得怎么样？💛",
+  "陪我吃饭饭好不好～",
+];
 const cardStyle = { background:C.card, borderRadius:20, padding:16, marginBottom:12, boxShadow:"0 2px 14px rgba(0,0,0,0.05)" };
 const btnStyle  = (active) => ({
   background: active ? C.pri : "#FFFFFF", color: active ? "#fff" : "#1A1006",
@@ -151,6 +158,26 @@ function PawIcon({ size = 16, color = "#E68645" }) {
       <ellipse cx="14.5" cy="5" rx="2.2" ry="3" />
       <ellipse cx="19" cy="8" rx="2" ry="2.6" />
       <path d="M 7 14 Q 5 18, 8 21 Q 12.5 23, 17 21 Q 20 18, 18 14 Q 16 11.5, 12.5 11.5 Q 9 11.5, 7 14 Z" />
+    </svg>
+  );
+}
+
+// 喂食提醒卡片用：橙色食碗 + 碗里小爪印（可爱简洁，无黑线，非 emoji）
+function FeedBowlIcon({ size = 32 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none"
+         xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ display:"block" }}>
+      {/* 碗身 */}
+      <path d="M9 23h30l-3.4 12.2A4 4 0 0 1 31.8 38H16.2a4 4 0 0 1-3.8-2.8L9 23z" fill="#E68645"/>
+      {/* 碗沿（高光） */}
+      <ellipse cx="24" cy="23" rx="15.5" ry="4.6" fill="#F4A24E"/>
+      {/* 碗里小爪印（浅色） */}
+      <g fill="#FFF3E6">
+        <ellipse cx="24" cy="32" rx="3.2" ry="2.6"/>
+        <ellipse cx="19.6" cy="28.4" rx="1.4" ry="1.9"/>
+        <ellipse cx="23.4" cy="27.4" rx="1.4" ry="1.9"/>
+        <ellipse cx="27.6" cy="28.1" rx="1.4" ry="1.9"/>
+      </g>
     </svg>
   );
 }
@@ -678,6 +705,26 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     return null;
   })();
 
+  // 喂食提醒卡片副文案用：复用 feedReminder（非 null 才显示）+ 同一套 feedings/doneMeals 数据，
+  // 仅额外算出"距下一餐分钟数 / 已超时分钟数"，不新写任何阈值/判断逻辑。
+  const feedInfo = (() => {
+    if (!feedReminder) return null;
+    const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+    const pending = feedings
+      .map((f, i) => {
+        const [h, m] = (f.time || "").split(":").map(Number);
+        return { min: (h || 0) * 60 + (m || 0), done: !!doneMeals[i] };
+      })
+      .filter((x) => !x.done);
+    if (feedReminder === "soon") {
+      const next = pending.filter((x) => x.min > nowMin).sort((a, b) => a.min - b.min)[0];
+      return { kind: "soon", minutes: next ? next.min - nowMin : 0 };
+    }
+    const over = pending.filter((x) => x.min <= nowMin).sort((a, b) => b.min - a.min)[0];
+    const diff = over ? nowMin - over.min : 0;
+    return { kind: diff <= 0 ? "due" : "over", minutes: diff };
+  })();
+
   // ── 健康联动：加载【当前 activePet】的生病记录（按 pet_id 过滤，宠物间独立）──
   // healthRefresh 在离开健康页时 +1，确保康复/新增/用药改动后首页提醒立即重算
   const [diseases, setDiseases] = useState([]);
@@ -1086,18 +1133,12 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                                mixBlendMode:"multiply" }} />
                   )}
                 </div>
-                {/* 位置 A：右上角小状态标签。生病中 > 饿了 */}
-                {sick ? (
+                {/* 位置 A：右上角小状态标签。仅生病中（饿了已移到下方独立喂食提醒卡片） */}
+                {sick && (
                   <div style={{ position:"absolute", top:0, right:-4, background:"#5FA766", borderRadius:20,
                                 padding:"3px 9px", fontSize:10, fontWeight:700, color:"white",
                                 boxShadow:"0 2px 10px rgba(95,167,102,0.35)" }}>
                     🤒 生病中
-                  </div>
-                ) : feedReminder && (
-                  <div style={{ position:"absolute", top:0, right:-4, background:C.accent, borderRadius:20,
-                                padding:"3px 9px", fontSize:10, fontWeight:700, color:"white",
-                                boxShadow:"0 2px 10px rgba(230,134,69,0.35)" }}>
-                    {feedReminder === "soon" ? "⏰ 快饿啦" : "😋 饿了"}
                   </div>
                 )}
               </div>
@@ -1142,7 +1183,9 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                        textAlign:"center", wordBreak:"break-word",
                        cursor:"pointer",
                        animation:"chatBubbleBreath 2.8s ease-in-out infinite" }}>
-              {bubbleText}
+              {(!sick && feedReminder)
+                ? HUNGRY_BUBBLE_PHRASES[Math.abs(lastBubbleIdx.current) % HUNGRY_BUBBLE_PHRASES.length]
+                : bubbleText}
               {/* 小三角尾巴：在气泡右下角，指向宠物 */}
               <span style={{ position:"absolute", right:20, bottom:-8, width:0, height:0,
                              borderLeft:"8px solid transparent", borderRight:"8px solid transparent",
@@ -1233,26 +1276,63 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
             </div>
           )}
 
-          {/* 位置 B：长条提醒。生病中→用药提醒（无则隐藏，不显示喂食）；未生病→喂食提醒 */}
-          {sick ? (
-            medReminder && (
-              <div style={{ marginTop:12, background:"rgba(95,167,102,0.1)", border:"1px solid rgba(95,167,102,0.25)",
-                            borderRadius:20, padding:"8px 18px", fontSize:13, color:"#4E8C56", fontWeight:600 }}>
-                {medReminder === "soon"
-                  ? "💊 快到用药时间啦，记得照顾我哦"
-                  : "💊 该吃药啦，记得帮我用药哦"}
-              </div>
-            )
-          ) : feedReminder && (
-            <div style={{ marginTop:12, background:H_SURFACE, border:`1px solid ${H_BORDER}`,
-                          borderRadius:20, padding:"8px 18px", fontSize:13, color:C.accent, fontWeight:600 }}>
-              {feedReminder === "soon" ? "🍖 我快饿啦，记得喂我哦！" : "🍖 我有点饿啦，记得喂我哦！"}
+          {/* 位置 B：长条提醒。仅生病中→用药提醒（喂食提醒已移到下方独立卡片） */}
+          {sick && medReminder && (
+            <div style={{ marginTop:12, background:"rgba(95,167,102,0.1)", border:"1px solid rgba(95,167,102,0.25)",
+                          borderRadius:20, padding:"8px 18px", fontSize:13, color:"#4E8C56", fontWeight:600 }}>
+              {medReminder === "soon"
+                ? "💊 快到用药时间啦，记得照顾我哦"
+                : "💊 该吃药啦，记得帮我用药哦"}
             </div>
           )}
         </div>
       </div>
 
       <div style={{ padding:"6px 14px 90px" }}>
+        {/* 喂食提醒卡片：未生病 + 饿了/到点时显示；点「去喂食」进喂食计划页（可勾选完成）。
+            生病优先级保留——sick 时不显示此卡，改由上方位置 B 显示用药提醒。 */}
+        {!sick && feedInfo && (
+          <>
+            <div style={{ display:"flex", alignItems:"center", gap:14,
+                          background:"#FFFDF8", border:`1.5px solid ${C.pri}`, borderRadius:22,
+                          padding:"14px 16px", marginBottom:12,
+                          boxShadow:"0 6px 18px rgba(230,134,69,0.12)",
+                          animation:"feedCardIn .3s ease-out" }}>
+              <div style={{ width:52, height:52, borderRadius:16, flexShrink:0, background:"#F8E1C7",
+                            display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <FeedBowlIcon size={32} />
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:16, fontWeight:800, color:C.pri, lineHeight:1.25,
+                              whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  我饿啦，想吃饭饭
+                </div>
+                <div style={{ fontSize:12.5, color:"#8A7B6A", marginTop:3,
+                              whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  {feedInfo.kind === "soon"
+                    ? `距离下一餐还有 ${feedInfo.minutes} 分钟`
+                    : feedInfo.kind === "due"
+                      ? "现在可以喂我啦"
+                      : `已经超过喂食时间 ${feedInfo.minutes} 分钟啦`}
+                </div>
+              </div>
+              <button onClick={() => setSubPage("feeding")}
+                style={{ flexShrink:0, height:40, padding:"0 20px", borderRadius:999,
+                         background:"linear-gradient(135deg, #E68645, #F09A5B)",
+                         color:"#fff", fontSize:14, fontWeight:800, border:"none", cursor:"pointer",
+                         boxShadow:"0 4px 12px rgba(230,134,69,0.3)", transition:"transform .12s ease" }}
+                onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.94)")}
+                onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                onTouchStart={(e) => (e.currentTarget.style.transform = "scale(0.94)")}
+                onTouchEnd={(e) => (e.currentTarget.style.transform = "scale(1)")}>
+                去喂食
+              </button>
+            </div>
+            <style>{`@keyframes feedCardIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }`}</style>
+          </>
+        )}
+
         {/* 宠物基础信息卡：品种 / 年龄 / 体重 / 性别（lucide icons） */}
         <div style={{ display:"flex", alignItems:"center", background:"white",
                       borderRadius:20, padding:"14px 6px", marginBottom:12,
