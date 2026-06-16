@@ -17,6 +17,7 @@ import {
   WALKING_TIMES, PERSONALITY_TAGS, SMALL_DOG_OPTIONS, BIG_DOG_OPTIONS,
 } from "@/services/dogFriendService";
 import PetAvatar from "@/components/PetAvatar";
+import { isCatPet } from "@/services/breedAvatar";
 import BackButton from "@/components/icons/BackButton";
 
 const C = {
@@ -129,7 +130,7 @@ export default function DogFriendEdit({ user, pet, pets = [], profile, onClose, 
                       <span style={{ padding:3, borderRadius:"50%",
                                      border:`2.5px solid ${on ? C.pri : "transparent"}`,
                                      background: on ? TINT_ON : "transparent" }}>
-                        <PetAvatar pet={p} size={54} bg={C.tint} />
+                        <PetAvatar pet={p} size={54} bg={C.tint} fallbackImg={isCatPet(p) ? "/cat.png" : "/dog.png"} />
                       </span>
                       <span style={{ fontSize:12, fontWeight: on ? 700 : 500, color: on ? C.pri : C.text,
                                      maxWidth:74, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>

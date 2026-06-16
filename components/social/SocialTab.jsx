@@ -22,7 +22,7 @@ import { assertNotBanned } from "@/services/banCheck";
 import { getWalkVaccineMap } from "@/services/petVaccineService";
 import { toastColors } from "@/services/toastTheme";
 import { formatPetAge } from "@/services/petAge";
-import { avatarForBreed } from "@/services/breedAvatar";
+import { isCatPet } from "@/services/breedAvatar";
 import DogFriendEdit from "./DogFriendEdit";
 import DogWaitingIllustration from "./DogWaitingIllustration";
 
@@ -92,8 +92,10 @@ function DogAvatar({ url, breed, petType, size = 72 }) {
                   background:C.tint, flexShrink:0 }}>
       {(!showImg || !loaded) && (
         <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center",
-                      justifyContent:"center", fontSize:Math.round(size*0.46) }}>
-          {avatarForBreed(breed, petType)}
+                      justifyContent:"center" }}>
+          <img src={isCatPet({ pet_type: petType, breed }) ? "/cat.png" : "/dog.png"} alt=""
+               loading="lazy" decoding="async"
+               style={{ width:"88%", height:"88%", objectFit:"contain" }} />
         </div>
       )}
       {showImg && (
