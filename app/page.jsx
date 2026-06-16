@@ -1275,11 +1275,12 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           <>
             <div style={{ display:"flex", alignItems:"center", gap:14,
                           background:"#FFFDF8", border:`1.5px solid ${C.pri}`, borderRadius:22,
-                          padding:"10px 14px", marginBottom:12,
+                          padding:"6px 14px", marginBottom:12,
                           boxShadow:"0 6px 18px rgba(230,134,69,0.12)",
                           animation:"feedCardIn .3s ease-out" }}>
               <img src="/fanwan.png" alt="" aria-hidden="true" decoding="async"
-                   style={{ width:64, height:64, objectFit:"contain", flexShrink:0, display:"block" }} />
+                   style={{ width:64, height:64, objectFit:"contain", flexShrink:0, display:"block",
+                            margin:"-11px 0" }} />
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:16, fontWeight:800, color:C.pri, lineHeight:1.25,
                               whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
