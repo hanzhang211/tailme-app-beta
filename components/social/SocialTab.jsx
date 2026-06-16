@@ -220,6 +220,7 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile, onOpenV
       }
       await updateDogLocation({ userId: user.id, ...coords }).catch(() => {});
       setNearby(await loadNearbyList(coords));
+      if (!silent) toast("📍 位置已更新", "success"); // 手动「更新位置」才提示，自动刷新不打扰
     } catch (e) {
       toast(e.message, "error");
     } finally {
@@ -415,14 +416,14 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile, onOpenV
                    color: (visible && cardReady) ? C.pri : C.light, fontSize:12, fontWeight:600,
                    cursor: (visible && cardReady && !loadingList) ? "pointer" : "default" }}>
           <span style={{ display:"inline-block", animation: loadingList ? "dfspin .8s linear infinite" : "none" }}>↻</span>
-          刷新
+          更新位置
         </button>
       </div>
 
       {staleNote && visible && (
         <div style={{ margin:"0 14px 6px", fontSize:11, color:C.sub, background:"#FFF6EC",
                       border:`1px solid ${C.border}`, borderRadius:12, padding:"8px 12px" }}>
-          ⚠️ 距离可能不是最新的，点「刷新」重新获取位置
+          ⚠️ 距离可能不是最新的，点「更新位置」重新定位
         </div>
       )}
 
