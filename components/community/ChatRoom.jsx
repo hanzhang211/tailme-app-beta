@@ -32,6 +32,8 @@ import BreedIcon from "@/components/icons/BreedIcon";
 import BackButton from "@/components/icons/BackButton";
 import PrivateChatList from "./PrivateChatList";
 import PrivateChatDetail from "./PrivateChatDetail";
+import ReportSheet from "./ReportSheet";
+import { submitChatReport } from "@/services/chatReportService";
 import { MsgSkeleton, RowSkeleton } from "./ChatSkeleton";
 
 const C = {
@@ -82,6 +84,17 @@ export default function ChatRoom({ user, pet, pets = [] }) {
   const [errMsgs,  setErrMsgs] = useState(null);
   const scrollRef  = useRef(null);
   const channelRef = useRef(null);
+
+  /* 群聊举报：多选模式 + 举报弹层 + 橙底浮层提示 */
+  const [selecting, setSelecting]     = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [reportOpen, setReportOpen]   = useState(false);
+  const [gNotice, setGNotice]         = useState(null);
+  const gNoticeRef = useRef();
+  const gFlash = (m) => { clearTimeout(gNoticeRef.current); setGNotice(m); gNoticeRef.current = setTimeout(() => setGNotice(null), 2600); };
+  const enterReportSelect = (m) => { setSelecting(true); setSelectedIds(m ? new Set([m.id]) : new Set()); };
+  const toggleSelect = (id) => setSelectedIds((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const exitSelect = () => { setSelecting(false); setSelectedIds(new Set()); };
 
   /* 群活跃度统计（成员/在线 + 本周最火，真实数据 5分钟缓存） */
   const [groupStats, setGroupStats] = useState({ statByBreed: {}, hotGroups: [] });
@@ -230,16 +243,8 @@ export default function ChatRoom({ user, pet, pets = [] }) {
     } catch (e) { alert(e.message); }
   };
 
-  const handleReport = async (m) => {
-    const reason = prompt("举报理由（可选）");
-    if (reason === null) return;
-    try {
-      await reportContent({
-        reporterId: user.id, targetType: "message", targetId: m.id, reason,
-      });
-      alert("已举报，管理员会处理");
-    } catch (e) { alert(e.message); }
-  };
+  // 长按非自己的消息 → 进入多选举报模式（并选中该条）
+  const handleReport = (m) => enterReportSelect(m);
 
   /* ════════════════════════════════════════════════
      section: private（私聊）—— 独立于群聊
@@ -446,8 +451,14 @@ export default function ChatRoom({ user, pet, pets = [] }) {
      view: room
      ════════════════════════════════════════════════ */
   return (
-    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:C.bg }}>
-      <SubHeader title={roomDisplay(activeRoom)} onBack={backToLobby} />
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:C.bg, position:"relative" }}>
+      <SubHeader
+        title={selecting ? `已选 ${selectedIds.size} 条` : roomDisplay(activeRoom)}
+        onBack={selecting ? exitSelect : backToLobby}
+        right={selecting
+          ? <button onClick={exitSelect} style={{ background:"transparent", border:"none", color:C.sub, fontSize:13, fontWeight:700, cursor:"pointer" }}>取消</button>
+          : <button onClick={() => enterReportSelect(null)} aria-label="举报" style={{ background:"transparent", border:"none", cursor:"pointer", padding:0, display:"flex", alignItems:"center" }}><img src="/jubao.png" alt="举报" style={{ width:32, height:32, display:"block" }} /></button>
+        } />
 
       <div ref={scrollRef} style={{ flex:1, overflowY:"auto", padding:"12px 14px" }}>
         {loadingMsgs && msgs.length === 0 && <MsgSkeleton />}
@@ -461,15 +472,26 @@ export default function ChatRoom({ user, pet, pets = [] }) {
         {msgs.map((m) => {
           const own = m.user_id === user?.id;
           const display = m.user?.username || "未命名宠物";
+          const sel = selectedIds.has(m.id);
           return (
-            <div key={m.id} style={{ display:"flex", gap:10, marginBottom:14,
-                                     flexDirection: own ? "row-reverse" : "row" }}>
+            <div key={m.id}
+              onClick={selecting && !own ? () => toggleSelect(m.id) : undefined}
+              style={{ display:"flex", gap:10, marginBottom:14,
+                       flexDirection: own ? "row-reverse" : "row",
+                       cursor: selecting && !own ? "pointer" : "default" }}>
+              {selecting && !own && (
+                <span style={{ alignSelf:"center", width:20, height:20, borderRadius:"50%", flexShrink:0,
+                               border:`2px solid ${sel ? C.pri : C.border}`, background: sel ? C.pri : "transparent",
+                               display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  {sel && <span style={{ color:"#fff", fontSize:12, lineHeight:1 }}>✓</span>}
+                </span>
+              )}
               <PetAvatar pet={m.pet} overrideUrl={m.user?.avatar_url} size={34} bg={C.tint} />
               <div style={{ maxWidth:"72%", display:"flex", flexDirection:"column",
                             alignItems: own ? "flex-end" : "flex-start" }}>
                 {!own && <div style={{ fontSize:11, color:C.sub, marginBottom:3, paddingLeft:4 }}>{display}</div>}
                 <div
-                  onContextMenu={(e) => { e.preventDefault(); own ? handleDelete(m) : handleReport(m); }}
+                  onContextMenu={(e) => { if (selecting) return; e.preventDefault(); own ? handleDelete(m) : handleReport(m); }}
                   style={{ padding:"10px 14px", fontSize:13, lineHeight:1.55,
                            borderRadius: own ? "18px 4px 18px 18px" : "4px 18px 18px 18px",
                            background: own ? C.pri : "white", color: own ? "white" : C.text,
@@ -480,7 +502,7 @@ export default function ChatRoom({ user, pet, pets = [] }) {
                 <div style={{ fontSize:10, color:C.sub, marginTop:3, paddingLeft:4, paddingRight:4 }}>
                   {fmtTime(m.created_at)}
                   {own  && <span style={{ marginLeft:6, opacity:0.6 }}>（长按删除）</span>}
-                  {!own && <span style={{ marginLeft:6, opacity:0.6 }}>（长按举报）</span>}
+                  {!own && !selecting && <span style={{ marginLeft:6, opacity:0.6 }}>（长按举报）</span>}
                 </div>
               </div>
             </div>
@@ -488,24 +510,69 @@ export default function ChatRoom({ user, pet, pets = [] }) {
         })}
       </div>
 
-      <div style={{ background:"white", borderTop:`1px solid ${C.border}`, padding:"10px 14px 18px",
-                    display:"flex", gap:10, flexShrink:0 }}>
-        <input
-          value={inp}
-          onChange={(e) => setInp(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder={activeRoom ? `在 ${roomDisplay(activeRoom)} 说点什么...` : ""}
-          style={{ flex:1, borderRadius:22, padding:"10px 16px", fontSize:13,
-                   border:`1.5px solid ${C.border}`, background:C.bg, color:C.text, outline:"none" }} />
-        <button onClick={handleSend} disabled={!inp.trim()}
-          style={{ width:40, height:40, borderRadius:"50%",
-                   background: inp.trim() ? C.pri : C.light,
-                   border:"none", cursor: inp.trim() ? "pointer" : "default",
-                   color:"white", fontSize:16, flexShrink:0,
-                   display:"flex", alignItems:"center", justifyContent:"center" }}>
-          ➤
-        </button>
-      </div>
+      {selecting ? (
+        <div style={{ background:"white", borderTop:`1px solid ${C.border}`, padding:"10px 14px 18px",
+                      display:"flex", gap:10, flexShrink:0, alignItems:"center" }}>
+          <div style={{ flex:1, fontSize:12, color:C.sub }}>选择要举报的消息（可多选）</div>
+          <button onClick={exitSelect}
+            style={{ padding:"9px 16px", borderRadius:999, border:`1px solid ${C.border}`,
+                     background:"white", color:C.sub, fontSize:13, fontWeight:700, cursor:"pointer" }}>取消</button>
+          <button onClick={() => selectedIds.size > 0 && setReportOpen(true)} disabled={selectedIds.size === 0}
+            style={{ padding:"9px 18px", borderRadius:999, border:"none",
+                     background: selectedIds.size > 0 ? C.pri : C.light, color:"white",
+                     fontSize:13, fontWeight:800, cursor: selectedIds.size > 0 ? "pointer" : "default" }}>
+            举报{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
+          </button>
+        </div>
+      ) : (
+        <div style={{ background:"white", borderTop:`1px solid ${C.border}`, padding:"10px 14px 18px",
+                      display:"flex", gap:10, flexShrink:0 }}>
+          <input
+            value={inp}
+            onChange={(e) => setInp(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder={activeRoom ? `在 ${roomDisplay(activeRoom)} 说点什么...` : ""}
+            style={{ flex:1, borderRadius:22, padding:"10px 16px", fontSize:13,
+                     border:`1.5px solid ${C.border}`, background:C.bg, color:C.text, outline:"none" }} />
+          <button onClick={handleSend} disabled={!inp.trim()}
+            style={{ width:40, height:40, borderRadius:"50%",
+                     background: inp.trim() ? C.pri : C.light,
+                     border:"none", cursor: inp.trim() ? "pointer" : "default",
+                     color:"white", fontSize:16, flexShrink:0,
+                     display:"flex", alignItems:"center", justifyContent:"center" }}>
+            ➤
+          </button>
+        </div>
+      )}
+
+      {/* 群聊举报弹层（举报选中消息的发送者）*/}
+      {reportOpen && (() => {
+        const selMsgs = msgs.filter((m) => selectedIds.has(m.id));
+        const first = selMsgs[0];
+        const content = selMsgs.map((m) => `[${m.user?.username || "用户"}] ${m.content}`).join("\n");
+        return (
+          <ReportSheet
+            user={user} toast={gFlash} onClose={() => setReportOpen(false)}
+            preview={{ thumb: first?.user?.avatar_url || null, title: first?.user?.username || "群成员", desc: content }}
+            onSubmit={async ({ reason, detail, images }) => {
+              await submitChatReport({ userId: user.id, chatType: "group", roomId: activeRoomId,
+                reportedUserId: first?.user_id, messageId: first?.id, messageContent: content,
+                reason, detail, evidenceImages: images });
+              exitSelect();
+            }}
+          />
+        );
+      })()}
+
+      {/* 橙底浮层提示 */}
+      {gNotice && (
+        <div style={{ position:"absolute", left:"50%", bottom:96, transform:"translateX(-50%)",
+                      background:"#E68645", color:"white", padding:"9px 16px", borderRadius:999,
+                      fontSize:12.5, fontWeight:600, zIndex:30, maxWidth:"82%", textAlign:"center",
+                      boxShadow:"0 6px 20px rgba(0,0,0,0.25)" }}>
+          {gNotice}
+        </div>
+      )}
     </div>
   );
 }
@@ -544,13 +611,14 @@ function Center({ children, color }) {
   );
 }
 
-function SubHeader({ title, onBack }) {
+function SubHeader({ title, onBack, right }) {
   return (
     <div style={{ display:"flex", alignItems:"center", gap:10,
                   background:"white", borderBottom:`1px solid ${C.border}`,
                   padding:"10px 14px", flexShrink:0 }}>
       <BackButton onClick={onBack} size={36} />
-      <div style={{ fontSize:15, fontWeight:700, color:C.text }}>{title}</div>
+      <div style={{ flex:1, fontSize:15, fontWeight:700, color:C.text }}>{title}</div>
+      {right}
     </div>
   );
 }

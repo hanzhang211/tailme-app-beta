@@ -27,6 +27,8 @@ import { formatPetAge } from "@/services/petAge";
 import UserProfile from "./UserProfile";
 import { MsgSkeleton } from "./ChatSkeleton";
 import BackButton from "@/components/icons/BackButton";
+import ReportSheet from "./ReportSheet";
+import { submitChatReport } from "@/services/chatReportService";
 
 // 私聊消息内存缓存（convId → 消息列表）：再次打开会话时秒显，后台静默刷新
 const pmMsgCache = new Map();
@@ -129,6 +131,7 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
   const [notice, setNotice]   = useState(null);
   const [playing, setPlaying] = useState(() => new Set());                  // 正在内联播放的视频消息 id
   const [profileOpen, setProfileOpen] = useState(false);                    // 对方主页浮层
+  const [reportOpen, setReportOpen] = useState(false);                      // 举报弹层
   const openProfile = () => { if (target?.id) setProfileOpen(true); };
 
   const scrollRef  = useRef(null);
@@ -271,7 +274,10 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
           </div>
           <div style={{ fontSize:11, color:C.pri, marginTop:1 }}>在线</div>
         </div>
-        <span style={{ fontSize:20, color:C.sub, letterSpacing:1, padding:"0 4px" }}>···</span>
+        <button onClick={() => setReportOpen(true)} aria-label="举报"
+          style={{ background:"transparent", border:"none", cursor:"pointer", padding:0, display:"flex", alignItems:"center" }}>
+          <img src="/jubao.png" alt="举报" style={{ width:34, height:34, display:"block" }} />
+        </button>
       </div>
 
       {/* 消息区 */}
@@ -407,6 +413,17 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
       {/* 点头像/名字 → 对方主页（覆盖层）*/}
       {profileOpen && target?.id && (
         <UserProfile viewerId={meId} userId={target.id} onClose={() => setProfileOpen(false)} />
+      )}
+
+      {/* 举报对方（会话级）*/}
+      {reportOpen && (
+        <ReportSheet
+          user={{ id: meId }} toast={(m) => flash(m)} onClose={() => setReportOpen(false)}
+          preview={{ thumb: target?.avatar_url || null, title: target?.username || "对方用户", desc: "私聊对话举报" }}
+          onSubmit={async ({ reason, detail, images }) => {
+            await submitChatReport({ userId: meId, chatType: "private", conversationId: convId, reportedUserId: target?.id, reason, detail, evidenceImages: images });
+          }}
+        />
       )}
     </div>
   );

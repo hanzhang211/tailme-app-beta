@@ -26,6 +26,7 @@ import PawLikeIcon from "@/components/icons/PawLikeIcon";
 import PetTrashIcon from "@/components/icons/PetTrashIcon";
 import EmptyCommentsDogCat from "@/components/illustrations/EmptyCommentsDogCat";
 import ReportSheet from "@/components/community/ReportSheet";
+import { submitPostReport } from "@/services/postReportService";
 import BackButton from "@/components/icons/BackButton";
 import { ChevronLeft } from "lucide-react";
 import { fmtDuration } from "@/services/videoThumb";
@@ -256,7 +257,19 @@ export default function PostDetail({
 
   // 举报弹层（视频帖 / 图文帖两个 return 都渲染它）
   const reportSheet = reportOpen && post ? (
-    <ReportSheet post={post} user={user} toast={toast} onClose={() => setReportOpen(false)} />
+    <ReportSheet
+      user={user} toast={toast} onClose={() => setReportOpen(false)}
+      preview={{
+        thumb: post.cover_thumbnail_url
+          || (Array.isArray(post.thumbnail_urls) && post.thumbnail_urls[0])
+          || (Array.isArray(post.display_image_urls) && post.display_image_urls[0]) || null,
+        title: post.user?.username || "未命名宠物",
+        desc: (post.title || post.content || "").trim(),
+      }}
+      onSubmit={async ({ reason, detail, images }) => {
+        await submitPostReport({ userId: user.id, postId: post.id, reason, detail, evidenceImages: images });
+      }}
+    />
   ) : null;
 
   /* ── 视频帖 → 全屏沉浸式（图片/文字帖走下面原布局）── */

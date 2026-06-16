@@ -3,32 +3,30 @@
 /**
  * components/community/ReportSheet.jsx
  *
- * 帖子举报底部弹层（TailMe 米白橙风）：
- *  被举报内容预览 + 原因单选 + 补充说明(≤200) + 截图上传(≤3) + 提交。
- *  成功/失败统一用平台 toast（橙底白字）。
+ * 通用举报底部弹层（帖子 / 私聊 / 群聊共用，TailMe 米白橙风）：
+ *  被举报对象预览 + 原因单选 + 补充说明(≤200) + 截图(≤3) + 提交。
+ *
+ * props:
+ *  - preview: { thumb, title, desc }   被举报对象预览卡内容
+ *  - reasons: string[]                 原因选项（默认 REPORT_REASONS）
+ *  - onSubmit: async ({ reason, detail, images }) => void   由调用方决定写哪张表
+ *  - user / toast / onClose
  */
 
 import { useState } from "react";
-import { REPORT_REASONS, uploadReportImage, submitPostReport } from "@/services/postReportService";
+import { REPORT_REASONS, uploadReportImage } from "@/services/postReportService";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
   sub:"#8A8074", light:"#D6D5D8", border:"#D6D5D8",
 };
 
-export default function ReportSheet({ post, user, onClose, toast }) {
+export default function ReportSheet({ preview, user, onClose, toast, onSubmit, reasons = REPORT_REASONS }) {
   const [reason, setReason]       = useState(null);
   const [detail, setDetail]       = useState("");
   const [images, setImages]       = useState([]);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy]           = useState(false);
-
-  const display = post?.user?.username || "未命名宠物";
-  const thumb = post?.cover_thumbnail_url
-    || (Array.isArray(post?.thumbnail_urls) && post.thumbnail_urls[0])
-    || (Array.isArray(post?.display_image_urls) && post.display_image_urls[0])
-    || null;
-  const summary = (post?.title || post?.content || "").trim();
 
   const pickImages = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -50,10 +48,7 @@ export default function ReportSheet({ post, user, onClose, toast }) {
     if (!user?.id) { toast?.("请先登录", "warn"); return; }
     setBusy(true);
     try {
-      await submitPostReport({
-        userId: user.id, postId: post.id, reason,
-        detail: detail.trim() || null, evidenceImages: images,
-      });
+      await onSubmit({ reason, detail: detail.trim() || null, images });
       toast?.("举报已提交，我们会尽快审核处理", "success");
       onClose?.();
     } catch (err) {
@@ -65,7 +60,7 @@ export default function ReportSheet({ post, user, onClose, toast }) {
 
   return (
     <div onClick={(e) => e.target === e.currentTarget && onClose?.()}
-      style={{ position:"fixed", inset:0, zIndex:320, background:"rgba(0,0,0,0.45)",
+      style={{ position:"fixed", inset:0, zIndex:520, background:"rgba(0,0,0,0.45)",
                display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
       <div style={{ width:"100%", maxWidth:430, background:C.bg,
                     borderRadius:"22px 22px 0 0", padding:"14px 0 22px",
@@ -78,26 +73,28 @@ export default function ReportSheet({ post, user, onClose, toast }) {
           <div style={{ fontSize:12, color:C.sub, marginTop:4 }}>请选择举报原因，我们会在审核后处理</div>
         </div>
 
-        {/* 被举报帖子预览 */}
-        <div style={{ display:"flex", alignItems:"center", gap:10, margin:"12px 14px",
-                      background:"white", borderRadius:14, padding:10, border:`1px solid ${C.light}` }}>
-          {thumb
-            ? <img src={thumb} alt="" style={{ width:46, height:46, borderRadius:10, objectFit:"cover", flexShrink:0 }} />
-            : <div style={{ width:46, height:46, borderRadius:10, background:C.tint, flexShrink:0,
-                            display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>🐾</div>}
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:12, fontWeight:700, color:C.text, overflow:"hidden",
-                          textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{display}</div>
-            <div style={{ fontSize:11, color:C.sub, marginTop:2, display:"-webkit-box",
-                          WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", lineHeight:1.4 }}>
-              {summary || "（无文字内容）"}
+        {/* 被举报对象预览 */}
+        {preview && (
+          <div style={{ display:"flex", alignItems:"center", gap:10, margin:"12px 14px",
+                        background:"white", borderRadius:14, padding:10, border:`1px solid ${C.light}` }}>
+            {preview.thumb
+              ? <img src={preview.thumb} alt="" style={{ width:46, height:46, borderRadius:10, objectFit:"cover", flexShrink:0 }} />
+              : <div style={{ width:46, height:46, borderRadius:10, background:C.tint, flexShrink:0,
+                              display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>🐾</div>}
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:C.text, overflow:"hidden",
+                            textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{preview.title}</div>
+              <div style={{ fontSize:11, color:C.sub, marginTop:2, display:"-webkit-box",
+                            WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", lineHeight:1.4, whiteSpace:"pre-wrap" }}>
+                {preview.desc || "（无文字内容）"}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* 原因单选 */}
         <div style={{ padding:"0 14px" }}>
-          {REPORT_REASONS.map((r) => {
+          {reasons.map((r) => {
             const on = reason === r;
             return (
               <button key={r} onClick={() => setReason(r)}
@@ -157,7 +154,7 @@ export default function ReportSheet({ post, user, onClose, toast }) {
         {/* 提示条 */}
         <div style={{ margin:"14px 14px 0", background:C.tint, borderRadius:12, padding:"10px 12px",
                       fontSize:11, color:C.sub, lineHeight:1.6 }}>
-          ⓘ 提交后将进入后台审核，管理员可查看举报内容、举报人、被举报帖子与原因。
+          ⓘ 提交后将进入后台审核，管理员可查看举报内容、举报人与原因。
         </div>
 
         {/* 提交 / 取消 */}
