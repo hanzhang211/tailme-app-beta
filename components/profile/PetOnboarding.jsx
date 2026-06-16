@@ -252,7 +252,10 @@ export default function PetOnboarding({ userId, onComplete, onClose }) {
         </div>
         <input type="range" min="0" max="50" step="0.1" value={w}
           onChange={(e) => upd("weight", e.target.value)}
-          style={{ width:"100%", accentColor:OB.pri, cursor:"pointer" }} />
+          className="weight-range"
+          style={{ width:"100%", height:8, borderRadius:999, outline:"none",
+                   WebkitAppearance:"none", appearance:"none", cursor:"pointer",
+                   background:`linear-gradient(to right, ${OB.pri} ${(w / 50) * 100}%, #EADFD3 ${(w / 50) * 100}%)` }} />
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:OB.sub, marginTop:6 }}>
           {[0,10,20,30,40,50].map((t) => <span key={t}>{t}</span>)}
         </div>
@@ -381,6 +384,21 @@ export default function PetOnboarding({ userId, onComplete, onClose }) {
         .ob-step { animation: obStepIn .28s ease; }
         .ob-press { transition: transform .12s ease; }
         .ob-press:active { transform: scale(.97); }
+        .weight-range::-webkit-slider-runnable-track { height: 8px; border-radius: 999px; }
+        .weight-range::-moz-range-track { height: 8px; border-radius: 999px; background: transparent; }
+        .weight-range::-webkit-slider-thumb {
+          -webkit-appearance: none; appearance: none;
+          width: 30px; height: 30px; border-radius: 50%;
+          background: #E68645; border: 4px solid #fff;
+          box-shadow: 0 2px 7px rgba(230,134,69,0.45);
+          cursor: pointer; margin-top: -11px;
+        }
+        .weight-range::-moz-range-thumb {
+          width: 30px; height: 30px; border-radius: 50%;
+          background: #E68645; border: 4px solid #fff;
+          box-shadow: 0 2px 7px rgba(230,134,69,0.45);
+          cursor: pointer;
+        }
       `}</style>
     </div>
   );

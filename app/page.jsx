@@ -610,8 +610,12 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   const [feedLoading, setFeedLoading]     = useState(false);
   const [hasFeedRecord, setHasFeedRecord] = useState(false);
 
-  // 每日喂食完成状态（localStorage，key 含日期+pet.id，第二天自动重置）
-  const today = new Date().toISOString().slice(0, 10);
+  // 每日喂食完成状态（localStorage，key 含日期+pet.id，本地凌晨0点进入第二天自动重置）
+  // 用本地年月日（非 UTC），避免重置时机偏到北京时间早上 8 点
+  const today = (() => {
+    const d = new Date(); const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  })();
   const feedDoneKey = `tailme_feed_done_${today}_${pet?.id || ""}`;
   const [doneMeals, setDoneMeals] = useState(() => {
     try { const s = localStorage.getItem(feedDoneKey); return s ? JSON.parse(s) : {}; } catch { return {}; }
@@ -1292,7 +1296,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                     ? `距离下一餐还有 ${feedInfo.minutes} 分钟`
                     : feedInfo.kind === "due"
                       ? "现在可以喂我啦"
-                      : `已经超过喂食时间 ${feedInfo.minutes} 分钟啦`}
+                      : <>已经超过喂食时间 <span style={{ color:C.pri, fontWeight:800 }}>{feedInfo.minutes} 分钟</span>啦</>}
                 </div>
               </div>
               <button onClick={() => setSubPage("feeding")}
