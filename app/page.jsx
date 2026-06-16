@@ -989,10 +989,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
               <div style={{ fontSize:20, fontWeight:800, color:C.text }}>嗨，{pet.name} 👋</div>
             </div>
           </div>
-          <a href="/admin" style={{ width:38, height:38, borderRadius:"50%", background:H_SURFACE,
-                                    border:`1px solid ${H_BORDER}`,
-                                    display:"flex", alignItems:"center", justifyContent:"center",
-                                    fontSize:16, textDecoration:"none" }}>🔔</a>
+          {/* 首页不再暴露 admin 入口（上线隔离）；管理员请直接访问网址 /admin */}
         </div>
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
 
