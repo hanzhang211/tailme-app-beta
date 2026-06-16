@@ -42,8 +42,8 @@ export default function CommunityTab({ user, pet, pets = [], onUserUpdated, onOp
         <div style={{ position:"relative", fontSize:12, color:C.sub, marginTop:2 }}>分享日常 · 实时聊天</div>
         <div style={{ position:"relative", display:"flex", gap:10, marginTop:16 }}>
           {[
-            { key:"feed", label:"帖子", emoji:"📌" },
-            { key:"chat", label:"聊天", isChat: true },
+            { key:"feed", label:"帖子" },
+            { key:"chat", label:"聊天" },
           ].map((t) => {
             const on = mode === t.key;
             return (
@@ -56,9 +56,6 @@ export default function CommunityTab({ user, pet, pets = [], onUserUpdated, onOp
                          border:"none",
                          boxShadow: on ? "0 4px 12px rgba(230,134,69,0.32)" : "none",
                          transition:"all .15s" }}>
-                {t.isChat
-                  ? <ChatIcon size={22} color={on ? "#fff" : C.text} />
-                  : <span style={{ fontSize:15 }}>{t.emoji}</span>}
                 {t.label}
               </button>
             );
