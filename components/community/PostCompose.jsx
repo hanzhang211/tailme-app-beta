@@ -328,7 +328,7 @@ export default function PostCompose({ user, pet, onClose, onSuccess, toast }) {
         <FaintPaw size={56} style={{ position:"absolute", top:30, right:18 }} />
 
         {/* ── 顶部栏 ── */}
-        <div style={{ padding:"52px 16px 14px", display:"flex", alignItems:"center", gap:10,
+        <div style={{ padding:"max(env(safe-area-inset-top), 28px) 16px 14px", display:"flex", alignItems:"center", gap:10,
                       flexShrink:0, position:"relative", zIndex:2 }}>
           <BackButton onClick={handleCancel} disabled={isPublishing} />
           <div style={{ flex:1, textAlign:"center", fontSize:18, fontWeight:800, color:C.text }}>
@@ -624,7 +624,7 @@ function TopicSelect({ onClose, onPick, toast }) {
     <div style={{ position:"absolute", inset:0, zIndex:10, background:C.bg,
                   display:"flex", flexDirection:"column", animation:"page-in .2s ease-out" }}>
       {/* 顶部栏 */}
-      <div style={{ padding:"52px 16px 12px", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+      <div style={{ padding:"max(env(safe-area-inset-top), 28px) 16px 12px", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
         <BackButton onClick={onClose} />
         <div style={{ flex:1, textAlign:"center", fontSize:18, fontWeight:800, color:C.text }}>选择话题</div>
         <div style={{ width:40, flexShrink:0 }} />

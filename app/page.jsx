@@ -808,7 +808,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
       <div style={{ height:"100%", overflowY:"auto", background:H_BG }}>
         {/* Header */}
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-                      padding:"52px 16px 10px", background:H_BG }}>
+                      padding:"max(env(safe-area-inset-top), 28px) 16px 10px", background:H_BG }}>
           <BackButton onClick={() => setSubPage(null)} />
           <span style={{ fontSize:17, fontWeight:800, color:C.text }}>喂食计划</span>
           <button onClick={doSaveAndBack}
@@ -1006,7 +1006,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           onSaved={(updated) => { setAvatarOpen(false); onPetUpdate?.(updated); }}
         />
       )}
-      <div style={{ background:H_BG, padding:"44px 16px 2px",
+      <div style={{ background:H_BG, padding:"max(env(safe-area-inset-top), 28px) 16px 2px",
                     position:"relative", overflow:"hidden" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:14 }}>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
@@ -1275,7 +1275,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           <>
             <div style={{ display:"flex", alignItems:"center", gap:14,
                           background:"#FFFDF8", border:`1.5px solid ${C.pri}`, borderRadius:22,
-                          padding:"14px 16px", marginBottom:12,
+                          padding:"10px 14px", marginBottom:12,
                           boxShadow:"0 6px 18px rgba(230,134,69,0.12)",
                           animation:"feedCardIn .3s ease-out" }}>
               <img src="/fanwan.png" alt="" aria-hidden="true" decoding="async"

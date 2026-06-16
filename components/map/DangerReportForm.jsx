@@ -133,7 +133,7 @@ export default function DangerReportForm({ location, onClose, onSubmitted }) {
 export function Shell({ title, children, onClose }) {
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 2000, background: C.bg, display: "flex", flexDirection: "column", animation: "tm-up .24s ease-out" }}>
-      <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10, background: "#fff", borderBottom: `1px solid ${C.border}`, padding: "52px 14px 12px" }}>
+      <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10, background: "#fff", borderBottom: `1px solid ${C.border}`, padding: "max(env(safe-area-inset-top), 28px) 14px 12px" }}>
         <BackButton onClick={onClose} size={36} />
         <div style={{ flex: 1, textAlign: "center", fontSize: 16, fontWeight: 800, color: C.text }}>{title}</div>
         <div style={{ width: 36 }} />

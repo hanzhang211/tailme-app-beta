@@ -322,7 +322,7 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile, onOpenV
     const pending = vs === "pending", rejected = vs === "rejected";
     return (
       <div style={{ height:"100%", overflowY:"auto", background:C.bg }}>
-        <div style={{ padding:"52px 18px 14px" }}>
+        <div style={{ padding:"max(env(safe-area-inset-top), 28px) 18px 14px" }}>
           <div style={{ fontSize:21, fontWeight:800, color:C.text, display:"flex", alignItems:"center", gap:8 }}>
             <PawOrange size={20} /> 附近狗狗
           </div>
@@ -361,7 +361,7 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile, onOpenV
   return (
     <div style={{ height:"100%", overflowY:"auto", background:C.bg }}>
       {/* 顶部标题 */}
-      <div style={{ padding:"52px 18px 14px" }}>
+      <div style={{ padding:"max(env(safe-area-inset-top), 28px) 18px 14px" }}>
         <div style={{ fontSize:21, fontWeight:800, color:C.text, display:"flex", alignItems:"center", gap:8 }}>
           <PawOrange size={20} /> 附近狗狗
         </div>

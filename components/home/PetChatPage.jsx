@@ -122,7 +122,7 @@ export default function PetChatPage({ user, pet, onBack, onPetUpdate }) {
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:C.bg }}>
       {/* 顶部栏：返回 + 宠物头像 + 名字/性格/等级 */}
       <div style={{ display:"flex", alignItems:"center", gap:10,
-                    padding:"52px 16px 14px", background:C.bg,
+                    padding:"max(env(safe-area-inset-top), 28px) 16px 14px", background:C.bg,
                     borderBottom:`1px solid ${C.border}` }}>
         <button onClick={onBack}
           style={{ width:38, height:38, borderRadius:"50%", flexShrink:0,

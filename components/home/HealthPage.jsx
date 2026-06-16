@@ -372,7 +372,7 @@ export default function HealthPage({ user, pet: petProp, pets = [], onPetUpdate,
 
       {/* ── Header ── */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-                    padding:"52px 16px 14px" }}>
+                    padding:"max(env(safe-area-inset-top), 28px) 16px 14px" }}>
         <button onClick={onBack}
           style={{ width:40, height:40, borderRadius:999, background:"rgba(255,255,255,0.6)",
                    border:"none", cursor:"pointer",

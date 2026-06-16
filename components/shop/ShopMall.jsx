@@ -138,7 +138,7 @@ function ShopHome({ cat, setCat, q, setQ, sort, setSort, priceDir, setPriceDir, 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
       {/* 顶栏 */}
-      <div style={{ flexShrink:0, background:SC.bg, padding:"52px 14px 8px" }}>
+      <div style={{ flexShrink:0, background:SC.bg, padding:"max(env(safe-area-inset-top), 28px) 14px 8px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
           <BackButton onClick={onBack} size={36} />
           <div style={{ flex:1, textAlign:"center", fontSize:18, fontWeight:900, color:SC.text }}>宠物商城</div>

@@ -100,7 +100,7 @@ export default function DogFriendEdit({ user, pet, pets = [], profile, onClose, 
                     display:"flex", flexDirection:"column", animation:"dfe-in .22s ease-out" }}>
 
         {/* 顶部栏 */}
-        <div style={{ padding:"52px 16px 12px", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+        <div style={{ padding:"max(env(safe-area-inset-top), 28px) 16px 12px", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
           <BackButton onClick={onClose} />
           <div style={{ flex:1, textAlign:"center", fontSize:18, fontWeight:800, color:C.text }}>我的遛弯名片</div>
           <div style={{ width:40, flexShrink:0 }} />

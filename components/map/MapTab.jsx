@@ -227,7 +227,7 @@ export default function MapTab({ user, onOpenVerify }) {
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: C.bg, position: "relative", overflow: "hidden" }}>
 
       {/* 顶部标题 + 3 Tab */}
-      <div style={{ background: "#fff", padding: "52px 18px 12px", flexShrink: 0 }}>
+      <div style={{ background: "#fff", padding: "max(env(safe-area-inset-top), 28px) 18px 12px", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <MapIcon size={40} color={C.pri} />
           <span style={{ fontSize: 20, fontWeight: 800, color: C.text }}>宠物设施地图</span>

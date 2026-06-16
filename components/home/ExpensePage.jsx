@@ -112,7 +112,7 @@ export default function ExpensePage({ user, pets, onBack, onAmountChanged }) {
 
       {/* ── Header ── */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-                    padding:"52px 16px 14px" }}>
+                    padding:"max(env(safe-area-inset-top), 28px) 16px 14px" }}>
         <BackButton onClick={onBack} />
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
           <AccountingIcon size={60} color={TEXT} />

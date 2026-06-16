@@ -780,7 +780,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
 /* 子页返回头 */
 function SubBack({ title, onBack, right }) {
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"52px 16px 12px",
+    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"max(env(safe-area-inset-top), 28px) 16px 12px",
                   background:"white", borderBottom:`1px solid ${C.border}` }}>
       <BackButton onClick={onBack} size={34} />
       <div style={{ flex:1, fontSize:16, fontWeight:800, color:C.text }}>{title}</div>
@@ -852,7 +852,7 @@ function ContactView({ onBack, toast }) {
   return (
     <div style={{ position:"absolute", inset:0, zIndex:120, background:C.bg, display:"flex", flexDirection:"column" }}>
       {/* 顶栏 */}
-      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"52px 16px 12px",
+      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"max(env(safe-area-inset-top), 28px) 16px 12px",
                     background:"white", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
         <BackButton onClick={onBack} size={34} />
         <div style={{ fontSize:16, fontWeight:800, color:C.text }}>联系我们</div>
@@ -921,7 +921,7 @@ function FollowListView({ mode, meId, onBack, onOpenProfile }) {
 
   return (
     <div style={{ position:"absolute", inset:0, zIndex:120, background:C.bg, display:"flex", flexDirection:"column" }}>
-      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"52px 16px 12px",
+      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"max(env(safe-area-inset-top), 28px) 16px 12px",
                     background:"white", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
         <BackButton onClick={onBack} size={34} />
         <div style={{ fontSize:16, fontWeight:800, color:C.text }}>{isFollowing ? "我的关注" : "我的粉丝"}</div>

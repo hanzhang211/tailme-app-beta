@@ -267,7 +267,7 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
     <div style={{ position:"absolute", inset:0, zIndex:140, background:C.bg,
                   display:"flex", flexDirection:"column" }}>
       {/* 顶栏 */}
-      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"52px 14px 12px",
+      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"max(env(safe-area-inset-top), 28px) 14px 12px",
                     background:"white", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
         <BackButton onClick={onClose} size={36} />
         <Avatar url={target?.avatar_url} size={36} onClick={openProfile} />

@@ -18,7 +18,7 @@ export default function StorePage({ storeId, onBack, onOpenProduct }) {
     <div style={{ height:"100%", background:SC.bg, display:"flex", flexDirection:"column" }}>
       {/* 顶栏 */}
       <div style={{ flexShrink:0, display:"flex", alignItems:"center", gap:10, background:"#fff",
-                    borderBottom:`1px solid ${SC.border}`, padding:"52px 14px 12px" }}>
+                    borderBottom:`1px solid ${SC.border}`, padding:"max(env(safe-area-inset-top), 28px) 14px 12px" }}>
         <BackButton onClick={onBack} size={36} />
         <div style={{ flex:1, textAlign:"center", fontSize:16, fontWeight:800, color:SC.text }}>店铺主页</div>
         <div style={{ width:36 }} />

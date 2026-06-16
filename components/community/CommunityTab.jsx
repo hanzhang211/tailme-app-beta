@@ -22,7 +22,7 @@ export default function CommunityTab({ user, pet, pets = [], onUserUpdated, onOp
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:C.bg }}>
       {/* 顶部标题 + 切换 */}
-      <div style={{ background:"white", padding:"52px 18px 0", flexShrink:0, position:"relative", overflow:"hidden" }}>
+      <div style={{ background:"white", padding:"max(env(safe-area-inset-top), 28px) 18px 0", flexShrink:0, position:"relative", overflow:"hidden" }}>
         {/* 右上角装饰爪印 + 弧线（纯装饰，不可点击） */}
         <svg width="130" height="96" viewBox="0 0 130 96" aria-hidden="true"
           style={{ position:"absolute", top:34, right:-8, opacity:0.55, pointerEvents:"none" }}>

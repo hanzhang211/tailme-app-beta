@@ -94,7 +94,7 @@ export default function VaccineRecordPage({ pet, user, onBack, autoAdd = false }
 
       {/* Header */}
       <div style={{ flexShrink: 0, display: "flex", alignItems: "center",
-                    justifyContent: "space-between", padding: "52px 16px 14px" }}>
+                    justifyContent: "space-between", padding: "max(env(safe-area-inset-top), 28px) 16px 14px" }}>
         <button onClick={onBack}
           style={{ width: 40, height: 40, borderRadius: 999, background: "rgba(255,255,255,0.7)",
                    border: "none", cursor: "pointer", display: "flex",
