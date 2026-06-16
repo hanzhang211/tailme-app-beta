@@ -162,26 +162,6 @@ function PawIcon({ size = 16, color = "#E68645" }) {
   );
 }
 
-// 喂食提醒卡片用：橙色食碗 + 碗里小爪印（可爱简洁，无黑线，非 emoji）
-function FeedBowlIcon({ size = 32 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none"
-         xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ display:"block" }}>
-      {/* 碗身 */}
-      <path d="M9 23h30l-3.4 12.2A4 4 0 0 1 31.8 38H16.2a4 4 0 0 1-3.8-2.8L9 23z" fill="#E68645"/>
-      {/* 碗沿（高光） */}
-      <ellipse cx="24" cy="23" rx="15.5" ry="4.6" fill="#F4A24E"/>
-      {/* 碗里小爪印（浅色） */}
-      <g fill="#FFF3E6">
-        <ellipse cx="24" cy="32" rx="3.2" ry="2.6"/>
-        <ellipse cx="19.6" cy="28.4" rx="1.4" ry="1.9"/>
-        <ellipse cx="23.4" cy="27.4" rx="1.4" ry="1.9"/>
-        <ellipse cx="27.6" cy="28.1" rx="1.4" ry="1.9"/>
-      </g>
-    </svg>
-  );
-}
-
 function ProfileIcon({ size = 20, color = "#E68645" }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color}
@@ -1298,10 +1278,8 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                           padding:"14px 16px", marginBottom:12,
                           boxShadow:"0 6px 18px rgba(230,134,69,0.12)",
                           animation:"feedCardIn .3s ease-out" }}>
-              <div style={{ width:52, height:52, borderRadius:16, flexShrink:0, background:"#F8E1C7",
-                            display:"flex", alignItems:"center", justifyContent:"center" }}>
-                <FeedBowlIcon size={32} />
-              </div>
+              <img src="/fanwan.png" alt="" aria-hidden="true" decoding="async"
+                   style={{ width:64, height:64, objectFit:"contain", flexShrink:0, display:"block" }} />
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:16, fontWeight:800, color:C.pri, lineHeight:1.25,
                               whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
