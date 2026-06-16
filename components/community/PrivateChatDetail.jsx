@@ -132,6 +132,10 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
   const [playing, setPlaying] = useState(() => new Set());                  // 正在内联播放的视频消息 id
   const [profileOpen, setProfileOpen] = useState(false);                    // 对方主页浮层
   const [reportOpen, setReportOpen] = useState(false);                      // 举报弹层
+  const [selecting, setSelecting]   = useState(false);                      // 举报选择模式
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const toggleSelect = (id) => setSelectedIds((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const exitSelect = () => { setSelecting(false); setSelectedIds(new Set()); };
   const openProfile = () => { if (target?.id) setProfileOpen(true); };
 
   const scrollRef  = useRef(null);
@@ -274,10 +278,15 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
           </div>
           <div style={{ fontSize:11, color:C.pri, marginTop:1 }}>在线</div>
         </div>
-        <button onClick={() => setReportOpen(true)} aria-label="举报"
-          style={{ background:"transparent", border:"none", cursor:"pointer", padding:0, display:"flex", alignItems:"center" }}>
-          <img src="/jubao.png" alt="举报" style={{ width:34, height:34, display:"block" }} />
-        </button>
+        {selecting ? (
+          <button onClick={exitSelect}
+            style={{ background:"transparent", border:"none", cursor:"pointer", color:C.sub, fontSize:13, fontWeight:700, padding:"0 4px" }}>取消</button>
+        ) : (
+          <button onClick={() => setSelecting(true)} aria-label="举报"
+            style={{ background:"transparent", border:"none", cursor:"pointer", padding:0, display:"flex", alignItems:"center" }}>
+            <img src="/jubao.png" alt="举报" style={{ width:34, height:34, display:"block" }} />
+          </button>
+        )}
       </div>
 
       {/* 消息区 */}
@@ -295,9 +304,21 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
           const isImg = m.message_type === "image" && m.image_url;
           const isVideo = m.message_type === "video" && m.video_url;
           const walkCard = parseWalkCard(m.content);
+          const sel = selectedIds.has(m.id);
+          const selectable = selecting && !own && !walkCard;
           return (
-            <div key={m.id} style={{ display:"flex", gap:8, marginBottom:14,
-                                     flexDirection: own ? "row-reverse" : "row" }}>
+            <div key={m.id}
+              onClick={selectable ? () => toggleSelect(m.id) : undefined}
+              style={{ display:"flex", gap:8, marginBottom:14,
+                       flexDirection: own ? "row-reverse" : "row",
+                       cursor: selectable ? "pointer" : "default" }}>
+              {selectable && (
+                <span style={{ alignSelf:"center", width:20, height:20, borderRadius:"50%", flexShrink:0,
+                               border:`2px solid ${sel ? C.pri : C.border}`, background: sel ? C.pri : "transparent",
+                               display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  {sel && <span style={{ color:"#fff", fontSize:12, lineHeight:1 }}>✓</span>}
+                </span>
+              )}
               {!own && <Avatar url={target?.avatar_url} size={34} onClick={openProfile} />}
               <div style={{ maxWidth:"78%", display:"flex", flexDirection:"column",
                             alignItems: own ? "flex-end" : "flex-start" }}>
@@ -310,7 +331,7 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
                       style={{ maxWidth:220, width:"100%", borderRadius:16, display:"block",
                                boxShadow:"0 1px 6px rgba(0,0,0,0.08)" }} />
                   ) : (
-                    <div onClick={() => setPlaying((p) => new Set(p).add(m.id))}
+                    <div onClick={() => { if (selecting) return; setPlaying((p) => new Set(p).add(m.id)); }}
                       style={{ position:"relative", maxWidth:220, width:200, borderRadius:16,
                                overflow:"hidden", cursor:"pointer", background:C.tint,
                                aspectRatio:"3 / 4", boxShadow:"0 1px 6px rgba(0,0,0,0.08)",
@@ -335,7 +356,7 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
                   )
                 ) : isImg ? (
                   <img src={m.image_url} alt="图片" loading="lazy"
-                    onClick={() => typeof window !== "undefined" && window.open(m.image_url, "_blank")}
+                    onClick={() => { if (selecting) return; typeof window !== "undefined" && window.open(m.image_url, "_blank"); }}
                     style={{ maxWidth:220, width:"100%", borderRadius:16, display:"block",
                              objectFit:"cover", cursor:"pointer",
                              boxShadow:"0 1px 6px rgba(0,0,0,0.08)" }} />
@@ -380,9 +401,26 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
         </div>
       )}
 
+      {/* 举报选择栏（selecting 时替代输入区）*/}
+      {selecting && (
+        <div style={{ background:"white", borderTop:`1px solid ${C.border}`, padding:"10px 14px 20px",
+                      display:"flex", gap:10, alignItems:"center", flexShrink:0 }}>
+          <div style={{ flex:1, fontSize:12, color:C.sub }}>选择对方要举报的消息（可多选）</div>
+          <button onClick={exitSelect}
+            style={{ padding:"9px 16px", borderRadius:999, border:`1px solid ${C.border}`,
+                     background:"white", color:C.sub, fontSize:13, fontWeight:700, cursor:"pointer" }}>取消</button>
+          <button onClick={() => selectedIds.size > 0 && setReportOpen(true)} disabled={selectedIds.size === 0}
+            style={{ padding:"9px 18px", borderRadius:999, border:"none",
+                     background: selectedIds.size > 0 ? C.pri : C.light, color:"white",
+                     fontSize:13, fontWeight:800, cursor: selectedIds.size > 0 ? "pointer" : "default" }}>
+            举报{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
+          </button>
+        </div>
+      )}
+
       {/* 输入区 */}
       <div style={{ background:"white", borderTop:`1px solid ${C.border}`, padding:"10px 12px 20px",
-                    display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+                    display: selecting ? "none" : "flex", alignItems:"center", gap:10, flexShrink:0 }}>
         <button onClick={openMediaPicker} disabled={uploading || !convId}
           style={{ width:38, height:38, borderRadius:"50%", flexShrink:0, background:C.bg,
                    border:`1px solid ${C.border}`, cursor: uploading ? "default" : "pointer",
@@ -415,16 +453,22 @@ export default function PrivateChatDetail({ meId, target, conversationId = null,
         <UserProfile viewerId={meId} userId={target.id} onClose={() => setProfileOpen(false)} />
       )}
 
-      {/* 举报对方（会话级）*/}
-      {reportOpen && (
-        <ReportSheet
-          user={{ id: meId }} toast={(m) => flash(m)} onClose={() => setReportOpen(false)}
-          preview={{ thumb: target?.avatar_url || null, title: target?.username || "对方用户", desc: "私聊对话举报" }}
-          onSubmit={async ({ reason, detail, images }) => {
-            await submitChatReport({ userId: meId, chatType: "private", conversationId: convId, reportedUserId: target?.id, reason, detail, evidenceImages: images });
-          }}
-        />
-      )}
+      {/* 举报对方（选中其消息）*/}
+      {reportOpen && (() => {
+        const selMsgs = msgs.filter((m) => selectedIds.has(m.id));
+        const content = selMsgs.map((m) => m.message_type === "image" ? "[图片]" : m.message_type === "video" ? "[视频]" : (m.content || "")).join("\n");
+        return (
+          <ReportSheet
+            user={{ id: meId }} toast={(m) => flash(m)} onClose={() => setReportOpen(false)}
+            preview={{ thumb: target?.avatar_url || null, title: target?.username || "对方用户", desc: content || "私聊对话举报" }}
+            onSubmit={async ({ reason, detail, images }) => {
+              await submitChatReport({ userId: meId, chatType: "private", conversationId: convId, reportedUserId: target?.id,
+                messageContent: content || null, reason, detail, evidenceImages: images });
+              exitSelect();
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

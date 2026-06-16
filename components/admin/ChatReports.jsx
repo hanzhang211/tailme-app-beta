@@ -164,9 +164,9 @@ function ChatReportRow({ report, adminId, open, onToggle, onDone }) {
               <span style={{ color:C.sub }}>补充说明：</span>{report.detail}
             </div>
           )}
-          {isGroup && report.message_content && (
+          {report.message_content && (
             <div style={{ background:"#fff", borderRadius:8, padding:"8px 10px", border:`1px solid ${C.border}` }}>
-              <div style={{ fontSize:11, color:C.sub, marginBottom:4 }}>被举报的群聊消息：</div>
+              <div style={{ fontSize:11, color:C.sub, marginBottom:4 }}>被举报的{isGroup ? "群聊" : "私聊"}消息：</div>
               <div style={{ fontSize:11.5, color:C.text, lineHeight:1.6, whiteSpace:"pre-wrap" }}>{report.message_content}</div>
             </div>
           )}

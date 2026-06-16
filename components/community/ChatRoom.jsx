@@ -491,7 +491,7 @@ export default function ChatRoom({ user, pet, pets = [] }) {
                             alignItems: own ? "flex-end" : "flex-start" }}>
                 {!own && <div style={{ fontSize:11, color:C.sub, marginBottom:3, paddingLeft:4 }}>{display}</div>}
                 <div
-                  onContextMenu={(e) => { if (selecting) return; e.preventDefault(); own ? handleDelete(m) : handleReport(m); }}
+                  onContextMenu={(e) => { if (selecting || !own) return; e.preventDefault(); handleDelete(m); }}
                   style={{ padding:"10px 14px", fontSize:13, lineHeight:1.55,
                            borderRadius: own ? "18px 4px 18px 18px" : "4px 18px 18px 18px",
                            background: own ? C.pri : "white", color: own ? "white" : C.text,
@@ -502,7 +502,6 @@ export default function ChatRoom({ user, pet, pets = [] }) {
                 <div style={{ fontSize:10, color:C.sub, marginTop:3, paddingLeft:4, paddingRight:4 }}>
                   {fmtTime(m.created_at)}
                   {own  && <span style={{ marginLeft:6, opacity:0.6 }}>（长按删除）</span>}
-                  {!own && !selecting && <span style={{ marginLeft:6, opacity:0.6 }}>（长按举报）</span>}
                 </div>
               </div>
             </div>
