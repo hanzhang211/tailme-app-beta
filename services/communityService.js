@@ -15,6 +15,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { checkContent } from "@/services/contentFilter";
+import { assertNotMuted } from "@/services/muteCheck";
 import { CAT_BREEDS } from "@/services/breedAvatar";
 
 function requireSupabase() {
@@ -75,6 +76,7 @@ export async function listMessages(roomId, limit = 50) {
 
 export async function sendMessage({ roomId, userId, petId, content }) {
   const sb = requireSupabase();
+  await assertNotMuted(userId);
   const { flagged } = checkContent(content);
   const { data, error } = await sb
     .from("messages")

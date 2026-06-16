@@ -16,6 +16,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { compressImage } from "@/services/imageCompress";
+import { assertNotMuted } from "@/services/muteCheck";
 
 function sb() {
   if (!supabase) throw new Error("Supabase 未初始化");
@@ -163,6 +164,7 @@ export async function sendPrivateText({ convId, senderId, receiverId, content })
   if (!convId || !senderId || !receiverId) throw new Error("缺少会话信息");
   if (!text) throw new Error("消息不能为空");
   if (text.length > 2000) throw new Error("消息太长啦");
+  await assertNotMuted(senderId);
   const { data, error } = await sb()
     .from("private_messages")
     .insert({ conversation_id: convId, sender_id: senderId, receiver_id: receiverId, content: text, message_type: "text" })
@@ -209,6 +211,7 @@ export async function uploadPrivateVideo(file, convId) {
 /* ── 发送视频消息 ───────────────────────────────────────── */
 export async function sendPrivateVideoMsg({ convId, senderId, receiverId, videoUrl, thumbnailUrl, duration }) {
   if (!convId || !senderId || !receiverId || !videoUrl) throw new Error("缺少信息");
+  await assertNotMuted(senderId);
   const { data, error } = await sb()
     .from("private_messages")
     .insert({
@@ -226,6 +229,7 @@ export async function sendPrivateVideoMsg({ convId, senderId, receiverId, videoU
 /* ── 发送图片消息 ───────────────────────────────────────── */
 export async function sendPrivateImageMsg({ convId, senderId, receiverId, imageUrl }) {
   if (!convId || !senderId || !receiverId || !imageUrl) throw new Error("缺少信息");
+  await assertNotMuted(senderId);
   const { data, error } = await sb()
     .from("private_messages")
     .insert({
