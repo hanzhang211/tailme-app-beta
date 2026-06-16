@@ -132,7 +132,7 @@ function ReviewRow({ report, adminId, open, onToggle, onDone }) {
         <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
           {report.images.map((u, i) => (
             <a key={i} href={u} target="_blank" rel="noreferrer">
-              <img src={u} alt="" style={{ width: 50, height: 50, borderRadius: 8, objectFit: "cover" }} />
+              <img src={u} alt="" loading="lazy" decoding="async" style={{ width: 50, height: 50, borderRadius: 8, objectFit: "cover" }} />
             </a>
           ))}
         </div>
@@ -253,7 +253,7 @@ export function FriendlyManager({ adminId }) {
           <div key={r.id} style={{ background: C.bg, borderRadius: 12, padding: "11px 12px", marginBottom: 8, border: `1px solid ${C.border}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ width: 44, height: 44, borderRadius: 10, background: C.tint, flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
-                {r.images?.[0] ? <img src={r.images[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "🐾"}
+                {r.images?.[0] ? <img src={r.images[0]} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "🐾"}
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

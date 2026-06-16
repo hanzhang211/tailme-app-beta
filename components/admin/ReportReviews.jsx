@@ -144,7 +144,7 @@ function ReportRow({ report, adminId, open, onToggle, onDone }) {
       <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
         <span style={{ width:44, height:44, borderRadius:10, background:C.tint, flexShrink:0, overflow:"hidden",
                        display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>
-          {thumb ? <img src={thumb} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🐾"}
+          {thumb ? <img src={thumb} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🐾"}
         </span>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontSize:12, fontWeight:700, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
@@ -180,7 +180,7 @@ function ReportRow({ report, adminId, open, onToggle, onDone }) {
               <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                 {report.evidence_images.map((u, i) => (
                   <a key={i} href={u} target="_blank" rel="noreferrer">
-                    <img src={u} alt="" style={{ width:54, height:54, borderRadius:8, objectFit:"cover" }} />
+                    <img src={u} alt="" loading="lazy" decoding="async" style={{ width:54, height:54, borderRadius:8, objectFit:"cover" }} />
                   </a>
                 ))}
               </div>
@@ -195,7 +195,7 @@ function ReportRow({ report, adminId, open, onToggle, onDone }) {
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:6 }}>
                   {detailImgs.map((u, i) => (
                     <a key={i} href={u} target="_blank" rel="noreferrer">
-                      <img src={u} alt="" style={{ width:54, height:54, borderRadius:8, objectFit:"cover" }} />
+                      <img src={u} alt="" loading="lazy" decoding="async" style={{ width:54, height:54, borderRadius:8, objectFit:"cover" }} />
                     </a>
                   ))}
                 </div>

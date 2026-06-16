@@ -117,7 +117,7 @@ export function StoreReviewManager({ adminId }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
             <span style={{ width: 38, height: 38, borderRadius: 10, background: C.tint, flexShrink: 0, overflow: "hidden",
                            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
-              {s.logo_url ? <img src={s.logo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "🏪"}
+              {s.logo_url ? <img src={s.logo_url} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "🏪"}
             </span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 800, color: C.text }}>{s.name}</div>
@@ -201,7 +201,7 @@ export function ProductReviewManager({ adminId }) {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ width: 44, height: 44, borderRadius: 10, background: C.tint, flexShrink: 0, overflow: "hidden",
                              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
-                {p.main_image ? <img src={p.main_image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "🐾"}
+                {p.main_image ? <img src={p.main_image} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "🐾"}
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: "hidden",
@@ -229,7 +229,7 @@ export function ProductReviewManager({ adminId }) {
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                     {[...(p.gallery || []), ...(p.detail_images || [])].slice(0, 8).map((u, i) => (
                       <a key={i} href={u} target="_blank" rel="noreferrer">
-                        <img src={u} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover" }} />
+                        <img src={u} alt="" loading="lazy" decoding="async" style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover" }} />
                       </a>
                     ))}
                   </div>

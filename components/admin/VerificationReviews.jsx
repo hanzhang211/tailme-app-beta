@@ -95,7 +95,7 @@ export function VerificationManager({ adminId }) {
               <div style={{ fontSize: 11.5, color: C.sub, marginBottom: 6 }}>宠物证明材料</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
                 {(s.doc_urls || []).map((u, i) => (
-                  <img key={i} src={u} alt="" onClick={() => setViewer(u)}
+                  <img key={i} src={u} alt="" loading="lazy" decoding="async" onClick={() => setViewer(u)}
                     style={{ width: 76, height: 76, borderRadius: 10, objectFit: "cover", cursor: "pointer" }} />
                 ))}
                 {(!s.doc_urls || s.doc_urls.length === 0) && <span style={{ fontSize: 12, color: C.sub }}>（无）</span>}
@@ -103,7 +103,7 @@ export function VerificationManager({ adminId }) {
               <div style={{ fontSize: 11.5, color: C.sub, marginBottom: 6 }}>同框认证照片</div>
               <div style={{ marginBottom: 10 }}>
                 {s.selfie_url
-                  ? <img src={s.selfie_url} alt="" onClick={() => setViewer(s.selfie_url)}
+                  ? <img src={s.selfie_url} alt="" loading="lazy" decoding="async" onClick={() => setViewer(s.selfie_url)}
                       style={{ width: 76, height: 76, borderRadius: 10, objectFit: "cover", cursor: "pointer" }} />
                   : <span style={{ fontSize: 12, color: C.sub }}>（无）</span>}
               </div>

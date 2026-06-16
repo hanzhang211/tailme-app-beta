@@ -134,7 +134,7 @@ function UserCard({ user, adminId, onChanged }) {
       <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
         <span style={{ width:40, height:40, borderRadius:"50%", background:C.tint, flexShrink:0, overflow:"hidden",
                        display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>
-          {user.avatar_url ? <img src={user.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🐾"}
+          {user.avatar_url ? <img src={user.avatar_url} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🐾"}
         </span>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontSize:13, fontWeight:700, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>

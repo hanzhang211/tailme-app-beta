@@ -193,7 +193,7 @@ function ChatReportRow({ report, adminId, open, onToggle, onDone }) {
               <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                 {report.evidence_images.map((u, i) => (
                   <a key={i} href={u} target="_blank" rel="noreferrer">
-                    <img src={u} alt="" style={{ width:54, height:54, borderRadius:8, objectFit:"cover" }} />
+                    <img src={u} alt="" loading="lazy" decoding="async" style={{ width:54, height:54, borderRadius:8, objectFit:"cover" }} />
                   </a>
                 ))}
               </div>
