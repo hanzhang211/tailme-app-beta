@@ -18,6 +18,7 @@ import {
   getNearbyDogFriends, getCurrentPosition,
 } from "@/services/dogFriendService";
 import { getOrCreateConversation, sendWalkInvite } from "@/services/privateChatService";
+import { assertNotBanned } from "@/services/banCheck";
 import { getWalkVaccineMap } from "@/services/petVaccineService";
 import { toastColors } from "@/services/toastTheme";
 import { formatPetAge } from "@/services/petAge";
@@ -230,6 +231,9 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile, onOpenV
     setBusyToggle(true);
     try {
       if (!visible) {
+        // 封禁校验：被封禁账号不能开启遛弯
+        try { await assertNotBanned(user.id); }
+        catch (e) { toast(e.message, "error"); return; }
         // 开启：先要定位授权
         let coords;
         try { coords = await getCurrentPosition(); }
@@ -278,6 +282,7 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile, onOpenV
     persistInvite(user.id, card.user_id);
     toast("已发送遛弯申请 🐾", "success");
     try {
+      await assertNotBanned(user.id); // 封禁校验（双保险；正常流程下封禁用户已无法开启距离可见）
       const conv = await getOrCreateConversation(user.id, card.user_id);
       const myCard = buildMyCard();
       if (myCard.petId) {
@@ -293,7 +298,7 @@ export default function SocialTab({ user, pet, pets = [], onOpenProfile, onOpenV
       // 失败回滚
       setInvites((m) => { const n = { ...m }; delete n[card.user_id]; return n; });
       unpersistInvite(user.id, card.user_id);
-      toast("邀请发送失败，请重试", "error");
+      toast(/封禁/.test(e.message || "") ? e.message : "邀请发送失败，请重试", "error");
     }
   };
 

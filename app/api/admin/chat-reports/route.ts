@@ -43,7 +43,7 @@ export async function GET(req: Request) {
   const um: Record<string, any> = {};
   if (userIds.length) {
     const { data: users } = await supabaseAdmin!.from("users")
-      .select("id, username, user_no, muted_until").in("id", userIds);
+      .select("id, username, user_no, muted_until, banned_until").in("id", userIds);
     (users || []).forEach((u: any) => { um[u.id] = u; });
   }
   const enriched = rows.map((r) => ({

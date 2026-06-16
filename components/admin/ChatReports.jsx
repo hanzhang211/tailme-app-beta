@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { adminListChatReports, adminHandleChatReport } from "@/services/reportAdminService";
+import { adminSetBan, BAN_OPTS } from "@/services/banAdminService";
 import { fmtAgo } from "@/services/warningTypes";
 
 const C = {
@@ -133,6 +134,22 @@ function ChatReportRow({ report, adminId, open, onToggle, onDone }) {
     finally { setBusy(false); }
   };
 
+  // 封禁被举报用户（与禁言独立）
+  const [banBusy, setBanBusy] = useState(false);
+  const reportedBu = reported?.banned_until ? new Date(reported.banned_until) : null;
+  const reportedBanned = reportedBu && reportedBu.getTime() > Date.now();
+  const reportedBanForever = reportedBanned && reportedBu.getFullYear() >= 2099;
+  const doBan = async (action, banDays, confirmMsg) => {
+    if (!reported?.id) return;
+    if (confirmMsg && !confirm(confirmMsg)) return;
+    setBanBusy(true);
+    try {
+      await adminSetBan({ adminId, targetUserId: reported.id, action, banDays });
+      onDone();
+    } catch (e) { alert(e.message); }
+    finally { setBanBusy(false); }
+  };
+
   const uLabel = (u) => u ? `${u.username || "用户"}${u.user_no ? ` (${u.user_no})` : ""}` : "—";
 
   return (
@@ -215,6 +232,31 @@ function ChatReportRow({ report, adminId, open, onToggle, onDone }) {
 
           {isMuted && (
             <Btn tone="warn" disabled={busy} onClick={() => act("unmute", null, "解除该用户禁言？")}>解除禁言</Btn>
+          )}
+
+          {reported?.id && (
+            <div style={{ borderTop:`1px dashed ${C.border}`, paddingTop:10 }}>
+              <div style={{ fontSize:11, color:C.sub, marginBottom:4 }}>
+                封禁该用户：
+                {reportedBanned && (
+                  <span style={{ color:C.errT, fontWeight:700, marginLeft:4 }}>
+                    已封禁{reportedBanForever ? "（永久）" : ` 至 ${fmtDate(reportedBu)}`}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize:10.5, color:C.sub, marginBottom:6, lineHeight:1.5 }}>
+                封禁＝禁遛弯/上报/发帖评论/群聊发言（私聊保留）；禁言＝禁私聊+群聊发言
+              </div>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                {BAN_OPTS.map((o) => (
+                  <Btn key={o.d} tone="err" disabled={banBusy}
+                    onClick={() => doBan("ban", o.d, `确定${o.label}该用户？`)}>{o.label}</Btn>
+                ))}
+                {reportedBanned && (
+                  <Btn tone="ok" disabled={banBusy} onClick={() => doBan("unban", null, "解除该用户封禁？")}>解除封禁</Btn>
+                )}
+              </div>
+            </div>
           )}
         </div>
       )}

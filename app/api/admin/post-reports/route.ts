@@ -50,7 +50,7 @@ export async function GET(req: Request) {
   const userMap: Record<string, any> = {};
   if (userIds.length) {
     const { data: users } = await supabaseAdmin!.from("users")
-      .select("id, username, user_no").in("id", userIds);
+      .select("id, username, user_no, banned_until").in("id", userIds);
     (users || []).forEach((u: any) => { userMap[u.id] = u; });
   }
 

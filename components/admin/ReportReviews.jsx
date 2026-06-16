@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { adminListReports, adminHandleReport } from "@/services/reportAdminService";
+import { adminSetBan, BAN_OPTS } from "@/services/banAdminService";
 import { fmtAgo } from "@/services/warningTypes";
 
 const C = {
@@ -15,6 +16,11 @@ const C = {
   text:"#1A1006", sub:"#8A8074", border:"#D6D5D8", line:"#EFE9DF",
   errT:"#D94040", ok:"#2E7D32",
 };
+
+function fmtDate(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
 
 const TABS = [
   { key:"pending",  label:"待处理" },
@@ -108,6 +114,22 @@ function ReportRow({ report, adminId, open, onToggle, onDone }) {
 
   const detailImgs = (Array.isArray(post?.display_image_urls) && post.display_image_urls.length)
     ? post.display_image_urls : [];
+
+  // 封禁被举报作者
+  const [banBusy, setBanBusy] = useState(false);
+  const authorBu = author?.banned_until ? new Date(author.banned_until) : null;
+  const authorBanned = authorBu && authorBu.getTime() > Date.now();
+  const authorBanForever = authorBanned && authorBu.getFullYear() >= 2099;
+  const doBan = async (action, banDays, confirmMsg) => {
+    if (!author?.id) return;
+    if (confirmMsg && !confirm(confirmMsg)) return;
+    setBanBusy(true);
+    try {
+      await adminSetBan({ adminId, targetUserId: author.id, action, banDays });
+      onDone();
+    } catch (e) { alert(e.message); }
+    finally { setBanBusy(false); }
+  };
 
   return (
     <div style={{ background:C.bg, borderRadius:12, padding:"11px 12px", marginBottom:8, border:`1px solid ${C.border}` }}>
@@ -204,6 +226,28 @@ function ReportRow({ report, adminId, open, onToggle, onDone }) {
                 )}
               </div>
             </>
+          )}
+
+          {author?.id && (
+            <div style={{ borderTop:`1px dashed ${C.border}`, paddingTop:10 }}>
+              <div style={{ fontSize:11, color:C.sub, marginBottom:6 }}>
+                封禁作者{author.username ? ` ${author.username}` : ""}{author.user_no ? ` (${author.user_no})` : ""}：
+                {authorBanned && (
+                  <span style={{ color:C.errT, fontWeight:700, marginLeft:4 }}>
+                    已封禁{authorBanForever ? "（永久）" : ` 至 ${fmtDate(authorBu)}`}
+                  </span>
+                )}
+              </div>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                {BAN_OPTS.map((o) => (
+                  <Btn key={o.d} tone="err" disabled={banBusy}
+                    onClick={() => doBan("ban", o.d, `确定${o.label}该作者？`)}>{o.label}</Btn>
+                ))}
+                {authorBanned && (
+                  <Btn tone="ok" disabled={banBusy} onClick={() => doBan("unban", null, "解除该作者封禁？")}>解除封禁</Btn>
+                )}
+              </div>
+            </div>
           )}
         </div>
       )}

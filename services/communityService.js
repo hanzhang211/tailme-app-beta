@@ -16,6 +16,7 @@
 import { supabase } from "@/lib/supabase";
 import { checkContent } from "@/services/contentFilter";
 import { assertNotMuted } from "@/services/muteCheck";
+import { assertNotBanned } from "@/services/banCheck";
 import { CAT_BREEDS } from "@/services/breedAvatar";
 
 function requireSupabase() {
@@ -77,6 +78,7 @@ export async function listMessages(roomId, limit = 50) {
 export async function sendMessage({ roomId, userId, petId, content }) {
   const sb = requireSupabase();
   await assertNotMuted(userId);
+  await assertNotBanned(userId);
   const { flagged } = checkContent(content);
   const { data, error } = await sb
     .from("messages")
@@ -721,6 +723,7 @@ export async function createPost({
   coverAspectRatio, textBgColor, mediaItems,
 }) {
   const sb = requireSupabase();
+  await assertNotBanned(userId);
   const { flagged: fc } = checkContent(content || "");
   const { flagged: ft } = checkContent(title || "");
   const flagged = fc || ft;
@@ -1022,6 +1025,7 @@ export async function listComments(postId) {
 
 export async function createComment({ postId, userId, petId, content, parentId }) {
   const sb = requireSupabase();
+  await assertNotBanned(userId);
   const { flagged } = checkContent(content);
   const { data, error } = await sb
     .from("comments")

@@ -59,11 +59,14 @@ export async function POST(req: Request) {
   if (!["friendly", "warning"].includes(kind)) return NextResponse.json({ error: "kind 非法" }, { status: 400 });
   if (!payload) return NextResponse.json({ error: "缺少内容" }, { status: 400 });
 
-  // 认证硬校验
+  // 认证 + 封禁硬校验
   const { data: u, error: uErr } = await supabaseAdmin
-    .from("users").select("verification_status").eq("id", userId).maybeSingle();
+    .from("users").select("verification_status, banned_until").eq("id", userId).maybeSingle();
   if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
   if (!u) return NextResponse.json({ error: "用户不存在" }, { status: 404 });
+  if (u.banned_until && new Date(u.banned_until).getTime() > Date.now()) {
+    return NextResponse.json({ error: "你的账号已被封禁，暂时无法上报", code: "BANNED" }, { status: 403 });
+  }
   if (u.verification_status !== "approved") {
     return NextResponse.json({ error: "需要完成认证后才能上报", code: "NOT_VERIFIED" }, { status: 403 });
   }

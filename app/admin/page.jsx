@@ -31,6 +31,7 @@ import { DangerReviewManager, FriendlyManager } from "@/components/admin/DangerR
 import { VerificationManager } from "@/components/admin/VerificationReviews";
 import { ReportManager } from "@/components/admin/ReportReviews";
 import { ChatReportManager } from "@/components/admin/ChatReports";
+import { BanManager } from "@/components/admin/BanManager";
 
 const C = {
   pri:    "#E68645",
@@ -328,6 +329,7 @@ function AdminTabs({ me }) {
     { key: "content",  label: "内容",     render: () => <FlaggedModeration adminId={me?.id} /> },
     { key: "reports",  label: "举报管理", render: () => <ReportManager adminId={me?.id} /> },
     { key: "chatreports", label: "聊天审核", render: () => <ChatReportManager adminId={me?.id} /> },
+    { key: "ban",      label: "用户封禁", render: () => <BanManager adminId={me?.id} /> },
     { key: "recipe",   label: "食谱",     render: () => <RecipeManager adminId={me?.id} /> },
   ];
   const [active, setActive] = useState("merchant");
