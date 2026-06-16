@@ -1006,9 +1006,9 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           onSaved={(updated) => { setAvatarOpen(false); onPetUpdate?.(updated); }}
         />
       )}
-      <div style={{ background:H_BG, padding:"52px 20px 6px",
+      <div style={{ background:H_BG, padding:"44px 16px 2px",
                     position:"relative", overflow:"hidden" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:22 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:14 }}>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
             <Logo size={52} />
             <div>
@@ -1063,7 +1063,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
               {/* 左侧 ghost（环形上一只 prevPet） */}
               {showCarousel && prevPet && (
                 <div onClick={() => onSwitchPet?.(prevPet)}
-                  style={{ width:108, display:"flex", justifyContent:"center", alignItems:"center",
+                  style={{ width:84, display:"flex", justifyContent:"center", alignItems:"center",
                            flexShrink:0, flexDirection:"column", gap:4,
                            background: H_BG,
                            opacity: 0.48,
@@ -1084,16 +1084,16 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
               {/* 主头像（点击进入 AI 宠物聊天占位页） */}
               <div onClick={() => setSubPage("petchat")}
                    style={{ position:"relative", padding:"4px 10px", flexShrink:0, cursor:"pointer" }}>
-                <div style={{ position:"relative", width:210, height:210 }}>
+                <div style={{ position:"relative", width:236, height:236 }}>
                   {/* 占位层：真实头像未加载完成时显示 —— 优先上次缓存头像，否则默认小狗（永不空白） */}
                   {!avatarLoaded && (
                     cachedAvatar ? (
                       <img src={cachedAvatar} alt="" aria-hidden="true"
-                        style={{ position:"absolute", inset:0, width:210, height:210, objectFit:"contain",
+                        style={{ position:"absolute", inset:0, width:236, height:236, objectFit:"contain",
                                  animation:"float 3s ease-in-out infinite", mixBlendMode:"multiply" }} />
                     ) : (
                       <img src={isCatPet(pet) ? "/cat.png" : "/dog.png"} alt="" aria-hidden="true"
-                        style={{ position:"absolute", inset:0, width:210, height:210, objectFit:"contain",
+                        style={{ position:"absolute", inset:0, width:236, height:236, objectFit:"contain",
                                  animation:"float 3s ease-in-out infinite" }} />
                     )
                   )}
@@ -1106,7 +1106,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                         try { if (avatarCacheKey && avatarSrc) localStorage.setItem(avatarCacheKey, avatarSrc); } catch {}
                       }}
                       onError={() => setAvatarBroken(true)}
-                      style={{ position:"absolute", inset:0, width:210, height:210, objectFit:"contain", display:"block",
+                      style={{ position:"absolute", inset:0, width:236, height:236, objectFit:"contain", display:"block",
                                opacity: avatarLoaded ? 1 : 0,
                                transition:"opacity 0.45s ease",
                                animation:"float 3s ease-in-out infinite",
@@ -1126,7 +1126,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
               {/* 右侧 ghost（环形下一只 nextPet） */}
               {showCarousel && nextPet && (
                 <div onClick={() => onSwitchPet?.(nextPet)}
-                  style={{ width:108, display:"flex", justifyContent:"center", alignItems:"center",
+                  style={{ width:84, display:"flex", justifyContent:"center", alignItems:"center",
                            flexShrink:0, flexDirection:"column", gap:4,
                            background: H_BG,
                            opacity: 0.48,
@@ -1205,12 +1205,12 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           </div>{/* /relative 包裹层 */}
 
           {/* 宠物名字 */}
-          <div style={{ marginTop:20, fontSize:20, fontWeight:800, color:C.text }}>{pet.name}</div>
+          <div style={{ marginTop:10, fontSize:20, fontWeight:800, color:C.text }}>{pet.name}</div>
 
           {/* 生日 + 性格 胶囊标签（数据来自真实宠物字段） */}
           {(birthdayLabel || pet.personality) && (
             <div style={{ display:"flex", justifyContent:"center", alignItems:"center",
-                          gap:10, flexWrap:"wrap", marginTop:10 }}>
+                          gap:10, flexWrap:"wrap", marginTop:8 }}>
               {birthdayLabel && (
                 <span style={{ background:"rgba(255,255,255,0.62)",
                                border:"1px solid rgba(255,255,255,0.72)",
@@ -1234,7 +1234,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
 
           {/* 进度点 + 左右箭头（辅助） */}
           {showCarousel && (
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:10 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:6 }}>
               <button
                 onClick={() => prevPet && onSwitchPet?.(prevPet)}
                 style={{ background:"transparent", border:"none", fontSize:22, lineHeight:1,
@@ -1385,7 +1385,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
             </svg>
           );
           return (
-            <div style={{ background:"rgba(255,255,255,0.72)", borderRadius:28, padding:22,
+            <div style={{ background:"rgba(255,255,255,0.72)", borderRadius:22, padding:18,
                           marginBottom:12, boxShadow:"0 8px 24px rgba(0,0,0,0.06)",
                           border:"1px solid rgba(255,255,255,0.7)" }}>
 
