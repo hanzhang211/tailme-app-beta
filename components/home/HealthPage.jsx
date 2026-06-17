@@ -1156,7 +1156,14 @@ function DateRow({ label, val, setVal, refEl, placeholder }) {
     <div>
       <FTitle>{label}</FTitle>
       <div style={{ position:"relative" }}>
-        <button onClick={() => refEl.current?.showPicker?.() || refEl.current?.click()}
+        <input ref={refEl} type="date" value={val} onChange={(e) => setVal(e.target.value)}
+          style={{ position:"absolute", inset:0, opacity:0, pointerEvents:"none", border:"none" }}/>
+        <button type="button"
+          onClick={() => {
+            const el = refEl.current; if (!el) return;
+            if (typeof el.showPicker === "function") { try { el.showPicker(); return; } catch {} }
+            el.focus(); el.click();
+          }}
           style={{ width:"100%", height:52, borderRadius:16,
                    background:"rgba(255,255,255,0.72)", border:"1px solid rgba(138,123,106,0.18)",
                    padding:"0 14px", display:"flex", alignItems:"center", gap:8,
@@ -1168,8 +1175,6 @@ function DateRow({ label, val, setVal, refEl, placeholder }) {
           </span>
           <ChevronRight size={13} color="#2B2B2B"/>
         </button>
-        <input ref={refEl} type="date" value={val} onChange={(e) => setVal(e.target.value)}
-          style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer", zIndex:1 }}/>
       </div>
     </div>
   );
@@ -1234,7 +1239,15 @@ function MedicineFields({ med, setMed }) {
         <div style={{ flex:1 }}>
           <FTitle>提醒时间</FTitle>
           <div style={{ position:"relative" }}>
-            <button onClick={() => timeRef.current?.showPicker?.() || timeRef.current?.click()}
+            <input ref={timeRef} type="time" value={med.time}
+              onChange={(e) => { const v = e.target.value; upd("time", v); if (v) upd("reminderEnabled", true); }}
+              style={{ position:"absolute", inset:0, opacity:0, pointerEvents:"none", border:"none" }}/>
+            <button type="button"
+              onClick={() => {
+                const el = timeRef.current; if (!el) return;
+                if (typeof el.showPicker === "function") { try { el.showPicker(); return; } catch {} }
+                el.focus(); el.click();
+              }}
               style={{ width:"100%", height:52, borderRadius:16,
                        background:"rgba(255,255,255,0.72)", border:"1px solid rgba(138,123,106,0.18)",
                        padding:"0 14px", display:"flex", alignItems:"center", gap:8,
@@ -1245,9 +1258,6 @@ function MedicineFields({ med, setMed }) {
               </span>
               <ChevronRight size={13} color="#2B2B2B"/>
             </button>
-            <input ref={timeRef} type="time" value={med.time}
-              onChange={(e) => { const v = e.target.value; upd("time", v); if (v) upd("reminderEnabled", true); }}
-              style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer", zIndex:1 }}/>
           </div>
         </div>
         <div style={{ flexShrink:0, paddingBottom:4 }}>
