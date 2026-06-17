@@ -129,6 +129,13 @@ const HUNGRY_BUBBLE_PHRASES = [
   "今天过得怎么样？💛",
   "陪我吃饭饭好不好～",
 ];
+// 生病中用药提醒的温和气泡文案（优先于饿了/普通；主功能在下方绿色卡片，气泡只温和点缀）
+const MED_BUBBLE_PHRASES = [
+  "该吃药药啦～",
+  "药药时间到咯 💊",
+  "记得帮我吃药哦",
+  "吃药药，快快好 🐾",
+];
 const cardStyle = { background:C.card, borderRadius:20, padding:16, marginBottom:12, boxShadow:"0 2px 14px rgba(0,0,0,0.05)" };
 const btnStyle  = (active) => ({
   background: active ? C.pri : "#FFFFFF", color: active ? "#fff" : "#1A1006",
@@ -1198,9 +1205,11 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                        textAlign:"center", wordBreak:"break-word",
                        cursor:"pointer",
                        animation:"chatBubbleBreath 2.8s ease-in-out infinite" }}>
-              {(!sick && feedReminder)
-                ? HUNGRY_BUBBLE_PHRASES[Math.abs(lastBubbleIdx.current) % HUNGRY_BUBBLE_PHRASES.length]
-                : bubbleText}
+              {(sick && medReminder)
+                ? MED_BUBBLE_PHRASES[Math.abs(lastBubbleIdx.current) % MED_BUBBLE_PHRASES.length]
+                : (!sick && feedReminder)
+                  ? HUNGRY_BUBBLE_PHRASES[Math.abs(lastBubbleIdx.current) % HUNGRY_BUBBLE_PHRASES.length]
+                  : bubbleText}
               {/* 小三角尾巴：在气泡右下角，指向宠物 */}
               <span style={{ position:"absolute", right:20, bottom:-8, width:0, height:0,
                              borderLeft:"8px solid transparent", borderRight:"8px solid transparent",
