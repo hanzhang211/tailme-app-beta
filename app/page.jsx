@@ -162,6 +162,23 @@ function PawIcon({ size = 16, color = "#E68645" }) {
   );
 }
 
+// 喂药提醒卡片用：绿色胶囊 + 小药丸（可爱简洁，无黑线，非 emoji）
+function PillIcon({ size = 44 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none"
+         xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ display:"block" }}>
+      {/* 大胶囊（斜放）*/}
+      <g transform="rotate(-40 22 27)">
+        <rect x="6" y="20" width="32" height="14" rx="7" fill="#EAF6EC" stroke="#5FA766" strokeWidth="2.2"/>
+        <path d="M22 20 H13 a7 7 0 0 0 0 14 H22 Z" fill="#5FA766"/>
+      </g>
+      {/* 小圆药丸（右上）*/}
+      <circle cx="35" cy="13" r="8" fill="#EAF6EC" stroke="#5FA766" strokeWidth="2.2"/>
+      <path d="M35 5 a8 8 0 0 1 0 16 Z" fill="#5FA766" opacity="0.5"/>
+    </svg>
+  );
+}
+
 function ProfileIcon({ size = 20, color = "#E68645" }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color}
@@ -745,6 +762,20 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     return null;
   })();
 
+  // 喂药提醒卡片副文案用：复用 medReminder（非 null 才显示）+ activeDisease.medicine_reminder_time，
+  // 仅额外算出"距下次用药分钟数 / 已超时分钟数"，不新写任何判断逻辑。
+  const medInfo = (() => {
+    if (!medReminder) return null;
+    const t = activeDisease?.medicine_reminder_time;
+    if (!t) return { kind: medReminder, minutes: null };
+    const [h, m] = String(t).split(":").map(Number);
+    const medMin = (h || 0) * 60 + (m || 0);
+    const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+    if (medReminder === "soon") return { kind: "soon", minutes: Math.max(0, medMin - nowMin) };
+    const diff = nowMin - medMin;
+    return { kind: diff <= 0 ? "due" : "over", minutes: diff };
+  })();
+
   const addFeed    = () => { setFeedings(p => [...p, { ...DEFAULT_FEEDING, time:"18:00" }]); };
   const removeFeed = (i) => setFeedings(p => p.filter((_, idx) => idx !== i));
   const updFeed    = (i, k, v) => setFeedings(p => p.map((f, idx) => idx === i ? { ...f, [k]: v } : f));
@@ -1260,21 +1291,56 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
             </div>
           )}
 
-          {/* 位置 B：长条提醒。仅生病中→用药提醒（喂食提醒已移到下方独立卡片） */}
-          {sick && medReminder && (
-            <div style={{ marginTop:12, background:"rgba(95,167,102,0.1)", border:"1px solid rgba(95,167,102,0.25)",
-                          borderRadius:20, padding:"8px 18px", fontSize:13, color:"#4E8C56", fontWeight:600 }}>
-              {medReminder === "soon"
-                ? "💊 快到用药时间啦，记得照顾我哦"
-                : "💊 该吃药啦，记得帮我用药哦"}
-            </div>
-          )}
+          {/* 用药/喂食提醒已统一移到下方内容区的横向卡片（生病优先级在卡片显示条件里保证） */}
         </div>
       </div>
 
       <div style={{ padding:"6px 14px 90px" }}>
+        {/* 喂药提醒卡片：生病中 + 有用药提醒时显示（与喂食卡同模板/同位置，绿色版）。
+            与喂食卡互斥：sick 显喂药、!sick 显喂食 —— 生病优先，永不同时堆两张。
+            点「去喂药」进现有「宠物健康」页（生病记录/用药提醒）。 */}
+        {sick && medInfo && (
+          <>
+            <div style={{ display:"flex", alignItems:"center", gap:14,
+                          background:"#F4FBF5", border:"1.5px solid #9DCBA9", borderRadius:22,
+                          padding:"6px 14px", marginBottom:12,
+                          boxShadow:"0 6px 18px rgba(79,166,106,0.12)",
+                          animation:"feedCardIn .3s ease-out" }}>
+              <PillIcon size={44} />
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:16, fontWeight:800, color:"#3E8E5A", lineHeight:1.25,
+                              whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  该吃药啦，记得帮我用药哦
+                </div>
+                <div style={{ fontSize:12.5, color:"#8A7B6A", marginTop:3,
+                              whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  {medInfo.minutes == null
+                    ? "快到用药时间啦，记得照顾我哦"
+                    : medInfo.kind === "soon"
+                      ? `距离下次用药还有 ${medInfo.minutes} 分钟`
+                      : medInfo.kind === "due"
+                        ? "现在该用药啦"
+                        : <>已经超过用药时间 <span style={{ color:"#3E8E5A", fontWeight:800 }}>{medInfo.minutes} 分钟</span>啦</>}
+                </div>
+              </div>
+              <button type="button" onClick={() => setSubPage("health")}
+                style={{ flexShrink:0, height:40, padding:"0 20px", borderRadius:999,
+                         background:"linear-gradient(135deg, #5FA766, #4E8C56)",
+                         color:"#fff", fontSize:14, fontWeight:800, border:"none", cursor:"pointer",
+                         boxShadow:"0 4px 12px rgba(79,166,106,0.3)", transition:"transform .12s ease" }}
+                onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.94)")}
+                onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                onTouchStart={(e) => (e.currentTarget.style.transform = "scale(0.94)")}
+                onTouchEnd={(e) => (e.currentTarget.style.transform = "scale(1)")}>
+                去喂药
+              </button>
+            </div>
+          </>
+        )}
+
         {/* 喂食提醒卡片：未生病 + 饿了/到点时显示；点「去喂食」进喂食计划页（可勾选完成）。
-            生病优先级保留——sick 时不显示此卡，改由上方位置 B 显示用药提醒。 */}
+            生病优先级保留——sick 时不显示此卡（改显上方喂药卡）。 */}
         {!sick && feedInfo && (
           <>
             <div style={{ display:"flex", alignItems:"center", gap:14,
