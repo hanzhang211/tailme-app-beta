@@ -648,13 +648,13 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
           <div style={{ padding:"16px 14px 90px", display:"flex", flexDirection:"column", gap:12 }}>
             {/* 分享卡片中心入口（温暖醒目卡） */}
             <button onClick={() => setShareCenterOpen(true)}
-              style={{ display:"flex", alignItems:"center", gap:12, width:"100%",
-                       background:"linear-gradient(135deg,#FFF0E0,#FCE0C9)",
-                       border:"1px solid #F3D2B0", borderRadius:18, padding:"14px 15px",
-                       cursor:"pointer", textAlign:"left", boxShadow:"0 3px 12px rgba(230,134,69,0.12)" }}>
+              style={{ display:"flex", alignItems:"center", gap:10, width:"100%",
+                       background:"linear-gradient(135deg,#FFFBF7,#FEF3EA)",
+                       border:"1px solid #F4E6D8", borderRadius:20, padding:"14px 15px",
+                       cursor:"pointer", textAlign:"left", boxShadow:"0 3px 12px rgba(230,134,69,0.07)" }}>
               <img src="/kapian.png" alt="" aria-hidden="true" decoding="async"
-                   style={{ width:56, height:56, objectFit:"contain", flexShrink:0, display:"block",
-                            margin:"-8px 0" }} />
+                   style={{ width:72, height:72, objectFit:"contain", flexShrink:0, display:"block",
+                            margin:"-16px 0" }} />
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:15, fontWeight:800, color:C.text }}>宠物心意卡</div>
                 <div style={{ fontSize:11.5, color:"#9A7B5C", marginTop:2 }}>陪伴、喂食、纪念日都能一键生成</div>
