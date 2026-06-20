@@ -1456,12 +1456,12 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
         <button onClick={() => setShareCardOpen(true)}
           style={{ display:"flex", alignItems:"center", gap:10, width:"100%",
                    background:"linear-gradient(135deg,#FFFBF7,#FEF3EA)",
-                   border:"1px solid #F4E6D8", borderRadius:20, padding:"13px 14px",
+                   border:"1px solid #F4E6D8", borderRadius:20, padding:"10px 14px",
                    marginBottom:12, cursor:"pointer", textAlign:"left",
                    boxShadow:"0 3px 12px rgba(230,134,69,0.07)" }}>
           <img src="/kapian.png" alt="" aria-hidden="true" decoding="async"
-               style={{ width:72, height:72, objectFit:"contain", flexShrink:0, display:"block",
-                        margin:"-16px 0" }} />
+               style={{ width:82, height:82, objectFit:"contain", flexShrink:0, display:"block",
+                        margin:"-22px 0" }} />
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontSize:15, fontWeight:800, color:C.text }}>今日陪伴卡</div>
             <div style={{ fontSize:11.5, color:"#9A7B5C", marginTop:2, lineHeight:1.5 }}>
