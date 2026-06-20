@@ -1459,13 +1459,9 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
                    border:"1px solid #F3D9C0", borderRadius:20, padding:"13px 14px",
                    marginBottom:12, cursor:"pointer", textAlign:"left",
                    boxShadow:"0 3px 12px rgba(230,134,69,0.1)" }}>
-          <div style={{ width:48, height:48, borderRadius:14, flexShrink:0, background:"#fff",
-                        display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <rect x="3" y="5" width="18" height="14" rx="3" stroke="#E68645" strokeWidth="1.9"/>
-              <path d="M12 16.2s-3-1.9-3-3.9a1.7 1.7 0 0 1 3-1 1.7 1.7 0 0 1 3 1c0 2-3 3.9-3 3.9Z" fill="#E68645"/>
-            </svg>
-          </div>
+          <img src="/kapian.png" alt="" aria-hidden="true" decoding="async"
+               style={{ width:56, height:56, objectFit:"contain", flexShrink:0, display:"block",
+                        margin:"-8px 0" }} />
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontSize:15, fontWeight:800, color:C.text }}>今日陪伴卡</div>
             <div style={{ fontSize:11.5, color:"#9A7B5C", marginTop:2, lineHeight:1.5 }}>
