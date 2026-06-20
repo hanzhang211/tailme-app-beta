@@ -30,6 +30,7 @@ import PetTrashIcon    from "@/components/icons/PetTrashIcon";
 import BackButton      from "@/components/icons/BackButton";
 import BgCropModal      from "./BgCropModal";
 import ShopMall         from "@/components/shop/ShopMall";
+import ShareCardCenter  from "@/components/share/ShareCardCenter";
 import MyReviews        from "./MyReviews";
 import VerifyBadge       from "./VerifyBadge";
 import { toastColors }   from "@/services/toastTheme";
@@ -155,6 +156,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   const [bgPreview, setBgPreview] = useState(null);                 // 裁剪后本地预览（秒显，无需刷新）
   const [contactOpen, setContactOpen]   = useState(false);          // 联系我们
   const [shopOpen, setShopOpen]         = useState(false);          // 宠物商城浮层
+  const [shareCenterOpen, setShareCenterOpen] = useState(false);    // 分享卡片中心浮层
   const [reviewsOpen, setReviewsOpen]   = useState(false);          // 用户端审核浮层
   const bgFileRef = useRef();
 
@@ -644,6 +646,28 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
 
           {/* 菜单列表 */}
           <div style={{ padding:"16px 14px 90px", display:"flex", flexDirection:"column", gap:12 }}>
+            {/* 分享卡片中心入口（温暖醒目卡） */}
+            <button onClick={() => setShareCenterOpen(true)}
+              style={{ display:"flex", alignItems:"center", gap:12, width:"100%",
+                       background:"linear-gradient(135deg,#FFF0E0,#FCE0C9)",
+                       border:"1px solid #F3D2B0", borderRadius:18, padding:"14px 15px",
+                       cursor:"pointer", textAlign:"left", boxShadow:"0 3px 12px rgba(230,134,69,0.12)" }}>
+              <div style={{ width:46, height:46, borderRadius:14, flexShrink:0, background:"#fff",
+                            display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <svg width="25" height="25" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="3" stroke={C.pri} strokeWidth="1.9"/>
+                  <path d="M12 16.2s-3-1.9-3-3.9a1.7 1.7 0 0 1 3-1 1.7 1.7 0 0 1 3 1c0 2-3 3.9-3 3.9Z" fill={C.pri}/>
+                </svg>
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:15, fontWeight:800, color:C.text }}>宠物心意卡</div>
+                <div style={{ fontSize:11.5, color:"#9A7B5C", marginTop:2 }}>陪伴、喂食、纪念日都能一键生成</div>
+              </div>
+              <span style={{ flexShrink:0, display:"flex", alignItems:"center", gap:2,
+                             color:C.pri, fontSize:11.5, fontWeight:700, whiteSpace:"nowrap" }}>
+                分享卡片馆 ›
+              </span>
+            </button>
             <MenuRow icon={<Star size={26} color={C.pri} strokeWidth={2.2} />}
               label="点赞&收藏" onClick={() => setSubView("posts")} />
             <MenuRow icon={<PawOutlineIcon size={28} />}
@@ -677,6 +701,9 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
 
       {/* 宠物商城（全屏浮层） */}
       {shopOpen && <ShopMall onClose={() => setShopOpen(false)} toast={toast} />}
+
+      {/* 分享卡片中心（全屏浮层） */}
+      {shareCenterOpen && <ShareCardCenter user={user} pet={pet} onClose={() => setShareCenterOpen(false)} />}
 
       {/* 用户端审核（全屏浮层） */}
       {reviewsOpen && <MyReviews user={user} onClose={() => setReviewsOpen(false)} toast={toast} />}

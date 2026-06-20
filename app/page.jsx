@@ -34,6 +34,7 @@ import RecipePage,  { prefetchRecipes } from "@/components/home/RecipePage";
 import HealthPage,  { prefetchHealth }  from "@/components/home/HealthPage";
 import PetChatPage from "@/components/home/PetChatPage";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
+import ShareCardCenter from "@/components/share/ShareCardCenter";
 import PetOnboarding from "@/components/profile/PetOnboarding";
 import VerifyFlow from "@/components/profile/VerifyFlow";
 import PetAvatar from "@/components/PetAvatar";
@@ -532,6 +533,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   const [monthExpense, setMonthExpense] = useState(null);
   const [todayRecipe,  setTodayRecipe]  = useState(null);
   const [avatarOpen,       setAvatarOpen]   = useState(false);
+  const [shareCardOpen,    setShareCardOpen] = useState(false);
   const [avatarBroken,     setAvatarBroken] = useState(false);
   const [avatarLoaded,     setAvatarLoaded] = useState(false);
   const [cachedAvatar,     setCachedAvatar] = useState(null); // 该宠物上次成功显示的头像（localStorage 占位）
@@ -1048,6 +1050,9 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
           onSaved={(updated) => { setAvatarOpen(false); onPetUpdate?.(updated); }}
         />
       )}
+      {shareCardOpen && (
+        <ShareCardCenter user={user} pet={pet} onClose={() => setShareCardOpen(false)} />
+      )}
       <div style={{ background:H_BG, padding:"max(env(safe-area-inset-top), 28px) 16px 2px",
                     position:"relative", overflow:"hidden" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:14 }}>
@@ -1446,6 +1451,33 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
             onClick={() => setSubPage("health")}
             H_SUB={H_SUB} text={C.text} />
         </div>
+
+        {/* 今日陪伴卡入口 → 分享卡片中心 */}
+        <button onClick={() => setShareCardOpen(true)}
+          style={{ display:"flex", alignItems:"center", gap:12, width:"100%",
+                   background:"linear-gradient(135deg,#FFF3E8,#FDEAD9)",
+                   border:"1px solid #F3D9C0", borderRadius:20, padding:"13px 14px",
+                   marginBottom:12, cursor:"pointer", textAlign:"left",
+                   boxShadow:"0 3px 12px rgba(230,134,69,0.1)" }}>
+          <div style={{ width:48, height:48, borderRadius:14, flexShrink:0, background:"#fff",
+                        display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="14" rx="3" stroke="#E68645" strokeWidth="1.9"/>
+              <path d="M12 16.2s-3-1.9-3-3.9a1.7 1.7 0 0 1 3-1 1.7 1.7 0 0 1 3 1c0 2-3 3.9-3 3.9Z" fill="#E68645"/>
+            </svg>
+          </div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:15, fontWeight:800, color:C.text }}>今日陪伴卡</div>
+            <div style={{ fontSize:11.5, color:"#9A7B5C", marginTop:2, lineHeight:1.5 }}>
+              记录今天的陪伴时刻，一键生成温暖分享卡
+            </div>
+          </div>
+          <span style={{ flexShrink:0, display:"flex", alignItems:"center", gap:2,
+                         background:C.pri, color:"#fff", borderRadius:999, padding:"8px 13px",
+                         fontSize:13, fontWeight:800, whiteSpace:"nowrap" }}>
+            立即生成 ›
+          </span>
+        </button>
 
         {/* ── Feeding Card（首页摘要：只显示下一顿）── */}
         {(() => {
