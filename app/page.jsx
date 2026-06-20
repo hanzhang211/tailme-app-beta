@@ -35,6 +35,8 @@ import HealthPage,  { prefetchHealth }  from "@/components/home/HealthPage";
 import PetChatPage from "@/components/home/PetChatPage";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
 import ShareCardCenter from "@/components/share/ShareCardCenter";
+import PetCallCenter from "@/components/pet-call/PetCallCenter";
+import PetCallEntryButton from "@/components/pet-call/PetCallEntryButton";
 import PetOnboarding from "@/components/profile/PetOnboarding";
 import VerifyFlow from "@/components/profile/VerifyFlow";
 import PetAvatar from "@/components/PetAvatar";
@@ -534,6 +536,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   const [todayRecipe,  setTodayRecipe]  = useState(null);
   const [avatarOpen,       setAvatarOpen]   = useState(false);
   const [shareCardOpen,    setShareCardOpen] = useState(false);
+  const [petCallOpen,      setPetCallOpen]   = useState(false);
   const [avatarBroken,     setAvatarBroken] = useState(false);
   const [avatarLoaded,     setAvatarLoaded] = useState(false);
   const [cachedAvatar,     setCachedAvatar] = useState(null); // 该宠物上次成功显示的头像（localStorage 占位）
@@ -1053,6 +1056,9 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
       {shareCardOpen && (
         <ShareCardCenter user={user} pet={pet} onClose={() => setShareCardOpen(false)} />
       )}
+      {petCallOpen && (
+        <PetCallCenter user={user} pet={pet} onClose={() => setPetCallOpen(false)} />
+      )}
       <div style={{ background:H_BG, padding:"max(env(safe-area-inset-top), 28px) 16px 2px",
                     position:"relative", overflow:"hidden" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:14 }}>
@@ -1064,6 +1070,8 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
             </div>
           </div>
           {/* 首页不再暴露 admin 入口（上线隔离）；管理员请直接访问网址 /admin */}
+          {/* 右上角：AI 宠物来电入口（点击进入宠物来电中心） */}
+          <PetCallEntryButton onClick={() => setPetCallOpen(true)} />
         </div>
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
 

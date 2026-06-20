@@ -1,0 +1,98 @@
+"use client";
+
+/**
+ * hooks/usePetCall.js
+ *
+ * 「一通 AI 宠物来电」的状态机：来电类型 / 计时 / 对话推进 / 静音免提。
+ * 只管「一次通话」的运行时数据；画面切换（来电中/通话中/结束…）由 PetCallCenter 的 view 控制。
+ *
+ * 第一版对话用 lib/petCallTemplates 的本地话术。
+ * 预留扩展点（见 reply 内 TODO）：后续把推进逻辑换成 async 调 /api/pet-ai-chat + TTS 播放。
+ */
+
+import { useState, useRef, useCallback, useEffect } from "react";
+import { getOpeningLine, getNextLine, getCallType } from "@/lib/petCallTemplates";
+
+export function usePetCall() {
+  const [callType, setCallType] = useState("miss_you");
+  const [messages, setMessages] = useState([]); // { from:'pet'|'user', text }
+  const [step, setStep] = useState(0);
+  const [seconds, setSeconds] = useState(0);
+  const [muted, setMuted] = useState(false);
+  const [speaker, setSpeaker] = useState(true);
+
+  const timerRef = useRef(null);
+  const startRef = useRef(null);
+
+  useEffect(() => () => clearInterval(timerRef.current), []);
+
+  /** 准备一通新来电（重置所有运行时状态，进入「来电中」前调用）。 */
+  const prepare = useCallback((type) => {
+    clearInterval(timerRef.current);
+    timerRef.current = null;
+    startRef.current = null;
+    setCallType(type || "miss_you");
+    setMessages([]);
+    setStep(0);
+    setSeconds(0);
+    setMuted(false);
+    setSpeaker(true);
+  }, []);
+
+  /** 接听：放出宠物开场白并开始计时。 */
+  const startConversation = useCallback(() => {
+    const t = getCallType(callType);
+    setMessages([{ from: "pet", text: t.flow[0] }]);
+    setStep(0);
+    startRef.current = Date.now();
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      if (startRef.current) {
+        setSeconds(Math.floor((Date.now() - startRef.current) / 1000));
+      }
+    }, 1000);
+    // TODO(后续): 这里可触发 TTS 播放开场白（语音陪伴感）
+  }, [callType]);
+
+  /** 用户点快捷回复：记用户气泡 + 宠物推进一句。返回 true 表示这是「挂断」类回复。 */
+  const reply = useCallback((quickReply) => {
+    if (quickReply?.end) return true; // 「先挂了」→ 交给上层挂断
+    setStep((prev) => {
+      const next = prev + 1;
+      const petLine = getNextLine(callType, next);
+      setMessages((m) => [
+        ...m,
+        { from: "user", text: quickReply.text },
+        { from: "pet", text: petLine },
+      ]);
+      return next;
+    });
+    // TODO(后续): 改为 await generateAiReply(pet, history, style) 接真实 AI 对话 + TTS
+    return false;
+  }, [callType]);
+
+  /** 挂断：停止计时，返回本通最终时长（秒）。 */
+  const stop = useCallback(() => {
+    clearInterval(timerRef.current);
+    timerRef.current = null;
+    const dur = startRef.current
+      ? Math.floor((Date.now() - startRef.current) / 1000)
+      : 0;
+    startRef.current = null;
+    return dur;
+  }, []);
+
+  return {
+    callType, messages, step, seconds, muted, speaker,
+    setMuted, setSpeaker,
+    prepare, startConversation, reply, stop,
+  };
+}
+
+/** mm:ss 格式化通话时长。 */
+export function formatDuration(sec) {
+  const s = Math.max(0, Math.floor(sec || 0));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
+}
