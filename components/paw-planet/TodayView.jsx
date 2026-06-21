@@ -3,17 +3,17 @@
 /**
  * components/paw-planet/TodayView.jsx
  * 「今天的它」——星球日常聊天式时间轴（对齐设计稿屏2）。第一版 mock。
- * props: { petName, avatar, mock, onBack }
+ * props: { petName, avatar, stories, onBack }  stories 来自 lib/pawPlanetDailyStories（按日固定）
  */
 
-import { CalendarDays, Sun, Moon } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import BackButton from "@/components/icons/BackButton";
 import { PLANET_C as C } from "@/lib/pawPlanetMock";
 
 const THUMBS = ["linear-gradient(135deg,#FBE3D0,#F3C49B)", "linear-gradient(135deg,#DDEFC9,#B6D99A)", "linear-gradient(135deg,#E6DEF7,#C6BCE8)"];
 
-export default function TodayView({ petName = "毛孩子", avatar, mock, onBack }) {
-  const items = mock?.today?.items || [];
+export default function TodayView({ petName = "毛孩子", avatar, stories = [], onBack }) {
+  const items = stories;
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "#F4ECE0" }}>
       <div style={{ padding: "max(env(safe-area-inset-top), 28px) 16px 8px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
@@ -31,15 +31,16 @@ export default function TodayView({ petName = "毛孩子", avatar, mock, onBack 
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
               <span style={{ width: 30, height: 30, borderRadius: "50%", background: C.cream,
                              border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {it.phase === "night" ? <Moon size={15} color="#8E84C8" /> : <Sun size={15} color={C.pri} />}
+                <span style={{ fontSize: 15 }}>{it.icon}</span>
               </span>
               {i < items.length - 1 && <span style={{ flex: 1, width: 2, background: C.border, marginTop: 4, minHeight: 30 }} />}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12, color: C.sub, fontWeight: 700, marginBottom: 6 }}>{it.time}</div>
               <div style={{ background: "#fff", borderRadius: "4px 16px 16px 16px", padding: "11px 14px",
-                            fontSize: 13.5, color: C.text, lineHeight: 1.7, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-                {it.text}
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                {it.title && <div style={{ fontSize: 13.5, fontWeight: 800, color: C.text, marginBottom: 4 }}>{it.title}</div>}
+                <div style={{ fontSize: 13, color: it.title ? C.sub : C.text, lineHeight: 1.7 }}>{it.text}</div>
               </div>
               <div style={{ height: 92, borderRadius: 14, marginTop: 8, background: THUMBS[i % THUMBS.length],
                             display: "flex", alignItems: "center", justifyContent: "center" }}>
