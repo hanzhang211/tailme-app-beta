@@ -101,7 +101,7 @@ export default function PawPlanetPage({ pet, onBack }) {
         </div>
 
         {/* 星球主视觉 */}
-        <PlanetHero petImageUrl={avatar} petName={petName} /* planetImageUrl / backgroundImageUrl 预留 */ />
+        <PlanetHero petImageUrl={avatar} petName={petName} planetImageUrl="/xingqiu.png" />
 
         {/* 今天的它 摘要卡 */}
         <div style={{ display: "flex", justifyContent: "center", marginTop: 2 }}>

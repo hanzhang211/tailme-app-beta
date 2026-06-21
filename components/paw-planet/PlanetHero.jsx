@@ -28,10 +28,16 @@ export default function PlanetHero({ planetImageUrl, petImageUrl, backgroundImag
         <span className="ph-halo" />
 
         {planetImageUrl ? (
-          /* 真实星球 PNG（以后替换用） */
-          <img src={planetImageUrl} alt="爪爪星球"
-               style={{ width: 264, height: 264, objectFit: "contain",
-                        filter: "drop-shadow(0 16px 36px rgba(80,90,160,0.4))" }} />
+          /* 真实星球 PNG（xingqiu.png 已含草地/房子/树/小伙伴；主宠物叠在中间草地上） */
+          <div style={{ position: "relative", width: 270, height: 270, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <img src={planetImageUrl} alt="爪爪星球"
+                 style={{ width: 270, height: 270, objectFit: "contain",
+                          filter: "drop-shadow(0 16px 36px rgba(80,90,160,0.4))" }} />
+            <img src={petImageUrl} alt={petName} className="ph-pet"
+                 style={{ position: "absolute", left: "50%", top: "31%", width: 104, height: 104,
+                          objectFit: "contain", display: "block",
+                          filter: "drop-shadow(0 6px 12px rgba(40,60,30,0.3))" }} />
+          </div>
         ) : (
           /* 第一版 CSS 草地小星球 */
           <div style={{ position: "relative", width: 240, height: 240, borderRadius: "50%",
