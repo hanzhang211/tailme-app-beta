@@ -20,14 +20,23 @@ import { useRef, useEffect } from "react";
 import { Mic as MicIcon } from "lucide-react";
 import BackButton from "@/components/icons/BackButton";
 import { Controls } from "@/components/pet-call/ActiveCall";
-import { QUICK_REPLIES } from "@/lib/petCallTemplates";
 import { formatDuration } from "@/hooks/usePetCall";
 
 const C = { pri: "#E68645", text: "#2A2520", sub: "#8A8178", bg: "#F4ECE0" };
 
+// 快捷按钮配色（浅米背景上）：完成=浅绿 / 主推=橙底白 / 结束=浅红 / 其它=白底橙边
+function ccActionStyle(type) {
+  switch (type) {
+    case "primary": return { background: "#E68645", color: "#fff", border: "1px solid #E68645" };
+    case "success": return { background: "#EAF6EE", color: "#3E8E5A", border: "1px solid #8FCBA3" };
+    case "danger":  return { background: "#FBE6D4", color: "#C0451F", border: "1px solid rgba(217,84,43,0.35)" };
+    default:        return { background: "#fff", color: "#E68645", border: "1px solid #E68645" };
+  }
+}
+
 export default function CallChatMode({
-  name, avatar, seconds, messages, subtitleTone, muted, speaker,
-  onToggleMute, onToggleSpeaker, onReply, onEnd, onSwitchToVoice,
+  name, avatar, seconds, messages, subtitleTone, quickActions, muted, speaker,
+  onToggleMute, onToggleSpeaker, onAction, onEnd, onSwitchToVoice,
 }) {
   const scrollRef = useRef(null);
   useEffect(() => {
@@ -80,15 +89,13 @@ export default function CallChatMode({
         )}
       </div>
 
-      {/* 快捷回复 */}
+      {/* 快捷按钮（按 call_type 动态生成，见 lib/petCallQuickActions） */}
       <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "8px 14px", flexShrink: 0 }}>
-        {QUICK_REPLIES.map((q) => (
-          <button key={q.id} onClick={() => onReply(q)}
+        {(quickActions || []).map((a) => (
+          <button key={a.key} onClick={() => onAction(a)}
             style={{ flexShrink: 0, padding: "9px 16px", borderRadius: 18, cursor: "pointer", fontSize: 13.5, fontWeight: 700,
-                     background: q.end ? "#FBE6D4" : "#fff",
-                     border: q.end ? "1px solid rgba(217,84,43,0.35)" : `1px solid ${C.pri}`,
-                     color: q.end ? "#C0451F" : C.pri, WebkitTapHighlightColor: "transparent" }}>
-            {q.text}
+                     WebkitTapHighlightColor: "transparent", ...ccActionStyle(a.type) }}>
+            {a.label}
           </button>
         ))}
       </div>

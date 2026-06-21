@@ -21,8 +21,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { isCatPet } from "@/services/breedAvatar";
 import { formatPetAge } from "@/services/petAge";
 import { usePetCall } from "@/hooks/usePetCall";
-import { getCallSettings, saveCallSettings, addCallRecord, updateCallRecord } from "@/services/petCallService";
+import { getCallSettings, saveCallSettings, addCallRecord, updateCallRecord, markFeedingDone } from "@/services/petCallService";
+import { setMedDoneToday } from "@/services/petHealthService";
 import { DEFAULT_SCENES } from "@/lib/petCallTemplates";
+import { getPetCallQuickActions } from "@/lib/petCallQuickActions";
 import { playPetVoice, triggerForScene, resolveCallEmotion } from "@/lib/petCallEmotionMap";
 import CallSettings from "@/components/pet-call/CallSettings";
 import CallPreview from "@/components/pet-call/CallPreview";
@@ -39,7 +41,7 @@ const DEFAULT_SETTINGS = {
   repeat_rule: "daily", call_style: "coquettish", voice_type: "cute_female",
 };
 
-export default function PetCallCenter({ user, pet, onClose, initialTrigger }) {
+export default function PetCallCenter({ user, pet, onClose, onNavigate, initialTrigger }) {
   const auto = initialTrigger || null;            // 自动来电触发信息（含 recordId）
   const recordId = auto?.recordId || null;
 
@@ -73,6 +75,7 @@ export default function PetCallCenter({ user, pet, onClose, initialTrigger }) {
   /* 当前通话的触发 context：自动来电用细分 call_type，手动体验用场景默认 context */
   const activeContext = auto ? auto.call_type : triggerForScene(currentScene);
   const subtitleTone = resolveCallEmotion(activeContext, petType).subtitleTone;
+  const quickActions = getPetCallQuickActions(activeContext); // 按 call_type 动态生成快捷按钮
 
   /* ── 自动来电：挂载即准备好对应场景 ── */
   useEffect(() => {
@@ -158,11 +161,64 @@ export default function PetCallCenter({ user, pet, onClose, initialTrigger }) {
   const handleDecline = async () => { await finishMissed("declined"); toast("已挂断"); exitCall(); };
   const handleLater = async () => { await finishMissed("missed"); toast("好的，我等你有空再聊～"); exitCall(); };
 
-  /* ── 通话中：快捷回复 / 挂断 ── */
-  const handleReply = (q) => {
-    const isEnd = call.reply(q);
-    if (isEnd) { handleHangup(); return; }
-    playPetVoice(activeContext, petType); // 宠物每说一句播放对应情绪叫声
+  /* ── 通话中：快捷按钮动作（按 call_type 动态，复用现有业务/页面）── */
+  const doConfirmMedicine = async () => {
+    const recId = auto?.trigger_source_id?.split("_")[1]; // med_{diseaseId}_{date} → diseaseId
+    if (recId) { try { setMedDoneToday(recId, true); } catch {} } // 复用现有「完成用药」
+    if (recordId) { try { await updateCallRecord(recordId, { status: "completed", ended_at: new Date().toISOString() }); } catch {} }
+    toast("已记录本次用药");
+    setTimeout(() => handleHangup(), 1300);
+  };
+
+  const doConfirmFeeding = async () => {
+    const idx = auto?.trigger_source_id?.split("_")[3]; // feed_{petId}_{date}_{idx} → idx
+    if (idx != null && idx !== "") markFeedingDone(pet.id, Number(idx)); // 复用首页同款「完成喂食」打卡
+    if (recordId) { try { await updateCallRecord(recordId, { status: "completed", ended_at: new Date().toISOString() }); } catch {} }
+    toast("已记录本次喂食");
+    setTimeout(() => handleHangup(), 1300);
+  };
+
+  const navigateAfter = (target) => {
+    if (recordId) updateCallRecord(recordId, { status: "answered", answered_at: new Date().toISOString() }).catch(() => {});
+    setTimeout(() => { if (onNavigate) onNavigate(target); else onClose?.(); }, 800); // 显示宠物回复后再跳转
+  };
+
+  const finishStatus = async (status, toastMsg) => {
+    if (recordId) { try { await updateCallRecord(recordId, { status, ended_at: new Date().toISOString() }); } catch {} }
+    else { await recordMissed(status); }
+    if (toastMsg) toast(toastMsg);
+    setTimeout(() => exitCall(), 1000);
+  };
+
+  const saveMemory = async (done) => {
+    if (recordId) { try { await updateCallRecord(recordId, { status: done ? "completed" : "answered" }); } catch {} }
+    toast(done ? "好的，已记下啦 🐾" : "好的，我陪你慢慢来");
+    // 第一版继续对话，不强制结束（memory_followup 表状态更新留待后续接入）
+  };
+
+  const handleAction = (btn) => {
+    if (btn.replyText) {
+      call.pushExchange(btn.replyText, btn.petReply || null);
+      if (btn.petReply) playPetVoice(activeContext, petType); // 宠物每说一句播放对应情绪叫声
+    }
+    switch (btn.action) {
+      case "end_call": handleHangup(); break;
+      case "open_chat": setCallMode("chat"); break;
+      case "confirm_medicine": doConfirmMedicine(); break;
+      case "confirm_feeding": doConfirmFeeding(); break;
+      case "go_medicine":
+      case "go_health": navigateAfter("health"); break;
+      case "go_feeding": navigateAfter("feeding"); break;
+      case "go_walk":
+      case "go_walk_nearby": navigateAfter("social"); break;
+      case "go_card": navigateAfter("sharecard"); break;
+      case "snooze": finishStatus("snoozed", "已记录，稍后提醒你"); break;
+      case "dismiss": finishStatus("dismissed", null); break;
+      case "save_memory_done": saveMemory(true); break;
+      case "save_memory_pending": saveMemory(false); break;
+      case "continue":
+      default: break; // 仅推进对话，留在通话
+    }
   };
 
   const handleHangup = () => {
@@ -220,15 +276,16 @@ export default function PetCallCenter({ user, pet, onClose, initialTrigger }) {
   } else if (view === "active") {
     const common = {
       name, avatar, seconds: call.seconds,
+      quickActions, subtitleTone,
       muted: call.muted, speaker: call.speaker,
       onToggleMute: () => call.setMuted((m) => !m),
       onToggleSpeaker: () => call.setSpeaker((s) => !s),
-      onReply: handleReply, onEnd: handleHangup,
+      onAction: handleAction, onEnd: handleHangup,
     };
     screen = callMode === "chat" ? (
-      <CallChatMode {...common} messages={call.messages} subtitleTone={subtitleTone} onSwitchToVoice={() => setCallMode("voice")} />
+      <CallChatMode {...common} messages={call.messages} onSwitchToVoice={() => setCallMode("voice")} />
     ) : (
-      <ActiveCall {...common} petLine={petLine} subtitleTone={subtitleTone} onSwitchToChat={() => setCallMode("chat")} />
+      <ActiveCall {...common} petLine={petLine} onSwitchToChat={() => setCallMode("chat")} />
     );
   } else if (view === "ended") {
     screen = <CallEnded name={name} avatar={avatar} duration={endedDuration} onDone={handleDone} />;

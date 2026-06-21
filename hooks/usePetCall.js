@@ -71,6 +71,16 @@ export function usePetCall() {
     return false;
   }, [callType]);
 
+  /** 直接追加一轮「用户气泡 + 宠物气泡」（快捷按钮专属对话，文案来自 petCallQuickActions）。 */
+  const pushExchange = useCallback((userText, petText) => {
+    setMessages((m) => {
+      const next = [...m];
+      if (userText) next.push({ from: "user", text: userText });
+      if (petText) next.push({ from: "pet", text: petText });
+      return next;
+    });
+  }, []);
+
   /** 挂断：停止计时，返回本通最终时长（秒）。 */
   const stop = useCallback(() => {
     clearInterval(timerRef.current);
@@ -85,7 +95,7 @@ export function usePetCall() {
   return {
     callType, messages, step, seconds, muted, speaker,
     setMuted, setSpeaker,
-    prepare, startConversation, reply, stop,
+    prepare, startConversation, reply, pushExchange, stop,
   };
 }
 

@@ -182,6 +182,22 @@ export async function countTodayAutoCalls(userId) {
   return count || 0;
 }
 
+/**
+ * 标记某餐「今日已完成」——写入与首页喂食卡同一 localStorage（tailme_feed_done_{本地日期}_{petId}）。
+ * 等价于首页点「已完成」打卡：首页会同步显示已完成、自动触发也不再为该餐来电。不改首页/喂食数据结构。
+ */
+export function markFeedingDone(petId, mealIndex) {
+  if (typeof window === "undefined" || !petId || mealIndex == null) return;
+  try {
+    const d = new Date(); const p = (n) => String(n).padStart(2, "0");
+    const today = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    const key = `tailme_feed_done_${today}_${petId}`;
+    const cur = JSON.parse(localStorage.getItem(key) || "{}");
+    cur[mealIndex] = true;
+    localStorage.setItem(key, JSON.stringify(cur));
+  } catch { /* localStorage 不可用则忽略 */ }
+}
+
 /** 「想你来电」连续 2 次未接 → 暂停 3 天（不影响用药/喂食等刚需提醒）。 */
 export async function isMissYouPaused(userId) {
   if (!userId) return false;

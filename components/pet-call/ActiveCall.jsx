@@ -16,14 +16,23 @@
 
 import { Mic, MicOff, PhoneOff, Volume2, VolumeX, MessageSquare } from "lucide-react";
 import BackButton from "@/components/icons/BackButton";
-import { QUICK_REPLIES } from "@/lib/petCallTemplates";
 import { formatDuration } from "@/hooks/usePetCall";
 
 const C = { pri: "#E68645", text: "#3A2A1A", sub: "#9A7A56" };
 
+// 快捷按钮配色（暖橙背景上）：完成=白底绿 / 主推=橙底白 / 结束=半透白红 / 其它=白底深
+function acActionStyle(type) {
+  switch (type) {
+    case "primary": return { background: "#E68645", color: "#fff", border: "1px solid #E68645" };
+    case "success": return { background: "#fff", color: "#3E8E5A", border: "1.5px solid #8FCBA3" };
+    case "danger":  return { background: "rgba(255,255,255,0.55)", color: "#C0451F", border: "1px solid rgba(217,84,43,0.4)" };
+    default:        return { background: "#fff", color: "#3A2A1A", border: "1px solid rgba(255,255,255,0.9)" };
+  }
+}
+
 export default function ActiveCall({
-  name, avatar, seconds, petLine, subtitleTone, muted, speaker,
-  onToggleMute, onToggleSpeaker, onReply, onEnd, onSwitchToChat,
+  name, avatar, seconds, petLine, subtitleTone, quickActions, muted, speaker,
+  onToggleMute, onToggleSpeaker, onAction, onEnd, onSwitchToChat,
 }) {
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden",
@@ -76,16 +85,14 @@ export default function ActiveCall({
           {petLine}
         </div>
 
-        {/* 快捷回复 */}
+        {/* 快捷按钮（按 call_type 动态生成，见 lib/petCallQuickActions） */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 22, width: "100%", maxWidth: 320 }}>
-          {QUICK_REPLIES.map((q) => (
-            <button key={q.id} onClick={() => onReply(q)}
+          {(quickActions || []).map((a) => (
+            <button key={a.key} onClick={() => onAction(a)}
               style={{ padding: "11px 0", borderRadius: 14, cursor: "pointer", fontSize: 14, fontWeight: 700,
-                       background: q.end ? "rgba(255,255,255,0.55)" : "#fff",
-                       border: q.end ? "1px solid rgba(217,84,43,0.4)" : "1px solid rgba(255,255,255,0.9)",
-                       color: q.end ? "#C0451F" : C.text, boxShadow: "0 2px 8px rgba(150,90,30,0.1)",
-                       WebkitTapHighlightColor: "transparent" }}>
-              {q.text}
+                       boxShadow: "0 2px 8px rgba(150,90,30,0.1)", WebkitTapHighlightColor: "transparent",
+                       ...acActionStyle(a.type) }}>
+              {a.label}
             </button>
           ))}
         </div>

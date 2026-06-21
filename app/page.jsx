@@ -531,7 +531,7 @@ function PetProfileComplete({ pet, onClose, onSaved }) {
   );
 }
 
-function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
+function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
   // 子页面：null | 'expenses' | 'recipes' | 'health' | 'news'
   const [subPage, setSubPage] = useState(null);
   const [monthExpense, setMonthExpense] = useState(null);
@@ -720,6 +720,16 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
     })();
     return () => { alive = false; };
   }, [user?.id, pet?.id]);
+
+  // 通话页快捷按钮跳转：关来电浮层 + 跳到对应现有页面（复用现有 subPage / tab / 分享卡，不新建页面）
+  const handleCallNavigate = (target) => {
+    setPetCallOpen(false); setAutoTrigger(null);
+    if (target === "health") setSubPage("health");
+    else if (target === "feeding") setSubPage("feeding");
+    else if (target === "petchat") setSubPage("petchat");
+    else if (target === "sharecard") setShareCardOpen(true);
+    else if (target === "social") onGoTab?.(0); // 遛弯 Tab
+  };
 
   // 每分钟 tick 一次，让基于时间的饿了提醒能随时间自动更新（无需手动刷新）
   const [, setNowTick] = useState(0);
@@ -1091,6 +1101,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
       )}
       {petCallOpen && (
         <PetCallCenter user={user} pet={pet} initialTrigger={autoTrigger}
+          onNavigate={handleCallNavigate}
           onClose={() => { setPetCallOpen(false); setAutoTrigger(null); }} />
       )}
       <div style={{ background:H_BG, padding:"max(env(safe-area-inset-top), 28px) 16px 2px",
@@ -1907,7 +1918,7 @@ export default function AppRoot() {
       <div style={{ position:"absolute", top:0, left:0, right:0, bottom:60, overflow:"hidden" }}>
         {tab === 0 && <SocialTab user={user} pet={pet} pets={pets} onOpenProfile={setProfileUserId} onOpenVerify={() => setVerifyOpen(true)} />}
         {tab === 1 && <MapTab user={user} onOpenVerify={() => setVerifyOpen(true)} />}
-        {tab === 2 && <HomeTab user={user} pet={pet} pets={pets} onPetUpdate={handlePetDataUpdated} onSwitchPet={setActivePet} />}
+        {tab === 2 && <HomeTab user={user} pet={pet} pets={pets} onPetUpdate={handlePetDataUpdated} onSwitchPet={setActivePet} onGoTab={setTab} />}
         {tab === 3 && <CommunityTab user={user} pet={pet} pets={pets} onUserUpdated={setUser} onOpenProfile={setProfileUserId} />}
         {tab === 4 && <ProfileTab user={user} pet={pet} onSetActivePet={setActivePet} onPetUpdated={handlePetDataUpdated} onPetDeleted={handlePetDeleted} onUserUpdated={setUser} onOpenProfile={setProfileUserId} onOpenVerify={() => setVerifyOpen(true)} onLogout={handleLogout} />}
       </div>
