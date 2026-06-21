@@ -9,9 +9,9 @@
 import { CalendarDays } from "lucide-react";
 import BackButton from "@/components/icons/BackButton";
 import { PLANET_C as C } from "@/lib/pawPlanetMock";
-import { storyThumb } from "@/lib/pawPlanetDailyStories";
+import { storyImage } from "@/lib/pawPlanetDailyStories";
 
-export default function TodayView({ petName = "毛孩子", avatar, stories = [], onBack }) {
+export default function TodayView({ petName = "毛孩子", stories = [], onBack }) {
   const items = stories;
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "#F4ECE0" }}>
@@ -41,11 +41,9 @@ export default function TodayView({ petName = "毛孩子", avatar, stories = [],
                 {it.title && <div style={{ fontSize: 13.5, fontWeight: 800, color: C.text, marginBottom: 4 }}>{it.title}</div>}
                 <div style={{ fontSize: 13, color: it.title ? C.sub : C.text, lineHeight: 1.7 }}>{it.text}</div>
               </div>
-              <div style={{ height: 92, borderRadius: 14, marginTop: 8, background: storyThumb(it.type),
-                            display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <img src={avatar} alt="" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover",
-                                                   border: "2px solid rgba(255,255,255,0.8)" }} />
-              </div>
+              <img src={storyImage(it.type)} alt={it.title} loading="eager" decoding="async"
+                   style={{ width: "100%", aspectRatio: "1536 / 1024", objectFit: "cover", borderRadius: 14,
+                            marginTop: 8, display: "block" }} />
             </div>
           </div>
         ))}
