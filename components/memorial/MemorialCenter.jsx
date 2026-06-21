@@ -39,7 +39,8 @@ function PlanetIcon({ size = 22, color = C.pri }) {
   );
 }
 
-const avatarOf = (pet) => pet?.ai_avatar_url || pet?.pet_avatar_thumb_url || (isCatPet(pet) ? "/cat.png" : "/dog.png");
+// 与首页一致：优先 thumb 缩略图（300px 透明小图，秒加载），其次 AI 原图，再次猫狗占位
+const avatarOf = (pet) => pet?.pet_avatar_thumb_url || pet?.ai_avatar_url || (isCatPet(pet) ? "/cat.png" : "/dog.png");
 const genderLabel = (pet) => (pet?.gender === "female" ? "女孩" : pet?.gender === "male" ? "男孩" : null);
 const daysWith = (pet) => {
   const d = pet?.created_at || pet?.birthday;

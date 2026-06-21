@@ -33,7 +33,8 @@ import MailboxView from "@/components/paw-planet/MailboxView";
 import MemorialCardView from "@/components/paw-planet/MemorialCardView";
 import { PLANET_C as C, buildPlanetMock } from "@/lib/pawPlanetMock";
 
-const avatarOf = (pet) => pet?.ai_avatar_url || pet?.pet_avatar_thumb_url || (isCatPet(pet) ? "/cat.png" : "/dog.png");
+// 与首页一致：优先 thumb 缩略图（300px 透明小图，秒加载），其次 AI 原图，再次猫狗占位
+const avatarOf = (pet) => pet?.pet_avatar_thumb_url || pet?.ai_avatar_url || (isCatPet(pet) ? "/cat.png" : "/dog.png");
 
 export default function PawPlanetPage({ pet, onBack }) {
   const [view, setView] = useState("home");
