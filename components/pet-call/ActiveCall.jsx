@@ -22,7 +22,7 @@ import { formatDuration } from "@/hooks/usePetCall";
 const C = { pri: "#E68645", text: "#3A2A1A", sub: "#9A7A56" };
 
 export default function ActiveCall({
-  name, avatar, seconds, petLine, muted, speaker,
+  name, avatar, seconds, petLine, subtitleTone, muted, speaker,
   onToggleMute, onToggleSpeaker, onReply, onEnd, onSwitchToChat,
 }) {
   return (
@@ -55,7 +55,21 @@ export default function ActiveCall({
           <span style={{ position: "absolute", top: 6, right: 24, fontSize: 20 }}>💛</span>
         </div>
 
-        {/* 宠物气泡 */}
+        {/* 宠物语翻译中 + 语气标签（情绪/叫声由场景自动匹配） */}
+        <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 12 }}>
+          <span style={{ fontSize: 13, color: "#A8531C", fontWeight: 700 }}>🐾 宠物语翻译中</span>
+          <span className="ac-tdot" style={{ animationDelay: "0s", color: "#A8531C" }}>·</span>
+          <span className="ac-tdot" style={{ animationDelay: ".2s", color: "#A8531C" }}>·</span>
+          <span className="ac-tdot" style={{ animationDelay: ".4s", color: "#A8531C" }}>·</span>
+          {subtitleTone && (
+            <span style={{ marginLeft: 4, fontSize: 11.5, fontWeight: 800, color: "#fff",
+                           background: C.pri, padding: "2px 10px", borderRadius: 10 }}>
+              {subtitleTone}
+            </span>
+          )}
+        </div>
+
+        {/* 宠物气泡（字幕） */}
         <div style={{ background: "#fff", borderRadius: 20, padding: "14px 18px", maxWidth: 300,
                       boxShadow: "0 6px 18px rgba(150,90,30,0.16)", fontSize: 15, fontWeight: 600,
                       color: C.text, lineHeight: 1.6, textAlign: "center" }}>
@@ -83,6 +97,8 @@ export default function ActiveCall({
       <style>{`
         @keyframes ac-wave { 0%{transform:scale(.86);opacity:.55} 70%{transform:scale(1.25);opacity:0} 100%{transform:scale(1.25);opacity:0} }
         .ac-wave { position:absolute; width:170px; height:170px; border-radius:50%; background:rgba(230,134,69,0.35); animation:ac-wave 2.6s ease-out infinite; }
+        @keyframes ac-blink { 0%,100%{opacity:.3} 50%{opacity:1} }
+        .ac-tdot { font-weight:800; animation:ac-blink 1.2s infinite; }
       `}</style>
     </div>
   );

@@ -3,17 +3,13 @@
 /**
  * components/pet-call/PetCallCenter.jsx
  *
- * 【AI 宠物来电】全屏浮层容器（沿用商城/分享卡同款浮层模式，保留底部 tab 与登录态）。
- * 内部用 view 状态机切 8 个画面（非真实路由）：
- *   settings  → 来电设置 / 中心（第 2 屏）
- *   preview   → 推送预览（第 3 屏，mock）
- *   incoming  → 来电中（第 4 屏）
- *   active    → 通话中·语音模式（第 5 屏） ⇄ chat 聊天模式（第 6 屏）
- *   ended     → 通话结束 + 心情记录（第 7 屏）
- *   history   → 通话记录（第 8 屏）
+ * 【AI 宠物来电】全屏浮层容器（场景驱动版）。view 状态机切 8 画面（非真实路由）：
+ *   settings → preview → incoming → active(语音 ⇄ chat 聊天) → ended → history
  *
- * 第一版：固定话术模板 + 模拟来电；保存设置 / 保存通话记录走真实表。
- * 预留：usePetCall.reply / startConversation 内 TODO 为后续 AI 对话 + TTS 挂点。
+ * 场景驱动：用户只在设置页开关「来电场景」；情绪 / 猫狗叫声 / 字幕语气由
+ *   lib/petCallEmotionMap 自动匹配（不再手动选风格/声音）。
+ * 第一版「立即体验来电」默认演示「想你来电」场景；通话页按 pet_type 播放对应叫声
+ *   （无音频文件静默回退、不报错、不阻塞）+ 显示「宠物语翻译中」与字幕。
  *
  * props: { user, pet, onClose }
  */
@@ -23,6 +19,8 @@ import { isCatPet } from "@/services/breedAvatar";
 import { formatPetAge } from "@/services/petAge";
 import { usePetCall } from "@/hooks/usePetCall";
 import { getCallSettings, saveCallSettings, addCallRecord } from "@/services/petCallService";
+import { DEFAULT_SCENES } from "@/lib/petCallTemplates";
+import { playPetVoice, triggerForScene, resolveCallEmotion } from "@/lib/petCallEmotionMap";
 import CallSettings from "@/components/pet-call/CallSettings";
 import CallPreview from "@/components/pet-call/CallPreview";
 import IncomingCall from "@/components/pet-call/IncomingCall";
@@ -42,6 +40,8 @@ export default function PetCallCenter({ user, pet, onClose }) {
   const [view, setView] = useState("settings");
   const [callMode, setCallMode] = useState("voice"); // active 时：voice / chat
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [scenes, setScenes] = useState(DEFAULT_SCENES);
+  const [currentScene, setCurrentScene] = useState("miss_you"); // 本通来电的场景
   const [saving, setSaving] = useState(false);
   const [endedDuration, setEndedDuration] = useState(0);
   const [notice, setNotice] = useState(null);
@@ -59,18 +59,25 @@ export default function PetCallCenter({ user, pet, onClose }) {
   const name = pet?.name || "毛孩子";
   const avatar = pet?.ai_avatar_url || pet?.pet_avatar_thumb_url || (isCatPet(pet) ? "/cat.png" : "/dog.png");
   const hasAiAvatar = !!pet?.ai_avatar_url;
+  const petType = isCatPet(pet) ? "cat" : "dog";
   const genderLabel = pet?.gender === "female" ? "女孩" : pet?.gender === "male" ? "男孩" : null;
   const ageStr = formatPetAge(pet?.birthday);
   const metaLine = [pet?.breed, ageStr, genderLabel].filter(Boolean).join(" · ");
 
-  /* ── 载入已存设置 ── */
+  /* 当前场景的字幕语气（如 撒娇 / 委屈 / 关心），由情绪映射自动给出 */
+  const subtitleTone = resolveCallEmotion(triggerForScene(currentScene), petType).subtitleTone;
+
+  /* ── 载入已存设置 + 场景开关 ── */
   useEffect(() => {
     let alive = true;
     (async () => {
       if (!pet?.id) return;
       try {
         const s = await getCallSettings(pet.id);
-        if (alive && s) setSettings({ ...DEFAULT_SETTINGS, ...s });
+        if (alive && s) {
+          setSettings({ ...DEFAULT_SETTINGS, ...s });
+          setScenes({ ...DEFAULT_SCENES, ...(s.scenes && typeof s.scenes === "object" ? s.scenes : {}) });
+        }
       } catch (e) {
         if (alive) toast(e.message || "加载设置失败");
       }
@@ -82,12 +89,16 @@ export default function PetCallCenter({ user, pet, onClose }) {
     setSettings((s) => ({ ...s, [field]: value }));
   }, []);
 
-  /* ── 保存设置 ── */
+  const onToggleScene = useCallback((id) => {
+    setScenes((p) => ({ ...p, [id]: !p[id] }));
+  }, []);
+
+  /* ── 保存设置（含场景开关）── */
   const handleSave = async () => {
     if (!user?.id || !pet?.id) { toast("缺少账号或宠物信息"); return; }
     setSaving(true);
     try {
-      await saveCallSettings(user.id, pet.id, settings);
+      await saveCallSettings(user.id, pet.id, { ...settings, scenes });
       toast("来电设置已保存 🐾");
     } catch (e) {
       toast(e.message || "保存失败");
@@ -96,9 +107,10 @@ export default function PetCallCenter({ user, pet, onClose }) {
     }
   };
 
-  /* ── 立即体验来电 → 推送预览 ── */
+  /* ── 立即体验来电 → 推送预览（第一版默认演示「想你来电」场景）── */
   const handleTestCall = () => {
-    call.prepare(settings.call_type);
+    setCurrentScene("miss_you");
+    call.prepare("miss_you");
     startedAtRef.current = new Date().toISOString();
     setCallMode("voice");
     setView("preview");
@@ -107,6 +119,7 @@ export default function PetCallCenter({ user, pet, onClose }) {
   /* ── 来电中：接听 / 挂断 / 稍后再说 ── */
   const handleAccept = () => {
     call.startConversation();
+    playPetVoice(triggerForScene(currentScene), petType); // 狗用狗叫、猫用猫叫；无文件静默
     setView("active");
   };
 
@@ -114,7 +127,7 @@ export default function PetCallCenter({ user, pet, onClose }) {
     if (!user?.id || !pet?.id) return;
     try {
       await addCallRecord({
-        user_id: user.id, pet_id: pet.id, call_type: settings.call_type,
+        user_id: user.id, pet_id: pet.id, call_type: currentScene,
         status, duration_seconds: 0,
         started_at: startedAtRef.current, ended_at: new Date().toISOString(),
       });
@@ -136,7 +149,8 @@ export default function PetCallCenter({ user, pet, onClose }) {
   /* ── 通话中：快捷回复 / 挂断 ── */
   const handleReply = (q) => {
     const isEnd = call.reply(q);
-    if (isEnd) handleHangup();
+    if (isEnd) { handleHangup(); return; }
+    playPetVoice(triggerForScene(currentScene), petType); // 宠物每说一句播放对应情绪叫声
   };
 
   const handleHangup = () => {
@@ -160,7 +174,7 @@ export default function PetCallCenter({ user, pet, onClose }) {
         toast(e.message || "保存记录失败");
       }
     }
-    call.prepare(settings.call_type);
+    call.prepare(currentScene);
     setView("settings");
     toast("通话记录已保存 🐾");
   };
@@ -173,7 +187,7 @@ export default function PetCallCenter({ user, pet, onClose }) {
     screen = (
       <CallSettings
         name={name} avatar={avatar} hasAiAvatar={hasAiAvatar} metaLine={metaLine}
-        settings={settings} setField={setField} saving={saving}
+        settings={settings} setField={setField} scenes={scenes} onToggleScene={onToggleScene} saving={saving}
         onSave={handleSave} onTestCall={handleTestCall}
         onOpenHistory={() => setView("history")} onClose={onClose}
       />
@@ -201,9 +215,9 @@ export default function PetCallCenter({ user, pet, onClose }) {
       onReply: handleReply, onEnd: handleHangup,
     };
     screen = callMode === "chat" ? (
-      <CallChatMode {...common} messages={call.messages} onSwitchToVoice={() => setCallMode("voice")} />
+      <CallChatMode {...common} messages={call.messages} subtitleTone={subtitleTone} onSwitchToVoice={() => setCallMode("voice")} />
     ) : (
-      <ActiveCall {...common} petLine={petLine} onSwitchToChat={() => setCallMode("chat")} />
+      <ActiveCall {...common} petLine={petLine} subtitleTone={subtitleTone} onSwitchToChat={() => setCallMode("chat")} />
     );
   } else if (view === "ended") {
     screen = <CallEnded name={name} avatar={avatar} duration={endedDuration} onDone={handleDone} />;

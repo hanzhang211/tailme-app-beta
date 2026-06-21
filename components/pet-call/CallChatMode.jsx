@@ -26,7 +26,7 @@ import { formatDuration } from "@/hooks/usePetCall";
 const C = { pri: "#E68645", text: "#2A2520", sub: "#8A8178", bg: "#F4ECE0" };
 
 export default function CallChatMode({
-  name, avatar, seconds, messages, muted, speaker,
+  name, avatar, seconds, messages, subtitleTone, muted, speaker,
   onToggleMute, onToggleSpeaker, onReply, onEnd, onSwitchToVoice,
 }) {
   const scrollRef = useRef(null);
@@ -44,7 +44,9 @@ export default function CallChatMode({
         <BackButton onClick={onEnd} />
         <div style={{ flex: 1, textAlign: "center", marginLeft: -38 }}>
           <div style={{ fontSize: 17, fontWeight: 900, color: C.text }}>{name}</div>
-          <div style={{ fontSize: 12, color: C.sub, marginTop: 2 }}>{formatDuration(seconds)}</div>
+          <div style={{ fontSize: 12, color: C.sub, marginTop: 2 }}>
+            {formatDuration(seconds)} · 🐾 宠物语翻译中{subtitleTone ? ` · ${subtitleTone}` : ""}
+          </div>
         </div>
         <button onClick={onSwitchToVoice} aria-label="语音模式"
           style={{ width: 38, height: 38, borderRadius: "50%", border: "none", cursor: "pointer",

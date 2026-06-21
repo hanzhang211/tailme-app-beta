@@ -3,26 +3,28 @@
 /**
  * components/pet-call/CallSettings.jsx
  *
- * 宠物来电设置 / 来电中心（参考设计图第 2 屏）：
- * 宠物卡 + 来电类型 + 来电时间 + 重复 + 来电风格 + 声音 + 保存 / 立即体验来电。
+ * 宠物来电设置 / 来电中心（场景驱动版）：
+ * 宠物卡 + 来电场景开关 + 智能情绪声音说明 + 来电时间 + 重复 + 保存 / 立即体验来电。
+ *
+ * 已移除：来电风格 chip、声音选择（改为场景自动匹配情绪与叫声，见 lib/petCallEmotionMap）。
  *
  * props: {
  *   name, avatar, hasAiAvatar, metaLine,
- *   settings, setField, saving,
+ *   settings, setField, scenes, onToggleScene, saving,
  *   onSave, onTestCall, onOpenHistory, onClose,
  * }
  */
 
-import { Clock, ChevronRight, Sparkles } from "lucide-react";
+import { Clock, Sparkles, Languages } from "lucide-react";
 import BackButton from "@/components/icons/BackButton";
-import CallTypeSelector from "@/components/pet-call/CallTypeSelector";
-import { CALL_STYLES, VOICE_TYPES, REPEAT_RULES, voiceLabel } from "@/lib/petCallTemplates";
+import CallScenes from "@/components/pet-call/CallScenes";
+import { REPEAT_RULES } from "@/lib/petCallTemplates";
 
 const C = { pri: "#E68645", text: "#2A2520", sub: "#8A8178", bg: "#EEE9E1", border: "#EFE3D5", light: "#FFF3E9" };
 
 export default function CallSettings({
   name, avatar, hasAiAvatar, metaLine,
-  settings, setField, saving,
+  settings, setField, scenes, onToggleScene, saving,
   onSave, onTestCall, onOpenHistory, onClose,
 }) {
   return (
@@ -63,12 +65,36 @@ export default function CallSettings({
           </div>
         )}
 
-        {/* 来电类型 */}
-        <SectionTitle>来电类型</SectionTitle>
-        <CallTypeSelector value={settings.call_type} onChange={(v) => setField("call_type", v)} />
+        {/* 来电场景开关 */}
+        <SectionTitle>来电场景</SectionTitle>
+        <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.6, marginTop: -4, marginBottom: 12 }}>
+          选择你希望宠物在哪些时刻主动给你打电话。
+        </div>
+        <CallScenes scenes={scenes} onToggle={onToggleScene} />
+
+        {/* 智能情绪声音 */}
+        <SectionTitle>智能情绪声音</SectionTitle>
+        <div style={{ fontSize: 12.5, color: C.sub, lineHeight: 1.7, marginTop: -4, marginBottom: 12 }}>
+          宠物会根据不同场景，自动使用开心、撒娇、委屈、着急等叫声，并用字幕翻译它想说的话。
+        </div>
+        <div style={{ background: "linear-gradient(135deg,#FFF4E8,#FCE6D2)", borderRadius: 18,
+                      border: "1px solid #F4D9BE", padding: "14px 16px", display: "flex", gap: 12 }}>
+          <span style={{ width: 40, height: 40, borderRadius: 13, background: "#fff", flexShrink: 0,
+                         display: "flex", alignItems: "center", justifyContent: "center",
+                         boxShadow: "0 2px 8px rgba(230,134,69,0.2)" }}>
+            <Languages size={20} color={C.pri} />
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#A8531C" }}>宠物语翻译模式</div>
+            <div style={{ fontSize: 12, color: "#A86E3D", lineHeight: 1.7, marginTop: 4 }}>
+              猫猫狗狗不会真的说人话，但它会用自己的声音表达情绪，字幕会帮你理解它想说什么。
+            </div>
+          </div>
+        </div>
 
         {/* 时间 + 重复 */}
-        <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`, marginTop: 16,
+        <SectionTitle>来电时间</SectionTitle>
+        <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`,
                       boxShadow: "0 1px 4px rgba(0,0,0,0.03)", overflow: "hidden" }}>
           <Row label="来电时间">
             <input type="time" value={settings.call_time}
@@ -85,39 +111,6 @@ export default function CallSettings({
             </select>
           </Row>
         </div>
-
-        {/* 来电风格 */}
-        <SectionTitle>来电风格</SectionTitle>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {CALL_STYLES.map((s) => {
-            const on = settings.call_style === s.id;
-            return (
-              <button key={s.id} onClick={() => setField("call_style", s.id)}
-                style={{ padding: "9px 20px", borderRadius: 20, cursor: "pointer", fontSize: 13.5, fontWeight: 700,
-                         background: on ? C.pri : "#fff", color: on ? "#fff" : C.sub,
-                         border: `1.5px solid ${on ? C.pri : C.border}`, WebkitTapHighlightColor: "transparent" }}>
-                {s.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* 声音选择 */}
-        <SectionTitle>声音选择</SectionTitle>
-        <button
-          onClick={() => {
-            const idx = VOICE_TYPES.findIndex((v) => v.id === settings.voice_type);
-            const next = VOICE_TYPES[(idx + 1) % VOICE_TYPES.length];
-            setField("voice_type", next.id);
-          }}
-          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                   background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`, padding: "14px 16px",
-                   cursor: "pointer", boxShadow: "0 1px 4px rgba(0,0,0,0.03)" }}>
-          <span style={{ fontSize: 14.5, fontWeight: 700, color: C.text }}>🔊 {voiceLabel(settings.voice_type)}</span>
-          <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12.5, color: C.sub }}>
-            更换声音 <ChevronRight size={16} color={C.sub} />
-          </span>
-        </button>
       </div>
 
       {/* 底部按钮 */}

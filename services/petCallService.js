@@ -27,7 +27,7 @@ export async function getCallSettings(petId) {
   if (!petId) return null;
   const { data, error } = await sb()
     .from("pet_call_settings")
-    .select("enabled, call_type, call_time, repeat_rule, call_style, voice_type")
+    .select("enabled, call_type, call_time, repeat_rule, call_style, voice_type, scenes")
     .eq("pet_id", petId)
     .maybeSingle();
   if (error) throw new Error(`获取来电设置失败: ${error.message}`);
@@ -43,8 +43,9 @@ export async function saveCallSettings(userId, petId, fields) {
     call_type: fields.call_type || "miss_you",
     call_time: fields.call_time || "20:00",
     repeat_rule: fields.repeat_rule || "daily",
-    call_style: fields.call_style || "coquettish",
-    voice_type: fields.voice_type || "cute_female",
+    call_style: fields.call_style || "coquettish", // UI 已移除手动选风格，保留字段写默认占位
+    voice_type: fields.voice_type || "cute_female", // UI 已移除手动选声音，保留字段写默认占位
+    scenes: fields.scenes && typeof fields.scenes === "object" ? fields.scenes : {}, // 场景开关
     updated_at: new Date().toISOString(),
   };
   // UNIQUE(pet_id) → upsert，存在则更新
