@@ -37,6 +37,7 @@ import { toastColors }   from "@/services/toastTheme";
 import PetEditor       from "./PetEditor";
 import PetOnboarding   from "./PetOnboarding";
 import SettingsModal   from "./SettingsModal";
+import MemorialCenter  from "@/components/memorial/MemorialCenter";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
 import { Star, Settings } from "lucide-react";
 
@@ -147,6 +148,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
   const [editorPet,    setEditorPet]    = useState(undefined); // undefined=closed, obj=edit（仅编辑用）
   const [addOpen,      setAddOpen]      = useState(false);     // 新增宠物：走 PetOnboarding 引导流程
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [memorialOpen, setMemorialOpen] = useState(false);
   const [avatarPet,    setAvatarPet]    = useState(null); // 当前生成头像的宠物，null=关闭
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false); // 用户头像选择弹窗
   const [editNameOpen, setEditNameOpen] = useState(false);          // 编辑用户名弹窗
@@ -739,8 +741,20 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
           onDeletePet={handleDeletePet}
           onLogout={handleLogout}
           onClose={() => setSettingsOpen(false)}
+          onOpenMemorial={() => { setSettingsOpen(false); setMemorialOpen(true); }}
           toast={toast}
         />
+      )}
+
+      {/* 星球纪念模式（全屏浮层） */}
+      {memorialOpen && (
+        <MemorialCenter pets={pets} user={user}
+          onClose={() => setMemorialOpen(false)}
+          onPetUpdated={(updated) => {
+            setPets((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+            onPetUpdated?.(updated);
+          }}
+          toast={toast} />
       )}
 
       {detailId && (
