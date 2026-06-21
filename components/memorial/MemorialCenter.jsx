@@ -14,31 +14,18 @@
  * props: { pets, user, onClose, onPetUpdated, toast }
  */
 
-import { useState, useEffect } from "react";
-import { Heart, Image as ImageIcon, Clock, Sparkles, PawPrint, ChevronRight, Mail, PenLine } from "lucide-react";
+import { useState } from "react";
+import { Heart, Image as ImageIcon, Clock, Sparkles, ChevronRight } from "lucide-react";
 import BackButton from "@/components/icons/BackButton";
 import { isCatPet } from "@/services/breedAvatar";
-import { formatPetAge, formatBirthday } from "@/services/petAge";
+import { formatPetAge } from "@/services/petAge";
 import { updatePet } from "@/services/supabaseService";
+import PawPlanetPage from "@/components/paw-planet/PawPlanetPage";
 
 const C = {
   pri: "#E68645", bg: "#F3ECE0", card: "#FFFFFF", text: "#2A2520",
   sub: "#9A8E7E", border: "#EFE3D5", soft: "#A86E3D", light: "#FFF3E9", deep: "#C25E1C",
 };
-
-const MEMORIAL_LINES = [
-  "我已经到爪爪星球啦",
-  "我在这里过得很好，也认识了新朋友",
-  "主人别难过，我会一直陪着你",
-  "在爪爪星球，我每天都很开心",
-];
-
-const STAR_LETTERS = [
-  "主人，今天也有好好吃饭吗？我在星球上很想你。",
-  "这里的云软软的，我每天都和新朋友追着星星跑～",
-  "你要照顾好自己呀，我会一直在爪爪星球等你。",
-  "谢谢你曾经那么爱我，这份温暖我一直带在身边。",
-];
 
 /* 橙色小星球 icon（带环 + 小爪点） */
 function PlanetIcon({ size = 22, color = C.pri }) {
@@ -66,7 +53,6 @@ export default function MemorialCenter({ pets = [], user, onClose, onPetUpdated,
   const [view, setView] = useState("select");
   const [selectedId, setSelectedId] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [lineIdx, setLineIdx] = useState(0);
   const [confirmClose, setConfirmClose] = useState(null); // 待关闭的 pet
   const [notice, setNotice] = useState(null);
 
@@ -78,15 +64,8 @@ export default function MemorialCenter({ pets = [], user, onClose, onPetUpdated,
     note._t = setTimeout(() => setNotice(null), 2200);
   };
 
-  // home 文案轮播
-  useEffect(() => {
-    if (view !== "home") return;
-    const t = setInterval(() => setLineIdx((i) => (i + 1) % MEMORIAL_LINES.length), 3800);
-    return () => clearInterval(t);
-  }, [view]);
-
   const openIntro = (pet) => { setSelectedId(pet.id); setView("intro"); };
-  const openHome = (pet) => { setSelectedId(pet.id); setLineIdx(0); setView("home"); };
+  const openHome = (pet) => { setSelectedId(pet.id); setView("home"); };
 
   const enableMemorial = async () => {
     if (!selected || busy) return;
@@ -95,7 +74,7 @@ export default function MemorialCenter({ pets = [], user, onClose, onPetUpdated,
       const updated = await updatePet(selected.id, { is_memorial_mode: true, memorial_started_at: new Date().toISOString() });
       onPetUpdated?.(updated);
       note("已进入爪爪星球 🪐");
-      setLineIdx(0); setView("home");
+      setView("home");
     } catch (e) { note(e.message || "开启失败"); }
     finally { setBusy(false); }
   };
@@ -262,77 +241,9 @@ export default function MemorialCenter({ pets = [], user, onClose, onPetUpdated,
     </>);
   }
 
-  /* ════════ 屏三：爪爪星球纪念主页 ════════ */
+  /* ════════ 屏三：进入完整「爪爪星球」独立页面模块 ════════ */
   if (view === "home" && selected) {
-    const started = selected.memorial_started_at ? formatBirthday(selected.memorial_started_at) : null;
-    return wrap(<>
-      <div style={{ padding: "max(env(safe-area-inset-top), 28px) 16px 6px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0, zIndex: 2 }}>
-        <BackButton onClick={() => setView("select")} />
-        <div style={{ flex: 1, textAlign: "center", fontSize: 18, fontWeight: 800, color: C.text }}>爪爪星球</div>
-        <PlanetIcon size={26} />
-      </div>
-
-      <div style={{ flex: 1, overflowY: "auto", padding: "4px 16px 28px",
-                    background: "linear-gradient(180deg,#FBF1E2 0%,#F3ECE0 38%)" }}>
-        {/* 主视觉 */}
-        <div style={{ position: "relative", padding: "26px 0 18px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <Sparkles size={20} color="#F2B27E" style={{ position: "absolute", left: "20%", top: 14, opacity: 0.8 }} />
-          <PawPrint size={20} color="#F2B27E" style={{ position: "absolute", right: "20%", top: 30, opacity: 0.7, transform: "rotate(14deg)" }} />
-          <Heart size={16} color="#EBA9B8" style={{ position: "absolute", left: "26%", top: 70, opacity: 0.7 }} fill="#EBA9B8" />
-          <span style={{ position: "absolute", right: "22%", top: 86, fontSize: 18, opacity: 0.8 }}>☁️</span>
-          <span style={{ position: "absolute", left: "16%", top: 120, fontSize: 15, opacity: 0.7 }}>☁️</span>
-
-          <div style={{ position: "relative", marginBottom: 16 }}>
-            <span style={{ position: "absolute", inset: -10, borderRadius: "50%",
-                           background: "radial-gradient(circle, rgba(230,134,69,0.22), transparent 70%)" }} />
-            <img src={avatarOf(selected)} alt={selected.name}
-                 style={{ position: "relative", width: 124, height: 124, borderRadius: "50%", objectFit: "cover",
-                          border: "4px solid #fff", boxShadow: "0 8px 26px rgba(230,134,69,0.25)", background: "#F2E5DA" }} />
-            <span style={{ position: "absolute", right: -6, bottom: 2 }}><PlanetIcon size={34} /></span>
-          </div>
-
-          <div style={{ fontSize: 22, fontWeight: 900, color: C.text }}>{selected.name || "毛孩子"}</div>
-          <div onClick={() => setLineIdx((i) => (i + 1) % MEMORIAL_LINES.length)}
-               style={{ fontSize: 14, fontWeight: 600, color: C.deep, marginTop: 10, minHeight: 22,
-                        textAlign: "center", cursor: "pointer", transition: "opacity .3s" }}>
-            「 {MEMORIAL_LINES[lineIdx]} 」
-          </div>
-        </div>
-
-        {/* 小档案 */}
-        <div style={{ background: C.card, borderRadius: 18, border: `1px solid ${C.border}`, padding: "14px 16px",
-                      boxShadow: "0 2px 10px rgba(0,0,0,0.04)" }}>
-          {started && (
-            <div style={{ fontSize: 12, color: C.pri, fontWeight: 700, marginBottom: 10,
-                          display: "flex", alignItems: "center", gap: 5 }}>
-              <PlanetIcon size={15} /> 进入爪爪星球 · {started}
-            </div>
-          )}
-          <ProfileRow label="名字" value={selected.name || "—"} />
-          <ProfileRow label="品种" value={selected.breed || "—"} />
-          <ProfileRow label="性别" value={genderLabel(selected) || "—"} />
-          <ProfileRow label="年龄" value={formatPetAge(selected.birthday) || "—"} />
-          <ProfileRow label="生日" value={formatBirthday(selected.birthday) || "—"} last />
-        </div>
-
-        {/* 功能卡 */}
-        <div style={{ marginTop: 14 }}>
-          <InfoCard Icon={PenLine} title="纪念日记" sub="记录想对它说的话" onClick={() => note("纪念日记即将上线 🐾")} />
-          <InfoCard Icon={Mail} title="星球来信" sub="来自爪爪星球的温柔陪伴" onClick={() => note(STAR_LETTERS[Math.floor(lineIdx) % STAR_LETTERS.length])} />
-          <InfoCard Icon={ImageIcon} title="回忆相册" sub="珍藏它的每一张照片" onClick={() => note("回忆相册即将上线 🐾")} last />
-        </div>
-      </div>
-
-      {/* 底部按钮 */}
-      <div style={{ padding: "10px 16px max(env(safe-area-inset-bottom), 16px)", background: C.bg, flexShrink: 0 }}>
-        <button onClick={() => note("它在星球上过得很开心呢 🪐")}
-          style={{ width: "100%", padding: "15px 0", borderRadius: 16, border: "none", cursor: "pointer",
-                   background: C.pri, color: "#fff", fontSize: 15.5, fontWeight: 800,
-                   boxShadow: "0 6px 18px rgba(230,134,69,0.32)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          看看它在星球上的生活 <Sparkles size={18} color="#fff" />
-        </button>
-      </div>
-    </>);
+    return <PawPlanetPage pet={selected} onBack={() => setView("select")} />;
   }
 
   return wrap(<div style={{ flex: 1 }} />);
@@ -355,16 +266,6 @@ function InfoCard({ Icon, title, sub, onClick, last }) {
       </span>
       <ChevronRight size={18} color="#C9BFB2" style={{ flexShrink: 0 }} />
     </button>
-  );
-}
-
-function ProfileRow({ label, value, last }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "9px 0", borderBottom: last ? "none" : "1px solid #F4EDE3" }}>
-      <span style={{ fontSize: 13, color: C.sub }}>{label}</span>
-      <span style={{ fontSize: 13.5, fontWeight: 600, color: C.text }}>{value}</span>
-    </div>
   );
 }
 
