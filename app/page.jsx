@@ -37,6 +37,8 @@ import AvatarGenerator from "@/components/home/AvatarGenerator";
 import ShareCardCenter from "@/components/share/ShareCardCenter";
 import PetCallCenter from "@/components/pet-call/PetCallCenter";
 import PetCallEntryButton from "@/components/pet-call/PetCallEntryButton";
+import { checkPetCallTriggers, markAppOpened, shouldRunCheck } from "@/services/petCallTriggerService";
+import { createIncomingCallRecord } from "@/services/petCallService";
 import PetOnboarding from "@/components/profile/PetOnboarding";
 import VerifyFlow from "@/components/profile/VerifyFlow";
 import PetAvatar from "@/components/PetAvatar";
@@ -537,6 +539,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
   const [avatarOpen,       setAvatarOpen]   = useState(false);
   const [shareCardOpen,    setShareCardOpen] = useState(false);
   const [petCallOpen,      setPetCallOpen]   = useState(false);
+  const [autoTrigger,      setAutoTrigger]   = useState(null); // 自动触发来电信息（含 recordId）
   const [avatarBroken,     setAvatarBroken] = useState(false);
   const [avatarLoaded,     setAvatarLoaded] = useState(false);
   const [cachedAvatar,     setCachedAvatar] = useState(null); // 该宠物上次成功显示的头像（localStorage 占位）
@@ -687,6 +690,36 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
       .finally(() => { if (alive) setFeedLoading(false); });
     return () => { alive = false; };
   }, [pet?.id]);
+
+  // ── AI 宠物来电：自动触发检查（首页加载 / 切宠物时；会话内每宠物 5 分钟节流）──
+  //   命中则创建 incoming 记录并弹出来电浮层；check 之后再标记"已打开"（供"久未打开"判断）。
+  useEffect(() => {
+    if (!user?.id || !pet?.id) return;
+    if (!shouldRunCheck(user.id, pet.id)) return;
+    let alive = true;
+    (async () => {
+      try {
+        const trig = await checkPetCallTriggers(user, pet);
+        if (alive && trig) {
+          let recordId = null;
+          try {
+            recordId = await createIncomingCallRecord({
+              user_id: user.id, pet_id: pet.id,
+              call_type: trig.call_type, trigger_type: trig.trigger_type,
+              trigger_source_id: trig.trigger_source_id, trigger_source_table: trig.trigger_source_table,
+              emotion: trig.emotion, subtitle: trig.subtitle, sound_key: trig.sound_key,
+            });
+          } catch { /* 建记录失败仍可弹来电 */ }
+          if (alive) {
+            setAutoTrigger({ ...trig, recordId, triggered_at: new Date().toISOString() });
+            setPetCallOpen(true);
+          }
+        }
+      } catch { /* 触发检查失败不影响首页 */ }
+      finally { markAppOpened(user.id); }
+    })();
+    return () => { alive = false; };
+  }, [user?.id, pet?.id]);
 
   // 每分钟 tick 一次，让基于时间的饿了提醒能随时间自动更新（无需手动刷新）
   const [, setNowTick] = useState(0);
@@ -1057,7 +1090,8 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
         <ShareCardCenter user={user} pet={pet} onClose={() => setShareCardOpen(false)} />
       )}
       {petCallOpen && (
-        <PetCallCenter user={user} pet={pet} onClose={() => setPetCallOpen(false)} />
+        <PetCallCenter user={user} pet={pet} initialTrigger={autoTrigger}
+          onClose={() => { setPetCallOpen(false); setAutoTrigger(null); }} />
       )}
       <div style={{ background:H_BG, padding:"max(env(safe-area-inset-top), 28px) 16px 2px",
                     position:"relative", overflow:"hidden" }}>
@@ -1070,8 +1104,8 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet }) {
             </div>
           </div>
           {/* 首页不再暴露 admin 入口（上线隔离）；管理员请直接访问网址 /admin */}
-          {/* 右上角：AI 宠物来电入口（点击进入宠物来电中心） */}
-          <PetCallEntryButton onClick={() => setPetCallOpen(true)} />
+          {/* 右上角：AI 宠物来电入口（点击进入宠物来电中心；手动打开不带自动触发） */}
+          <PetCallEntryButton onClick={() => { setAutoTrigger(null); setPetCallOpen(true); }} />
         </div>
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
 

@@ -39,10 +39,10 @@ export function usePetCall() {
     setSpeaker(true);
   }, []);
 
-  /** 接听：放出宠物开场白并开始计时。 */
-  const startConversation = useCallback(() => {
+  /** 接听：放出宠物开场白并开始计时。openingOverride 用于自动来电时的场景专属字幕。 */
+  const startConversation = useCallback((openingOverride) => {
     const t = getCallType(callType);
-    setMessages([{ from: "pet", text: t.flow[0] }]);
+    setMessages([{ from: "pet", text: openingOverride || t.flow[0] }]);
     setStep(0);
     startRef.current = Date.now();
     clearInterval(timerRef.current);

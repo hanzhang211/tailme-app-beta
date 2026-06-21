@@ -68,6 +68,15 @@ export async function addCallRecord(record) {
     mood_feedback: record.mood_feedback || null,
     started_at: record.started_at || null,
     ended_at: record.ended_at || new Date().toISOString(),
+    trigger_type: record.trigger_type || null,
+    trigger_source_id: record.trigger_source_id || null,
+    trigger_source_table: record.trigger_source_table || null,
+    emotion: record.emotion || null,
+    subtitle: record.subtitle || null,
+    sound_key: record.sound_key || null,
+    scheduled_for: record.scheduled_for || null,
+    triggered_at: record.triggered_at || null,
+    answered_at: record.answered_at || null,
   };
   const { data, error } = await sb()
     .from("pet_call_records")
@@ -97,4 +106,93 @@ export async function clearCallRecords(userId) {
     .delete()
     .eq("user_id", userId);
   if (error) throw new Error(`清空通话记录失败: ${error.message}`);
+}
+
+/* ════ 自动触发来电（incoming record + 防重复 / 频率查询）════════════ */
+
+// 本地「今天 00:00」对应的 ISO（用于按本地自然日过滤 created_at）
+function todayStartISO() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
+/** 自动触发命中时，先建一条 status='incoming' 的来电记录，返回 id（前端据此弹来电、后续 update 状态）。 */
+export async function createIncomingCallRecord(rec) {
+  if (!rec?.user_id || !rec?.pet_id) throw new Error("缺少 userId / petId");
+  const nowISO = new Date().toISOString();
+  const row = {
+    user_id: rec.user_id,
+    pet_id: rec.pet_id,
+    call_type: rec.call_type || null,
+    status: "incoming",
+    trigger_type: rec.trigger_type || null,
+    trigger_source_id: rec.trigger_source_id || null,
+    trigger_source_table: rec.trigger_source_table || null,
+    emotion: rec.emotion || null,
+    subtitle: rec.subtitle || null,
+    sound_key: rec.sound_key || null,
+    scheduled_for: rec.scheduled_for || nowISO,
+    triggered_at: nowISO,
+    started_at: nowISO,
+  };
+  const { data, error } = await sb()
+    .from("pet_call_records").insert(row).select("id").maybeSingle();
+  if (error) throw new Error(`创建来电记录失败: ${error.message}`);
+  return data?.id || null;
+}
+
+/** 更新某条来电记录（接听 / 挂断 / 完成时改 status、时长、心情等）。 */
+export async function updateCallRecord(id, patch) {
+  if (!id || !patch) return;
+  const { error } = await sb().from("pet_call_records").update(patch).eq("id", id);
+  if (error) throw new Error(`更新通话记录失败: ${error.message}`);
+}
+
+/** 防重复：今天是否已为同一触发来源（某餐/某次用药/某遛弯…）触发过来电。 */
+export async function hasTriggeredToday(petId, triggerSourceId) {
+  if (!petId || !triggerSourceId) return false;
+  const { data, error } = await sb()
+    .from("pet_call_records").select("id")
+    .eq("pet_id", petId).eq("trigger_source_id", triggerSourceId)
+    .gte("created_at", todayStartISO()).limit(1);
+  if (error) return false;
+  return (data || []).length > 0;
+}
+
+/** 今天是否已触发过某一类来电（如 medication，用于"已用药来电则当天不再生病照护"）。 */
+export async function hasTriggeredTypeToday(petId, triggerType) {
+  if (!petId || !triggerType) return false;
+  const { data, error } = await sb()
+    .from("pet_call_records").select("id")
+    .eq("pet_id", petId).eq("trigger_type", triggerType)
+    .gte("created_at", todayStartISO()).limit(1);
+  if (error) return false;
+  return (data || []).length > 0;
+}
+
+/** 今天该用户的自动触发来电次数（trigger_type 非空），用于频率限制。 */
+export async function countTodayAutoCalls(userId) {
+  if (!userId) return 0;
+  const { count, error } = await sb()
+    .from("pet_call_records").select("id", { count: "exact", head: true })
+    .eq("user_id", userId).not("trigger_type", "is", null)
+    .gte("created_at", todayStartISO());
+  if (error) return 0;
+  return count || 0;
+}
+
+/** 「想你来电」连续 2 次未接 → 暂停 3 天（不影响用药/喂食等刚需提醒）。 */
+export async function isMissYouPaused(userId) {
+  if (!userId) return false;
+  const { data, error } = await sb()
+    .from("pet_call_records").select("status, created_at")
+    .eq("user_id", userId).eq("trigger_type", "miss_you")
+    .order("created_at", { ascending: false }).limit(2);
+  if (error || !data || data.length < 2) return false;
+  const missed = (s) => s === "missed" || s === "declined";
+  if (missed(data[0].status) && missed(data[1].status)) {
+    return Date.now() - new Date(data[0].created_at).getTime() < 3 * 24 * 3600 * 1000;
+  }
+  return false;
 }
