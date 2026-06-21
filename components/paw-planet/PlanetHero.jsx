@@ -46,11 +46,11 @@ export default function PlanetHero({ planetImageUrl, petImageUrl, backgroundImag
             <span style={{ position: "absolute", left: "15%", bottom: "25%", fontSize: 17 }}>🌸</span>
             <span style={{ position: "absolute", right: "21%", bottom: "23%", fontSize: 15 }}>🌼</span>
             <span style={{ position: "absolute", left: "44%", bottom: "16%", fontSize: 14 }}>🌷</span>
-            {/* 宠物（站在星球上，轻浮动） */}
+            {/* 宠物（透明抠图直接融入，无边框无圆形，和首页主头像一致；轻浮动） */}
             <img src={petImageUrl} alt={petName} className="ph-pet"
-                 style={{ position: "absolute", left: "50%", top: "33%", width: 94, height: 94, borderRadius: "50%",
-                          objectFit: "cover", border: "3px solid #fff", background: "#F2E5DA",
-                          boxShadow: "0 6px 16px rgba(0,0,0,0.22)" }} />
+                 style={{ position: "absolute", left: "50%", top: "28%", width: 110, height: 110,
+                          objectFit: "contain", display: "block",
+                          filter: "drop-shadow(0 6px 14px rgba(40,60,30,0.32))" }} />
             {/* 小伙伴 */}
             <img src="/dog.png" alt="" style={{ position: "absolute", left: "12%", top: "42%", width: 34, height: 34, objectFit: "contain", opacity: 0.95 }} />
             <img src="/cat.png" alt="" style={{ position: "absolute", right: "11%", bottom: "33%", width: 30, height: 30, objectFit: "contain", opacity: 0.92 }} />

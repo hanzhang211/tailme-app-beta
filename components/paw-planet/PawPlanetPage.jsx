@@ -157,7 +157,8 @@ function MeView({ petName, avatar, daysTogether, onLeave }) {
                   justifyContent: "center", gap: 14, padding: "0 30px",
                   background: "linear-gradient(180deg,#4A4885,#8E84C8)" }}>
       <img src={avatar} alt={petName}
-           style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover", border: "3px solid rgba(255,255,255,0.9)" }} />
+           style={{ width: 110, height: 110, objectFit: "contain", display: "block",
+                    filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }} />
       <div style={{ fontSize: 19, fontWeight: 900, color: "#fff" }}>{petName}</div>
       {daysTogether != null && (
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.88)" }}>陪伴了你 {daysTogether} 天 · 现在在爪爪星球</div>

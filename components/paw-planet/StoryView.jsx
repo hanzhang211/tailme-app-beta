@@ -25,8 +25,8 @@ export default function StoryView({ petName = "毛孩子", avatar, mock, onBack 
             <span style={{ position: "absolute", inset: -8, borderRadius: "50%",
                            background: "radial-gradient(circle, rgba(255,221,180,0.5), transparent 70%)" }} />
             <img src={avatar} alt={petName}
-                 style={{ position: "relative", width: 96, height: 96, borderRadius: "50%", objectFit: "cover",
-                          border: "3px solid rgba(255,255,255,0.9)", boxShadow: "0 8px 24px rgba(0,0,0,0.3)" }} />
+                 style={{ position: "relative", width: 112, height: 112, objectFit: "contain", display: "block",
+                          filter: "drop-shadow(0 8px 18px rgba(0,0,0,0.32))" }} />
           </div>
         </div>
         {paragraphs.map((p, i) => (
