@@ -41,11 +41,9 @@ export default function TodayView({ petName = "毛孩子", stories = [], onBack 
                 {it.title && <div style={{ fontSize: 13.5, fontWeight: 800, color: C.text, marginBottom: 4 }}>{it.title}</div>}
                 <div style={{ fontSize: 13, color: it.title ? C.sub : C.text, lineHeight: 1.7 }}>{it.text}</div>
               </div>
-              {/* 卡片图自带白色相框，用 overflow 裁切 + 放大把白边推出视野，融入背景 */}
-              <div style={{ width: "100%", aspectRatio: "1536 / 1024", borderRadius: 14, overflow: "hidden", marginTop: 8 }}>
-                <img src={storyImage(it.type)} alt={it.title} loading="eager" decoding="async"
-                     style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transform: "scale(1.16)" }} />
-              </div>
+              <img src={storyImage(it.type)} alt={it.title} loading="eager" decoding="async"
+                   style={{ width: "100%", aspectRatio: "1536 / 1024", objectFit: "cover", borderRadius: 14,
+                            marginTop: 8, display: "block" }} />
             </div>
           </div>
         ))}
