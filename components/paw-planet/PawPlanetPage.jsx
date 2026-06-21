@@ -32,7 +32,7 @@ import StoryView from "@/components/paw-planet/StoryView";
 import MailboxView from "@/components/paw-planet/MailboxView";
 import MemorialCardView from "@/components/paw-planet/MemorialCardView";
 import { PLANET_C as C, buildPlanetMock } from "@/lib/pawPlanetMock";
-import { getDailyPlanetStories } from "@/lib/pawPlanetDailyStories";
+import { getDailyPlanetStories, getPlanetLetters } from "@/lib/pawPlanetDailyStories";
 
 // 与首页一致：优先 thumb 缩略图（300px 透明小图，秒加载），其次 AI 原图，再次猫狗占位
 const avatarOf = (pet) => pet?.pet_avatar_thumb_url || pet?.ai_avatar_url || (isCatPet(pet) ? "/cat.png" : "/dog.png");
@@ -44,7 +44,9 @@ export default function PawPlanetPage({ pet, onBack }) {
   const petName = pet?.name || "毛孩子";
   const avatar = avatarOf(pet);
   const mock = useMemo(() => buildPlanetMock(petName), [petName]);
-  const todayStories = useMemo(() => getDailyPlanetStories({ pet }), [pet?.id]); // 按 petId+日期固定，每天变化
+  const [letters, setLetters] = useState(() => getPlanetLetters(pet?.id)); // 第一版 localStorage，预留接 memorial_letters
+  const refreshLetters = () => setLetters(getPlanetLetters(pet?.id));
+  const todayStories = useMemo(() => getDailyPlanetStories({ pet, letters }), [pet?.id, letters]); // petId+日期固定；写信后下一段变「收到信」
   const enteredAt = pet?.memorial_started_at ? formatBirthday(pet.memorial_started_at) : null;
   const daysTogether = useMemo(() => {
     const d = pet?.created_at || pet?.birthday;
@@ -64,7 +66,7 @@ export default function PawPlanetPage({ pet, onBack }) {
     : ["gallery", "card", "timeline"].includes(view) ? "gallery"
     : view === "me" ? "me" : "home";
 
-  const sub = { petName, avatar, mock, daysTogether, onBack: () => setView("home"), toast, onOpen: setView };
+  const sub = { petName, avatar, mock, daysTogether, petId: pet?.id, onBack: () => setView("home"), toast, onOpen: setView, onLetterSaved: refreshLetters };
 
   let body;
   if (view === "today") body = <TodayView {...sub} stories={todayStories} />;

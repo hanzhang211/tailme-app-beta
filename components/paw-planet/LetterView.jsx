@@ -10,14 +10,17 @@ import { useState } from "react";
 import { Camera } from "lucide-react";
 import BackButton from "@/components/icons/BackButton";
 import { PLANET_C as C } from "@/lib/pawPlanetMock";
+import { addPlanetLetter } from "@/lib/pawPlanetDailyStories";
 
-export default function LetterView({ petName = "毛孩子", onBack, toast }) {
+export default function LetterView({ petName = "毛孩子", petId, onBack, toast, onLetterSaved }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
 
   const save = () => {
     if (!content.trim()) { toast?.("写点想对它说的话吧～"); return; }
-    // 第一版：mock 保存，提示已寄出。后续接 memorial_letters 表。
+    // 第一版：写入 localStorage（预留接 memorial_letters）；并通知刷新，使「今天的它」下一段变收到信
+    addPlanetLetter(petId, { title, content });
+    onLetterSaved?.();
     toast?.("已寄到星球信箱 💌");
     setTitle(""); setContent("");
     setTimeout(() => onBack?.(), 700);

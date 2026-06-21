@@ -9,8 +9,7 @@
 import { CalendarDays } from "lucide-react";
 import BackButton from "@/components/icons/BackButton";
 import { PLANET_C as C } from "@/lib/pawPlanetMock";
-
-const THUMBS = ["linear-gradient(135deg,#FBE3D0,#F3C49B)", "linear-gradient(135deg,#DDEFC9,#B6D99A)", "linear-gradient(135deg,#E6DEF7,#C6BCE8)"];
+import { storyThumb } from "@/lib/pawPlanetDailyStories";
 
 export default function TodayView({ petName = "毛孩子", avatar, stories = [], onBack }) {
   const items = stories;
@@ -42,7 +41,7 @@ export default function TodayView({ petName = "毛孩子", avatar, stories = [],
                 {it.title && <div style={{ fontSize: 13.5, fontWeight: 800, color: C.text, marginBottom: 4 }}>{it.title}</div>}
                 <div style={{ fontSize: 13, color: it.title ? C.sub : C.text, lineHeight: 1.7 }}>{it.text}</div>
               </div>
-              <div style={{ height: 92, borderRadius: 14, marginTop: 8, background: THUMBS[i % THUMBS.length],
+              <div style={{ height: 92, borderRadius: 14, marginTop: 8, background: storyThumb(it.type),
                             display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <img src={avatar} alt="" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover",
                                                    border: "2px solid rgba(255,255,255,0.8)" }} />
