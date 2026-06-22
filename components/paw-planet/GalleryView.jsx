@@ -2,8 +2,8 @@
 
 /**
  * components/paw-planet/GalleryView.jsx
- * 「回忆相册」——用户上传图片/标题/分类生成回忆卡片（真实数据，Supabase memorial_memories）。
- * 分类 tab 中文显示，库里存英文 key（daily/birthday/travel/favorite/null）。
+ * 「回忆相册」——梦幻紫星空视觉（仅样式改造；上传/分类筛选/删除/详情/生成纪念卡逻辑保持不变）。
+ * 数据：Supabase memorial_memories。分类 tab 中文显示，库里存英文 key（daily/birthday/travel/favorite/null）。
  * props: { petName, avatar, petId, userId, toast, onBack, onOpen }
  */
 
@@ -11,6 +11,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Plus, Star, X } from "lucide-react";
 import BackButton from "@/components/icons/BackButton";
 import PetTrashIcon from "@/components/icons/PetTrashIcon";
+import FloatingStars from "@/components/paw-planet/FloatingStars";
+import { PLANET_PURPLE as P, GlassCircle, MemoryAlbumPlaceholder } from "@/components/paw-planet/PlanetDecor";
 import { PLANET_C as C, GALLERY_CATEGORIES } from "@/lib/pawPlanetMock";
 import { listMemories, deleteMemory } from "@/services/memorialMemoryService";
 import AddMemoryForm from "@/components/paw-planet/AddMemoryForm";
@@ -67,45 +69,47 @@ export default function GalleryView({ petName = "毛孩子", avatar, petId, user
   );
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "#F4ECE0" }}>
+    <div style={{ height: "100%", position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", background: P.bg }}>
+      <FloatingStars />
+
       {/* header：右上角「+」= 添加回忆卡片 */}
-      <div style={{ padding: "max(env(safe-area-inset-top), 28px) 16px 8px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-        <BackButton onClick={onBack} />
-        <div style={{ flex: 1, textAlign: "center", fontSize: 17, fontWeight: 800, color: C.text }}>回忆相册</div>
-        <button onClick={() => setShowAdd(true)} aria-label="添加回忆卡片"
-          style={{ width: 38, height: 38, borderRadius: "50%", background: C.pri, border: "none", cursor: "pointer",
-                   display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                   boxShadow: "0 3px 10px rgba(230,134,69,0.3)" }}>
+      <div style={{ position: "relative", zIndex: 1, padding: "max(env(safe-area-inset-top), 28px) 16px 8px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+        <BackButton onClick={onBack} bg={P.glassBtn} color="#fff" border={false} shadow={false} />
+        <div style={{ flex: 1, textAlign: "center", fontSize: 18, fontWeight: 800, color: "#fff" }}>回忆相册</div>
+        <GlassCircle onClick={() => setShowAdd(true)} ariaLabel="添加回忆卡片">
           <Plus size={20} color="#fff" strokeWidth={2.6} />
-        </button>
+        </GlassCircle>
       </div>
 
       {/* 分类 tab */}
-      <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "4px 16px 10px", flexShrink: 0 }}>
+      <div style={{ position: "relative", zIndex: 1, display: "flex", gap: 8, overflowX: "auto", padding: "4px 16px 10px", flexShrink: 0 }}>
         {GALLERY_CATEGORIES.map((g) => {
           const on = cat === g;
           return (
             <button key={g} onClick={() => setCat(g)}
               style={{ flexShrink: 0, padding: "7px 16px", borderRadius: 16, cursor: "pointer", fontSize: 13, fontWeight: 700,
-                       background: on ? C.pri : "#fff", color: on ? "#fff" : C.sub,
-                       border: `1px solid ${on ? C.pri : C.border}`, WebkitTapHighlightColor: "transparent" }}>
+                       background: on ? P.chipOn : "rgba(255,255,255,0.08)", color: "#fff",
+                       border: `1px solid ${on ? "transparent" : "rgba(255,255,255,0.4)"}`,
+                       boxShadow: on ? "0 4px 14px rgba(182,165,255,0.5)" : "none",
+                       backdropFilter: "blur(4px)", WebkitTapHighlightColor: "transparent" }}>
               {g}
             </button>
           );
         })}
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "4px 16px 20px" }}>
+      <div style={{ position: "relative", zIndex: 1, flex: 1, overflowY: "auto", padding: "4px 16px 20px" }}>
         {loading ? (
-          <div style={{ textAlign: "center", color: C.sub, marginTop: 70, fontSize: 13 }}>加载中…</div>
+          <div style={{ textAlign: "center", color: P.sub, marginTop: 70, fontSize: 13 }}>加载中…</div>
         ) : list.length === 0 ? (
-          <div style={{ textAlign: "center", color: C.sub, marginTop: 56 }}>
-            <div style={{ fontSize: 38, marginBottom: 10 }}>🖼️</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>还没有回忆卡片</div>
-            <div style={{ fontSize: 12, marginTop: 6, lineHeight: 1.6 }}>上传一张照片，把你们的<br />美好时光收藏起来吧</div>
+          <div style={{ textAlign: "center", marginTop: 28 }}>
+            <MemoryAlbumPlaceholder />
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginTop: 6 }}>还没有回忆卡片 ✨</div>
+            <div style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.7, color: P.sub }}>上传一张照片，把你们的<br />美好时光收藏起来吧</div>
             <button onClick={() => setShowAdd(true)}
-              style={{ marginTop: 18, padding: "11px 22px", borderRadius: 14, border: "none", cursor: "pointer",
-                       background: C.pri, color: "#fff", fontSize: 14, fontWeight: 800, boxShadow: "0 6px 16px rgba(230,134,69,0.3)" }}>
+              style={{ marginTop: 20, padding: "12px 26px", borderRadius: 16, border: "none", cursor: "pointer",
+                       background: "rgba(255,255,255,0.95)", color: "#7466D8", fontSize: 14, fontWeight: 800,
+                       boxShadow: "0 8px 22px rgba(120,100,216,0.35)" }}>
               添加回忆卡片
             </button>
           </div>
@@ -113,17 +117,17 @@ export default function GalleryView({ petName = "毛孩子", avatar, petId, user
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             {list.map((m) => (
               <div key={m.id} onClick={() => setDetail(m)}
-                style={{ position: "relative", borderRadius: 16, overflow: "hidden", background: "#fff", cursor: "pointer", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
-                <div style={{ height: 120, background: C.cream, overflow: "hidden" }}>
+                style={{ position: "relative", borderRadius: 16, overflow: "hidden", background: "#fff", cursor: "pointer", boxShadow: "0 6px 18px rgba(25,20,80,0.22)" }}>
+                <div style={{ height: 120, background: "#EDE6FB", overflow: "hidden" }}>
                   <PlaceholderImg src={m.image_url} alt={m.title}
                     style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                 </div>
                 <div style={{ padding: "8px 10px" }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.title}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#3A3460", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.title}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-                    <span style={{ fontSize: 10.5, color: C.sub }}>{fmtDate(m)}</span>
+                    <span style={{ fontSize: 10.5, color: "#9991C7" }}>{fmtDate(m)}</span>
                     {m.category && CAT_KEY_TO_LABEL[m.category] && (
-                      <span style={{ fontSize: 9.5, fontWeight: 700, color: C.pri, background: "#FFE9D8", borderRadius: 8, padding: "1px 6px" }}>
+                      <span style={{ fontSize: 9.5, fontWeight: 700, color: "#7466D8", background: "#EDE6FB", borderRadius: 8, padding: "1px 6px" }}>
                         {CAT_KEY_TO_LABEL[m.category]}
                       </span>
                     )}
@@ -132,9 +136,9 @@ export default function GalleryView({ petName = "毛孩子", avatar, petId, user
                 {/* 右下角删除（不触发打开详情） */}
                 <button onClick={(e) => { e.stopPropagation(); handleDelete(m); }} aria-label="删除回忆卡片"
                   style={{ position: "absolute", bottom: 6, right: 6, width: 26, height: 26, borderRadius: "50%",
-                           background: "rgba(255,255,255,0.92)", border: `1px solid ${C.border}`, cursor: "pointer",
-                           display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.12)" }}>
-                  <PetTrashIcon size={14} color={C.sub} />
+                           background: "rgba(255,255,255,0.92)", border: "1px solid #E2D7F6", cursor: "pointer",
+                           display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(40,30,90,0.18)" }}>
+                  <PetTrashIcon size={14} color="#8C83B9" />
                 </button>
               </div>
             ))}
@@ -142,13 +146,12 @@ export default function GalleryView({ petName = "毛孩子", avatar, petId, user
         )}
       </div>
 
-      {/* 底部：生成纪念卡片（纪念卡，保持不动） */}
-      <div style={{ padding: "10px 16px 14px", flexShrink: 0 }}>
+      {/* 底部：生成纪念卡片（纪念卡，逻辑保持不动） */}
+      <div style={{ position: "relative", zIndex: 1, padding: "10px 16px 14px", flexShrink: 0 }}>
         <button onClick={() => onOpen?.("card")}
-          style={{ width: "100%", padding: "14px 0", borderRadius: 16, border: "none", cursor: "pointer",
-                   background: C.pri, color: "#fff", fontSize: 15, fontWeight: 800,
-                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                   boxShadow: "0 6px 18px rgba(230,134,69,0.32)" }}>
+          style={{ width: "100%", padding: "14px 0", borderRadius: 18, border: "none", cursor: "pointer",
+                   background: P.btn, color: "#fff", fontSize: 15, fontWeight: 800,
+                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: P.btnGlow }}>
           <Star size={17} color="#fff" fill="#fff" /> 生成纪念卡片
         </button>
       </div>
@@ -162,34 +165,34 @@ export default function GalleryView({ petName = "毛孩子", avatar, petId, user
       {/* 回忆详情弹窗 */}
       {detail && (
         <div onClick={() => setDetail(null)}
-          style={{ position: "absolute", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.5)",
+          style={{ position: "absolute", inset: 0, zIndex: 40, background: "rgba(20,16,60,0.62)",
                    display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
           <div onClick={(e) => e.stopPropagation()}
-            style={{ width: "100%", maxWidth: 340, maxHeight: "86%", overflowY: "auto", background: "#fff", borderRadius: 20, position: "relative" }}>
+            style={{ width: "100%", maxWidth: 340, maxHeight: "86%", overflowY: "auto", background: "#FAF8FF", borderRadius: 20, position: "relative" }}>
             <button onClick={() => handleDelete(detail)} aria-label="删除回忆卡片"
               style={{ position: "absolute", top: 10, left: 10, zIndex: 1, width: 30, height: 30, borderRadius: "50%",
-                       background: "rgba(0,0,0,0.4)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                       background: "rgba(30,22,80,0.45)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <PetTrashIcon size={16} color="#fff" />
             </button>
             <button onClick={() => setDetail(null)} aria-label="关闭"
               style={{ position: "absolute", top: 10, right: 10, zIndex: 1, width: 30, height: 30, borderRadius: "50%",
-                       background: "rgba(0,0,0,0.4)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                       background: "rgba(30,22,80,0.45)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <X size={16} color="#fff" />
             </button>
             <PlaceholderImg src={detail.image_url} alt={detail.title}
               style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover", display: "block", borderRadius: "20px 20px 0 0" }} />
             <div style={{ padding: "14px 16px 18px" }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{detail.title}</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#3A3460" }}>{detail.title}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
-                <span style={{ fontSize: 12, color: C.sub }}>{fmtDate(detail)}</span>
+                <span style={{ fontSize: 12, color: "#9991C7" }}>{fmtDate(detail)}</span>
                 {detail.category && CAT_KEY_TO_LABEL[detail.category] && (
-                  <span style={{ fontSize: 10.5, fontWeight: 700, color: C.pri, background: "#FFE9D8", borderRadius: 8, padding: "2px 8px" }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: "#7466D8", background: "#EDE6FB", borderRadius: 8, padding: "2px 8px" }}>
                     {CAT_KEY_TO_LABEL[detail.category]}
                   </span>
                 )}
               </div>
               {detail.description && (
-                <div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.8, marginTop: 12, whiteSpace: "pre-wrap" }}>{detail.description}</div>
+                <div style={{ fontSize: 13.5, color: "#4A4470", lineHeight: 1.8, marginTop: 12, whiteSpace: "pre-wrap" }}>{detail.description}</div>
               )}
             </div>
           </div>
