@@ -16,6 +16,7 @@ import { addMemorialLetter } from "@/services/memorialLetterService";
 export default function LetterView({ petName = "毛孩子", petId, userId, avatar, petType = "dog", onBack, toast, onLetterSaved }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [signer, setSigner] = useState("主人"); // 署名「爱你的__」，用户可改
   const [saving, setSaving] = useState(false);
   const petImg = avatar || (petType === "cat" ? "/cat.png" : "/dog.png");
 
@@ -24,8 +25,10 @@ export default function LetterView({ petName = "毛孩子", petId, userId, avata
     if (saving) return;
     setSaving(true);
     try {
-      // 真实写入 Supabase memorial_letters（记录在案）；并通知刷新，使「今天的它」下一段变收到信
-      await addMemorialLetter({ userId, petId, title, content });
+      // 真实写入 Supabase memorial_letters（记录在案）；署名一并写进信末
+      const body = content.trim();
+      const full = signer.trim() ? `${body}\n\n—— 爱你的${signer.trim()}` : body;
+      await addMemorialLetter({ userId, petId, title, content: full });
       onLetterSaved?.();
       toast?.("已寄到星球信箱 💌");
       setTitle(""); setContent("");
@@ -45,7 +48,7 @@ export default function LetterView({ petName = "毛孩子", petId, userId, avata
       <div style={{ position: "relative", zIndex: 1, padding: "max(env(safe-area-inset-top), 28px) 16px 8px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         <BackButton onClick={onBack} bg={P.glassBtn} color="#fff" border={false} shadow={false} />
         <div style={{ flex: 1, textAlign: "center", fontSize: 18, fontWeight: 800, color: "#fff" }}>
-          写给它的信 <span style={{ fontSize: 13 }}>✨</span>
+          写给{petName}的信 <span style={{ fontSize: 13 }}>✨</span>
         </div>
         <GlassCircle ariaLabel="相机"><Camera size={17} color="#fff" /></GlassCircle>
       </div>
@@ -66,9 +69,16 @@ export default function LetterView({ petName = "毛孩子", petId, userId, avata
               placeholder={`亲爱的${petName}：\n今天又想你了……`} rows={9}
               style={{ width: "100%", border: "none", background: "transparent", outline: "none", resize: "none",
                        fontSize: 14, color: P.ink, lineHeight: "34px", fontFamily: "inherit" }} />
-            <div style={{ textAlign: "right", fontSize: 13, color: P.sign, marginTop: 4 }}>—— 爱你的主人</div>
-            <span style={{ position: "absolute", left: 14, bottom: 10, fontSize: 16, opacity: 0.85 }}>🐾</span>
-            <span style={{ position: "absolute", right: 16, bottom: 10, fontSize: 13, opacity: 0.8 }}>🐾</span>
+            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 2,
+                          fontSize: 13, color: P.sign, marginTop: 4 }}>
+              —— 爱你的
+              <input className="pp-letter-field" value={signer} onChange={(e) => setSigner(e.target.value)}
+                placeholder="主人" maxLength={8}
+                style={{ border: "none", borderBottom: `1px dashed ${P.paperLine}`, background: "transparent",
+                         outline: "none", color: P.sign, fontSize: 13, fontWeight: 700, textAlign: "center",
+                         width: `${Math.max(2, signer.length) * 16 + 6}px` }} />
+            </div>
+            <span style={{ position: "absolute", left: 14, bottom: 10, fontSize: 15, opacity: 0.85 }}>🐾</span>
           </div>
         </div>
 

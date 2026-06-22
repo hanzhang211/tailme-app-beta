@@ -54,7 +54,7 @@ export function SoftClouds() {
 export function MemoryAlbumPlaceholder() {
   return (
     <img src="/memphoto.png" alt="" aria-hidden="true"
-         style={{ width: 240, maxWidth: "72%", height: "auto", display: "block", margin: "0 auto",
+         style={{ width: 320, maxWidth: "84%", height: "auto", display: "block", margin: "0 auto",
                   filter: "drop-shadow(0 12px 26px rgba(40,28,96,0.32))" }} />
   );
 }

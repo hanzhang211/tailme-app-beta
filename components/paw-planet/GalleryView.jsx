@@ -102,13 +102,13 @@ export default function GalleryView({ petName = "毛孩子", avatar, petId, user
         {loading ? (
           <div style={{ textAlign: "center", color: P.sub, marginTop: 70, fontSize: 13 }}>加载中…</div>
         ) : list.length === 0 ? (
-          <div style={{ textAlign: "center", marginTop: 28 }}>
+          <div style={{ textAlign: "center", marginTop: 40 }}>
             <MemoryAlbumPlaceholder />
-            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginTop: 6 }}>还没有回忆卡片 ✨</div>
-            <div style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.7, color: P.sub }}>上传一张照片，把你们的<br />美好时光收藏起来吧</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginTop: 18 }}>还没有回忆卡片</div>
+            <div style={{ fontSize: 13, marginTop: 10, lineHeight: 1.7, color: P.sub }}>上传一张照片，把你们的<br />美好时光收藏起来吧</div>
             <button onClick={() => setShowAdd(true)}
-              style={{ marginTop: 20, padding: "12px 26px", borderRadius: 16, border: "none", cursor: "pointer",
-                       background: "rgba(255,255,255,0.95)", color: "#7466D8", fontSize: 14, fontWeight: 800,
+              style={{ marginTop: 22, padding: "13px 30px", borderRadius: 16, border: "none", cursor: "pointer",
+                       background: "rgba(255,255,255,0.95)", color: "#7466D8", fontSize: 14.5, fontWeight: 800,
                        boxShadow: "0 8px 22px rgba(120,100,216,0.35)" }}>
               添加回忆卡片
             </button>
