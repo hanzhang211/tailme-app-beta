@@ -35,6 +35,7 @@ import ScenePreview from "@/components/paw-planet/ScenePreview";
 import { PLANET_C as C, buildPlanetMock } from "@/lib/pawPlanetMock";
 import { getDailyPlanetStories } from "@/lib/pawPlanetDailyStories";
 import { listMemorialLetters } from "@/services/memorialLetterService";
+import { listMemories } from "@/services/memorialMemoryService";
 
 // 与首页一致：优先 thumb 缩略图（300px 透明小图，秒加载），其次 AI 原图，再次猫狗占位
 const avatarOf = (pet) => pet?.pet_avatar_thumb_url || pet?.ai_avatar_url || (isCatPet(pet) ? "/cat.png" : "/dog.png");
@@ -52,6 +53,12 @@ export default function PawPlanetPage({ pet, onBack }) {
   }, [pet?.id]);
   useEffect(() => { refreshLetters(); }, [refreshLetters]);
   const todayStories = useMemo(() => getDailyPlanetStories({ pet, letters }), [pet?.id, letters]); // petId+日期固定；写信后下一段变「收到信」
+  const [memories, setMemories] = useState([]); // 真实回忆卡片（Supabase memorial_memories）
+  const refreshMemories = useCallback(() => {
+    if (pet?.id) listMemories(pet.id).then(setMemories).catch(() => setMemories([]));
+  }, [pet?.id]);
+  // 进入首页 / 时间线时刷新（回忆相册里增删后回到首页即同步）
+  useEffect(() => { if (view === "home" || view === "timeline") refreshMemories(); }, [view, refreshMemories]);
   const enteredAt = pet?.memorial_started_at ? formatBirthday(pet.memorial_started_at) : null;
   const daysTogether = useMemo(() => {
     const d = pet?.created_at || pet?.birthday;
@@ -77,7 +84,7 @@ export default function PawPlanetPage({ pet, onBack }) {
   if (view === "today") body = <TodayView {...sub} stories={todayStories} />;
   else if (view === "letter") body = <LetterView {...sub} />;
   else if (view === "gallery") body = <GalleryView {...sub} />;
-  else if (view === "timeline") body = <TimelineView {...sub} />;
+  else if (view === "timeline") body = <TimelineView {...sub} memories={memories} />;
   else if (view === "story") body = <StoryView {...sub} />;
   else if (view === "mailbox") body = <MailboxView {...sub} letters={letters} />;
   else if (view === "card") body = <MemorialCardView {...sub} onBack={() => setView("gallery")} />;
@@ -134,7 +141,7 @@ export default function PawPlanetPage({ pet, onBack }) {
           <ChevronDown size={22} color="rgba(255,255,255,0.7)" className="pp-bounce" />
         </div>
 
-        <MemoryTimelinePreview timeline={mock.timeline} onMore={() => setView("timeline")} />
+        <MemoryTimelinePreview memories={memories.slice(0, 4)} onMore={() => setView("timeline")} onPost={() => setView("gallery")} />
         <PlanetMailboxPreview count={letters.length} petName={petName} onClick={() => setView("mailbox")} />
 
         {/* 临时入口：场景预览（8 张背景 + 宠物叠加合成预览）。如已有别的入口可让我改接/移除 */}
