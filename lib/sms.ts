@@ -43,9 +43,10 @@ export async function sendVerifyCode(
 
     const res = await client.sendSmsWithOptions(request, new RuntimeOptions({}));
     if (res?.body?.code === "OK") return { ok: true };
-    return { ok: false, message: res?.body?.message || "短信发送失败" };
+    return { ok: false, message: `阿里云:${res?.body?.code || "?"} ${res?.body?.message || ""}`.trim() };
   } catch (e: any) {
-    console.error("[sms] 阿里云调用异常:", e?.message || e);
-    return { ok: false, message: "短信发送失败" };
+    const msg = e?.data?.Message || e?.data?.Recommend || e?.message || String(e);
+    console.error("[sms] 阿里云调用异常:", msg);
+    return { ok: false, message: `调用异常:${msg}` };
   }
 }

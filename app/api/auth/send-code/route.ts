@@ -59,10 +59,10 @@ export async function POST(req: Request) {
     return json(500, { error: "验证码生成失败，请重试" });
   }
 
-  // 阿里云发送
+  // 阿里云发送（调试期：透传真实原因，便于定位；定位后改回通用文案）
   const sent = await sendVerifyCode(phone, code);
   if (!sent.ok) {
-    return json(502, { error: "短信发送失败，请稍后重试" });
+    return json(502, { error: sent.message || "短信发送失败，请稍后重试" });
   }
 
   return json(200, { ok: true });
