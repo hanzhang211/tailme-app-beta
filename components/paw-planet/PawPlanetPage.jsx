@@ -59,6 +59,17 @@ export default function PawPlanetPage({ pet, onBack }) {
   }, [pet?.id]);
   // 进入首页 / 时间线时刷新（回忆相册里增删后回到首页即同步）
   useEffect(() => { if (view === "home" || view === "timeline") refreshMemories(); }, [view, refreshMemories]);
+  // 访问次数：进入这只宠物的星球纪念页 +1（localStorage 安全计数；TODO 后续接 Supabase 真实统计）
+  const [visitCount, setVisitCount] = useState(0);
+  useEffect(() => {
+    if (!pet?.id) return;
+    try {
+      const k = `tailme_planet_visits_${pet.id}`;
+      const n = (parseInt(localStorage.getItem(k) || "0", 10) || 0) + 1;
+      localStorage.setItem(k, String(n));
+      setVisitCount(n);
+    } catch { setVisitCount(0); }
+  }, [pet?.id]);
   const enteredAt = pet?.memorial_started_at ? formatBirthday(pet.memorial_started_at) : null;
   const daysTogether = useMemo(() => {
     const d = pet?.created_at || pet?.birthday;
@@ -87,7 +98,7 @@ export default function PawPlanetPage({ pet, onBack }) {
   else if (view === "timeline") body = <TimelineView {...sub} memories={memories} />;
   else if (view === "story") body = <StoryView {...sub} />;
   else if (view === "mailbox") body = <MailboxView {...sub} letters={letters} />;
-  else if (view === "card") body = <MemorialCardView {...sub} onBack={() => setView("gallery")} />;
+  else if (view === "card") body = <MemorialCardView {...sub} letterCount={letters.length} visitCount={visitCount} birthday={pet?.birthday} memorialStartDate={pet?.memorial_started_at} onBack={() => setView("gallery")} />;
   else if (view === "scenes") body = <ScenePreview petName={petName} avatar={avatar} petType={isCatPet(pet) ? "cat" : "dog"} onBack={() => setView("home")} />;
   else if (view === "me") body = <MeView petName={petName} avatar={avatar} daysTogether={daysTogether} onLeave={onBack} />;
   else body = (
