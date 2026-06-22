@@ -11,7 +11,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  getOrCreateUserByPhone,
   getUserById,
   getUserPets,
   savePetProfile,
@@ -237,50 +236,132 @@ function LoadingScreen() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   PHONE LOGIN
-   MVP 测试验证码：123456
-   正式上线接阿里云短信 SDK：
-     POST https://dysmsapi.aliyuncs.com → SendSms
-     在 Next.js API Route /api/send-sms 中调用，避免前端暴露 AK
+   PHONE LOGIN —— 自建认证（阿里云短信 + /api/auth/* + httpOnly cookie）
+   ────────────────────────────────────────────────────────────
+   不依赖 Supabase Auth。验证码 / 密码全走自建 API：
+     send-code → verify-code → (set-password) / login
+   后端在 verify-code/login/set-password 成功时下发会话 cookie，并返回 userId；
+   前端 onLogin(userId) 后仍用 localStorage(tailme_user_id)=public.users.id 衔接现有业务。
+
+   view：phone（输手机号）/ pwlogin（密码登录）/ otp（输验证码）/ setpw（创建/重设密码）
+   flow：login（验证码登录）/ reset（忘记密码）—— 决定验证码通过后去哪
 ══════════════════════════════════════════════════════════════ */
 function PhoneLogin({ onLogin }) {
-  const [step, setStep]       = useState(1); // 1=输入手机号, 2=输入验证码
+  const [view, setView]       = useState("phone");
+  const [flow, setFlow]       = useState("login");
   const [phone, setPhone]     = useState("");
   const [code, setCode]       = useState("");
+  const [pwd, setPwd]         = useState("");
+  const [pwd2, setPwd2]       = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState(null);
+  const [cooldown, setCooldown] = useState(0); // 重新发送倒计时（秒）
 
   const isValidPhone = /^1[3-9]\d{9}$/.test(phone.trim());
 
-  const handleSendCode = () => {
-    if (!isValidPhone) { setError("请输入正确的11位中国大陆手机号"); return; }
-    setError(null);
-    // MVP：不实际发送短信，直接进入验证码输入
-    // 正式上线：fetch("/api/send-sms", { method:"POST", body: JSON.stringify({ phone }) })
-    setStep(2);
-  };
-
-  const handleVerify = async () => {
-    if (code.trim() !== "123456") {
-      setError("验证码错误（MVP 固定测试码：123456）");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const user = await getOrCreateUserByPhone(phone.trim());
-      onLogin(user.id);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   // PhoneLogin 本地白底冷调
   const P_SURFACE = "#F2E5DA";   // 浅粉米色 / 禁用按钮 / 区号块
   const P_BORDER  = "#000000";   // 黑色边框
   const P_SUB     = "#8A8074";   // 暖灰文字
+
+  const btn = (enabled) => ({
+    marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14, fontWeight:700,
+    background: enabled ? "#E68645" : P_SURFACE, color: enabled ? "white" : P_SUB,
+    border: enabled ? "none" : `1px solid ${P_BORDER}`,
+    cursor: enabled ? "pointer" : "default", transition:"all .2s",
+  });
+  const linkStyle = { background:"none", border:"none", padding:0, cursor:"pointer",
+                      color:"#E68645", fontWeight:600, fontSize:12.5 };
+
+  /* 统一 POST JSON 调用自建认证 API（同源 fetch 自动携带 / 接收 httpOnly cookie） */
+  const postAuth = async (url, payload) => {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    let data = {};
+    try { data = await r.json(); } catch {}
+    return { ok: r.ok, data };
+  };
+
+  /* 发送验证码（验证码登录 / 忘记密码 共用）→ /api/auth/send-code */
+  const sendOtp = async (nextFlow) => {
+    if (!isValidPhone) { setError("请输入正确的11位中国大陆手机号"); return; }
+    setLoading(true); setError(null);
+    try {
+      const { ok, data } = await postAuth("/api/auth/send-code", { phone: phone.trim() });
+      if (!ok) { setError(data?.error || "短信发送失败，请稍后重试"); return; }
+      setFlow(nextFlow); setView("otp"); setCode(""); setCooldown(60);
+    } catch {
+      setError("短信发送失败，请稍后重试");
+    } finally { setLoading(false); }
+  };
+
+  /* 校验验证码 → /api/auth/verify-code */
+  const verify = async () => {
+    if (code.trim().length < 6) return;
+    setLoading(true); setError(null);
+    try {
+      const { ok, data } = await postAuth("/api/auth/verify-code", { phone: phone.trim(), code: code.trim() });
+      if (!ok) { setError(data?.error || "验证码错误或已过期，请重新获取"); return; }
+      // 忘记密码：去重设密码页
+      if (flow === "reset") { setView("setpw"); setPwd(""); setPwd2(""); return; }
+      // 验证码登录：已设密码 → 直接进；未设 → 引导创建密码（cookie 已下发，授权 set-password）
+      if (data?.status === "login") { onLogin(data.userId); return; }
+      setView("setpw"); setPwd(""); setPwd2("");
+    } catch {
+      setError("验证失败，请重试");
+    } finally { setLoading(false); }
+  };
+
+  /* 创建 / 重设密码 → /api/auth/set-password（cookie 授权） */
+  const submitPassword = async () => {
+    if (pwd.length < 6) { setError("密码至少 6 位"); return; }
+    if (pwd !== pwd2)   { setError("两次输入的密码不一致"); return; }
+    setLoading(true); setError(null);
+    try {
+      const { ok, data } = await postAuth("/api/auth/set-password", { password: pwd });
+      if (!ok) { setError(data?.error || "密码设置失败，请重试"); return; }
+      onLogin(data.userId);
+    } catch {
+      setError("密码设置失败，请重试");
+    } finally { setLoading(false); }
+  };
+
+  /* 手机号 + 密码登录 → /api/auth/login */
+  const passwordLogin = async () => {
+    if (!isValidPhone) { setError("请输入正确的11位中国大陆手机号"); return; }
+    if (pwd.length < 6) { setError("密码至少 6 位"); return; }
+    setLoading(true); setError(null);
+    try {
+      const { ok, data } = await postAuth("/api/auth/login", { phone: phone.trim(), password: pwd });
+      if (!ok) { setError(data?.error || "登录失败，请重试"); return; }
+      onLogin(data.userId);
+    } catch {
+      setError("登录失败，请重试");
+    } finally { setLoading(false); }
+  };
+
+  const PhoneField = (
+    <>
+      <Label>手机号</Label>
+      <div style={{ display:"flex", gap:10, marginBottom:4 }}>
+        <div style={{ background:"#FFFFFF", borderRadius:16, padding:"12px 14px", fontSize:14,
+                      color:C.text, border:"1.5px solid #7A6F62", whiteSpace:"nowrap", fontWeight:600 }}>
+          +86
+        </div>
+        <Inp value={phone} onChange={(e) => { setPhone(e.target.value); setError(null); }}
+             type="tel" maxLength={11} placeholder="请输入手机号" />
+      </div>
+    </>
+  );
 
   return (
     <div style={{ height:"100%", background:"#EEE9E1",
@@ -292,71 +373,103 @@ function PhoneLogin({ onLogin }) {
       <div style={{ width:"100%", background:"white", border:"1.5px solid #7A6F62",
                     borderRadius:28, padding:"28px 24px",
                     boxShadow:"0 6px 18px rgba(0,0,0,0.08), 0 16px 40px rgba(0,0,0,0.12)" }}>
-        {step === 1 ? (
+
+        {/* ── 输手机号（验证码登录入口）── */}
+        {view === "phone" && (
           <>
             <div style={{ fontSize:18, fontWeight:700, color:C.text, marginBottom:4 }}>手机号登录</div>
-            <div style={{ fontSize:12, color:P_SUB, marginBottom:22 }}>
-              新用户自动注册，老用户直接进入
-            </div>
-            <Label>手机号</Label>
-            <div style={{ display:"flex", gap:10, marginBottom:4 }}>
-              <div style={{ background:"#FFFFFF", borderRadius:16, padding:"12px 14px", fontSize:14,
-                            color:C.text, border:"1.5px solid #7A6F62", whiteSpace:"nowrap", fontWeight:600 }}>
-                +86
-              </div>
-              <Inp
-                value={phone}
-                onChange={(e) => { setPhone(e.target.value); setError(null); }}
-                onKeyDown={(e) => e.key === "Enter" && handleSendCode()}
-                type="tel"
-                maxLength={11}
-                placeholder="请输入手机号"
-              />
-            </div>
+            <div style={{ fontSize:12, color:P_SUB, marginBottom:22 }}>新用户自动注册，老用户直接进入</div>
+            {PhoneField}
             <ErrBox msg={error} />
-            <button
-              onClick={handleSendCode}
-              style={{ marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14,
-                       fontWeight:700, background:isValidPhone ? "#E68645" : P_SURFACE,
-                       color:isValidPhone ? "white" : P_SUB,
-                       border:isValidPhone ? "none" : `1px solid ${P_BORDER}`,
-                       cursor:isValidPhone ? "pointer" : "default", transition:"all .2s" }}>
-              获取验证码
+            <button onClick={() => sendOtp("login")} disabled={loading || !isValidPhone}
+                    style={btn(!loading && isValidPhone)}>
+              {loading ? "发送中..." : "获取验证码"}
             </button>
+            <div style={{ marginTop:16, display:"flex", justifyContent:"center" }}>
+              <button onClick={() => { setView("pwlogin"); setError(null); setPwd(""); }} style={linkStyle}>
+                使用密码登录
+              </button>
+            </div>
           </>
-        ) : (
+        )}
+
+        {/* ── 密码登录 ── */}
+        {view === "pwlogin" && (
           <>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-              <BackButton onClick={() => { setStep(1); setCode(""); setError(null); }} size={32} />
+              <BackButton onClick={() => { setView("phone"); setError(null); }} size={32} />
+              <div style={{ fontSize:18, fontWeight:700, color:C.text }}>密码登录</div>
+            </div>
+            <div style={{ fontSize:12, color:P_SUB, marginBottom:22 }}>使用手机号 + 密码登录</div>
+            {PhoneField}
+            <div style={{ height:12 }} />
+            <Label>密码</Label>
+            <Inp value={pwd} onChange={(e) => { setPwd(e.target.value); setError(null); }}
+                 onKeyDown={(e) => e.key === "Enter" && passwordLogin()}
+                 type="password" placeholder="请输入密码" />
+            <ErrBox msg={error} />
+            <button onClick={passwordLogin} disabled={loading || !isValidPhone || pwd.length < 6}
+                    style={btn(!loading && isValidPhone && pwd.length >= 6)}>
+              {loading ? "登录中..." : "登录"}
+            </button>
+            <div style={{ marginTop:16, display:"flex", justifyContent:"space-between" }}>
+              <button onClick={() => { setView("phone"); setError(null); }} style={linkStyle}>验证码登录</button>
+              <button onClick={() => sendOtp("reset")} disabled={loading || !isValidPhone}
+                      style={{ ...linkStyle, color:(!loading && isValidPhone) ? "#E68645" : P_SUB }}>
+                忘记密码？
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── 输验证码 ── */}
+        {view === "otp" && (
+          <>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+              <BackButton onClick={() => { setView(flow === "reset" ? "pwlogin" : "phone"); setCode(""); setError(null); }} size={32} />
               <div style={{ fontSize:18, fontWeight:700, color:C.text }}>输入验证码</div>
             </div>
-            <div style={{ fontSize:12, color:P_SUB, marginBottom:22 }}>
-              已发送至 +86 {phone}
-              <span style={{ marginLeft:8, color:C.accent, fontWeight:600, fontSize:11 }}>
-                [MVP 测试码: 123456]
-              </span>
-            </div>
+            <div style={{ fontSize:12, color:P_SUB, marginBottom:22 }}>已发送至 +86 {phone}</div>
             <Label>验证码</Label>
-            <Inp
-              value={code}
-              onChange={(e) => { setCode(e.target.value); setError(null); }}
-              onKeyDown={(e) => e.key === "Enter" && handleVerify()}
-              type="number"
-              maxLength={6}
-              placeholder="请输入6位验证码"
-              style={{ letterSpacing:6, fontSize:20, textAlign:"center" }}
-            />
+            <Inp value={code} onChange={(e) => { setCode(e.target.value); setError(null); }}
+                 onKeyDown={(e) => e.key === "Enter" && verify()}
+                 type="number" maxLength={6} placeholder="请输入6位验证码"
+                 style={{ letterSpacing:6, fontSize:20, textAlign:"center" }} />
             <ErrBox msg={error} />
-            <button
-              onClick={handleVerify}
-              disabled={loading || code.length < 6}
-              style={{ marginTop:18, width:"100%", padding:"14px 0", borderRadius:20, fontSize:14,
-                       fontWeight:700, background:!loading && code.length >= 6 ? "#E68645" : P_SURFACE,
-                       color:!loading && code.length >= 6 ? "white" : P_SUB,
-                       border:!loading && code.length >= 6 ? "none" : `1px solid ${P_BORDER}`,
-                       cursor:!loading && code.length >= 6 ? "pointer" : "default",
-                       transition:"all .2s" }}>
-              {loading ? "验证中..." : "登录 / 注册"}
+            <button onClick={verify} disabled={loading || code.length < 6}
+                    style={btn(!loading && code.length >= 6)}>
+              {loading ? "验证中..." : (flow === "reset" ? "验证" : "登录 / 注册")}
+            </button>
+            <div style={{ marginTop:16, display:"flex", justifyContent:"center" }}>
+              <button onClick={() => cooldown === 0 && sendOtp(flow)} disabled={loading || cooldown > 0}
+                      style={{ ...linkStyle, color: cooldown > 0 ? P_SUB : "#E68645", cursor: cooldown > 0 ? "default" : "pointer" }}>
+                {cooldown > 0 ? `${cooldown}s 后可重新发送` : "重新发送验证码"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── 创建 / 重设密码 ── */}
+        {view === "setpw" && (
+          <>
+            <div style={{ fontSize:18, fontWeight:700, color:C.text, marginBottom:4 }}>
+              {flow === "reset" ? "重设密码" : "创建登录密码"}
+            </div>
+            <div style={{ fontSize:12, color:P_SUB, marginBottom:22 }}>
+              {flow === "reset" ? "设置新密码，下次可用手机号+密码登录" : "设置密码后，下次可直接用手机号+密码登录"}
+            </div>
+            <Label>新密码</Label>
+            <Inp value={pwd} onChange={(e) => { setPwd(e.target.value); setError(null); }}
+                 type="password" placeholder="至少 6 位" />
+            <div style={{ height:12 }} />
+            <Label>确认密码</Label>
+            <Inp value={pwd2} onChange={(e) => { setPwd2(e.target.value); setError(null); }}
+                 onKeyDown={(e) => e.key === "Enter" && submitPassword()}
+                 type="password" placeholder="再次输入密码" />
+            <ErrBox msg={error} />
+            <button onClick={submitPassword} disabled={loading || pwd.length < 6 || pwd2.length < 6}
+                    style={btn(!loading && pwd.length >= 6 && pwd2.length >= 6)}>
+              {loading ? "提交中..." : "完成并进入"}
             </button>
           </>
         )}
@@ -1839,15 +1952,21 @@ export default function AppRoot() {
     setScreen(S.APP);
   };
 
-  /* 启动时：读取 localStorage → 验证 user → 查询宠物 → 决定下一步 */
+  /* 启动时：以 httpOnly 会话 cookie 为权威凭证（不再只信 localStorage）
+     → /api/auth/session 校验 → 查询 user + pets → 决定下一步 */
   useEffect(() => {
-    const storedId = localStorage.getItem(LS_KEY);
-    if (!storedId) { setScreen(S.LOGIN); return; }
-
     (async () => {
       try {
-        const u    = await getUserById(storedId);
-        const pets = await getUserPets(storedId);
+        const r = await fetch("/api/auth/session");
+        if (!r.ok) {
+          localStorage.removeItem(LS_KEY);
+          setScreen(S.LOGIN);
+          return;
+        }
+        const { userId } = await r.json();
+        localStorage.setItem(LS_KEY, userId); // 仅作本地缓存，供现有业务读取
+        const u    = await getUserById(userId);
+        const pets = await getUserPets(userId);
         routeAfterLoad(u, pets);
       } catch {
         localStorage.removeItem(LS_KEY);
@@ -1884,8 +2003,9 @@ export default function AppRoot() {
     setScreen(S.APP);
   };
 
-  /* 退出登录 → 清 localStorage / state，回到登录页 */
+  /* 退出登录 → 清会话 cookie + localStorage / state，回到登录页 */
   const handleLogout = () => {
+    try { fetch("/api/auth/logout", { method: "POST" }); } catch {}
     localStorage.removeItem(LS_KEY);
     localStorage.removeItem(LS_ACTIVE_PET);
     setUser(null);
