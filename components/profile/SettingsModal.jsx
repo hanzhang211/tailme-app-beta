@@ -13,7 +13,7 @@
  */
 
 import { useState } from "react";
-import { ShieldCheck, Bell, Lock, PawPrint, HeartHandshake, HelpCircle, Info, ChevronRight } from "lucide-react";
+import { ShieldCheck, Bell, Lock, PawPrint, HeartHandshake, HelpCircle, Info, ChevronRight, Headphones } from "lucide-react";
 import PetAvatar from "@/components/PetAvatar";
 import BackButton from "@/components/icons/BackButton";
 import { isCatPet } from "@/services/breedAvatar";
@@ -39,7 +39,7 @@ function PlanetIcon({ size = 22, color = C.pri }) {
 }
 
 export default function SettingsModal({
-  pets, onAddPet, onEditPet, onDeletePet, onLogout, onClose, toast, onOpenMemorial,
+  pets, onAddPet, onEditPet, onDeletePet, onLogout, onClose, toast, onOpenMemorial, onOpenContact,
 }) {
   const [view, setView] = useState("main");
   const canAdd = pets.length < MAX_PETS;
@@ -83,13 +83,12 @@ export default function SettingsModal({
             {/* 宠物 & 纪念 */}
             <Group>
               <Row icon={<PawPrint size={21} />} title="宠物管理" onClick={() => setView("pets")} />
-              <Row icon={<PlanetIcon size={32} />} title="星球纪念模式"
-                   sub="当宠物去往爪爪星球后，保留回忆与陪伴" onClick={() => onOpenMemorial?.()} />
               <Row icon={<HeartHandshake size={21} />} title="纪念内容设置" onClick={soon} last />
             </Group>
 
             {/* 帮助 */}
             <Group>
+              <Row icon={<Headphones size={21} />} title="联系我们" sub="客服 · 合作 · 建议反馈" onClick={() => onOpenContact?.()} />
               <Row icon={<HelpCircle size={21} />} title="帮助与反馈" onClick={soon} />
               <Row icon={<Info size={21} />} title="关于 TailMe" right={APP_VERSION} onClick={soon} last />
             </Group>

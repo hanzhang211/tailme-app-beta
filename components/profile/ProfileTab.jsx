@@ -39,7 +39,7 @@ import PetOnboarding   from "./PetOnboarding";
 import SettingsModal   from "./SettingsModal";
 import MemorialCenter  from "@/components/memorial/MemorialCenter";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
-import { Star, Settings, PawPrint } from "lucide-react";
+import { Star, Settings, PawPrint, Orbit } from "lucide-react";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
@@ -655,15 +655,25 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
               label="点赞&收藏" onClick={() => setSubView("posts")} />
             <MenuRow icon={<PawPrint size={26} color={C.pri} strokeWidth={2.2} />}
               label="我的宠物" hint={`${pets.length} 只`} onClick={() => setSubView("pets")} />
-            <MenuRow icon={
-                <span style={{ width:42, height:42, display:"inline-block", backgroundColor:C.pri,
-                               WebkitMaskImage:"url(/logo.png)", maskImage:"url(/logo.png)",
-                               WebkitMaskRepeat:"no-repeat", maskRepeat:"no-repeat",
-                               WebkitMaskPosition:"center", maskPosition:"center",
-                               WebkitMaskSize:"contain", maskSize:"contain",
-                               filter:"drop-shadow(0.9px 0 0 #E68645) drop-shadow(-0.9px 0 0 #E68645) drop-shadow(0 0.9px 0 #E68645) drop-shadow(0 -0.9px 0 #E68645) drop-shadow(0.65px 0.65px 0 #E68645) drop-shadow(-0.65px 0.65px 0 #E68645) drop-shadow(0.65px -0.65px 0 #E68645) drop-shadow(-0.65px -0.65px 0 #E68645)" }} />
-              }
-              label="联系我们" sub="客服 · 合作 · 建议反馈" onClick={() => setContactOpen(true)} />
+            {/* 星球纪念模式 —— 梦幻高亮入口（紫渐变 + 边框，从普通菜单里突出） */}
+            <button onClick={() => setMemorialOpen(true)}
+              style={{ position:"relative", overflow:"hidden", width:"100%", display:"flex", alignItems:"center", gap:13,
+                       padding:"15px 16px", borderRadius:22, cursor:"pointer", textAlign:"left",
+                       background:"linear-gradient(120deg,#6B63BE 0%,#9A8DDA 55%,#B9A7F4 100%)",
+                       border:"1.5px solid rgba(255,255,255,0.55)", boxShadow:"0 4px 16px rgba(120,100,216,0.26)",
+                       WebkitTapHighlightColor:"transparent" }}>
+              <span style={{ position:"absolute", top:10, right:44, fontSize:11, color:"#FFE89A", opacity:0.85, pointerEvents:"none" }}>✦</span>
+              <span style={{ position:"absolute", bottom:11, right:74, fontSize:8, color:"#FFE89A", opacity:0.7, pointerEvents:"none" }}>✦</span>
+              <span style={{ width:46, height:46, borderRadius:14, flexShrink:0, background:"rgba(255,255,255,0.18)",
+                             border:"1px solid rgba(255,255,255,0.4)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Orbit size={26} color="#fff" strokeWidth={2.2} />
+              </span>
+              <span style={{ flex:1, minWidth:0 }}>
+                <span style={{ display:"block", fontSize:16, fontWeight:800, color:"#fff" }}>星球纪念模式</span>
+                <span style={{ display:"block", fontSize:12, color:"rgba(255,255,255,0.82)", marginTop:3, lineHeight:1.4 }}>当宠物去往爪爪星球后，保留回忆与陪伴</span>
+              </span>
+              <span style={{ fontSize:18, color:"rgba(255,255,255,0.9)", flexShrink:0 }}>›</span>
+            </button>
             <MenuRow icon={<Settings size={26} color={C.pri} strokeWidth={2.2} />}
               label="设置" onClick={() => setSettingsOpen(true)} />
           </div>
@@ -726,7 +736,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
           onDeletePet={handleDeletePet}
           onLogout={handleLogout}
           onClose={() => setSettingsOpen(false)}
-          onOpenMemorial={() => { setSettingsOpen(false); setMemorialOpen(true); }}
+          onOpenContact={() => { setSettingsOpen(false); setContactOpen(true); }}
           toast={toast}
         />
       )}
