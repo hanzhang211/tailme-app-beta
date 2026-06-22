@@ -63,9 +63,10 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
     toast._t = setTimeout(() => setNotice(null), 2200);
   }, []);
 
-  /* ── 宠物展示数据（优先 AI 形象）── */
+  /* ── 宠物展示数据 ── */
   const name = pet?.name || "毛孩子";
-  const avatar = pet?.ai_avatar_url || pet?.pet_avatar_thumb_url || (isCatPet(pet) ? "/cat.png" : "/dog.png");
+  // 缩略图优先（300px 透明 WebP，秒加载；与首页/关怀模式一致），缺失再回退 AI 原图 / 猫狗占位
+  const avatar = pet?.pet_avatar_thumb_url || pet?.ai_avatar_url || (isCatPet(pet) ? "/cat.png" : "/dog.png");
   const hasAiAvatar = !!pet?.ai_avatar_url;
   const petType = isCatPet(pet) ? "cat" : "dog";
   const genderLabel = pet?.gender === "female" ? "女孩" : pet?.gender === "male" ? "男孩" : null;
