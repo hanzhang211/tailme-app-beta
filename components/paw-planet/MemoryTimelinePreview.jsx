@@ -18,7 +18,7 @@ function fmtDate(m) {
   return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`;
 }
 
-export default function MemoryTimelinePreview({ memories = [], onMore, onPost }) {
+export default function MemoryTimelinePreview({ petName = "毛孩子", memories = [], onMore, onPost }) {
   const empty = memories.length === 0;
   return (
     <div style={{ marginTop: 22 }}>
@@ -30,7 +30,7 @@ export default function MemoryTimelinePreview({ memories = [], onMore, onPost })
           <button onClick={onMore}
             style={{ display: "flex", alignItems: "center", gap: 2, background: "none", border: "none",
                      cursor: "pointer", fontSize: 12.5, color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>
-            查看时间线 <ChevronRight size={15} />
+和{petName}的回忆 <ChevronRight size={15} />
           </button>
         )}
       </div>

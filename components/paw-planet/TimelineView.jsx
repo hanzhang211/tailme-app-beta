@@ -19,7 +19,7 @@ function fmtDate(m) {
   return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`;
 }
 
-export default function TimelineView({ avatar, memories = [], onBack }) {
+export default function TimelineView({ petName = "毛孩子", avatar, memories = [], onBack }) {
   const list = memories || [];
   return (
     <div style={{ height: "100%", position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", background: P.bg }}>
@@ -27,7 +27,7 @@ export default function TimelineView({ avatar, memories = [], onBack }) {
 
       <div style={{ position: "relative", zIndex: 1, padding: "max(env(safe-area-inset-top), 28px) 16px 8px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         <BackButton onClick={onBack} bg={P.glassBtn} color="#fff" border={false} shadow={false} />
-        <div style={{ flex: 1, textAlign: "center", marginRight: 38, fontSize: 18, fontWeight: 800, color: "#fff" }}>回忆时间线</div>
+        <div style={{ flex: 1, textAlign: "center", marginRight: 38, fontSize: 18, fontWeight: 800, color: "#fff" }}>和{petName}的回忆</div>
       </div>
 
       <div style={{ position: "relative", zIndex: 1, flex: 1, overflowY: "auto", padding: "12px 18px 28px" }}>

@@ -152,7 +152,7 @@ export default function PawPlanetPage({ pet, onBack }) {
           <ChevronDown size={22} color="rgba(255,255,255,0.7)" className="pp-bounce" />
         </div>
 
-        <MemoryTimelinePreview memories={memories.slice(0, 4)} onMore={() => setView("timeline")} onPost={() => setView("gallery")} />
+        <MemoryTimelinePreview petName={petName} memories={memories.slice(0, 4)} onMore={() => setView("timeline")} onPost={() => setView("gallery")} />
         <PlanetMailboxPreview count={letters.length} petName={petName} onClick={() => setView("mailbox")} />
 
         {/* 临时入口：场景预览（8 张背景 + 宠物叠加合成预览）。如已有别的入口可让我改接/移除 */}
