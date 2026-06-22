@@ -37,8 +37,10 @@ export default function FloatingStars() {
           style={{ top: `${st.t}%`, left: `${st.l}%`, width: st.s, height: st.s, animationDelay: `${st.d}s` }} />
       ))}
       {PAWS.map((pw, i) => (
-        <PawPrint key={`paw${i}`} size={pw.s} className="ps-paw"
-          style={{ position: "absolute", top: `${pw.t}%`, left: `${pw.l}%`, color: "#FFE89A", animationDelay: `${pw.d}s` }} />
+        <span key={`paw${i}`} className="ps-paw"
+          style={{ position: "absolute", top: `${pw.t}%`, left: `${pw.l}%`, animationDelay: `${pw.d}s` }}>
+          <PawPrint size={pw.s} color="#FFE89A" strokeWidth={2.2} style={{ position: "relative", zIndex: 1, display: "block" }} />
+        </span>
       ))}
       {METEORS.map((m, i) => (
         <span key={`meteor${i}`} className="ps-meteor" style={{ animationDelay: m.delay, animationDuration: m.dur }}>
@@ -52,8 +54,11 @@ export default function FloatingStars() {
         .ps-star { position:absolute; border-radius:50%; background:#fff;
           box-shadow:0 0 6px rgba(255,255,255,0.9); animation:ps-twinkle 2.8s ease-in-out infinite; }
         @keyframes ps-twinkle { 0%,100%{opacity:.22; transform:scale(.8)} 50%{opacity:1; transform:scale(1.25)} }
-        .ps-paw { filter:drop-shadow(0 0 5px rgba(255,232,154,0.9)); animation:ps-paw-tw 3.2s ease-in-out infinite; }
-        @keyframes ps-paw-tw { 0%,100%{opacity:.25; transform:scale(.85)} 50%{opacity:.95; transform:scale(1.12)} }
+        .ps-paw { display:inline-flex; align-items:center; justify-content:center; animation:ps-paw-tw 3.2s ease-in-out infinite; }
+        .ps-paw::before { content:""; position:absolute; left:50%; top:50%; width:190%; height:190%;
+          transform:translate(-50%,-50%); border-radius:50%; z-index:0;
+          background:radial-gradient(circle, rgba(255,232,154,0.5) 0%, rgba(255,232,154,0) 68%); }
+        @keyframes ps-paw-tw { 0%,100%{opacity:.3} 50%{opacity:1} }
         .ps-cloud { position:absolute; left:-12%; opacity:.42; animation:ps-drift 30s linear infinite; }
         @keyframes ps-drift { from{transform:translateX(0)} to{transform:translateX(120vw)} }
 
