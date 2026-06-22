@@ -60,9 +60,6 @@ export default function LetterView({ petName = "毛孩子", petId, userId, onBac
             style={{ width: "100%", border: "none", background: "transparent", outline: "none", resize: "none",
                      fontSize: 14, color: C.text, lineHeight: "34px", fontFamily: "inherit" }} />
           <div style={{ textAlign: "right", fontSize: 13, color: C.brown, marginTop: 4 }}>—— 爱你的主人</div>
-          {/* 星光瓶装饰 */}
-          <div style={{ position: "absolute", right: 14, bottom: -6, fontSize: 30, opacity: 0.9 }}>🫙</div>
-          <span style={{ position: "absolute", right: 50, bottom: 6, fontSize: 14 }}>✨</span>
         </div>
         <div style={{ fontSize: 11.5, color: C.sub, textAlign: "center", marginTop: 16 }}>
           每一封信，{petName}都会在爪爪星球收到哦～
