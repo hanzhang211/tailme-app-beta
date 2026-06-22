@@ -7,7 +7,7 @@
  * props: { memories, onMore, onPost }
  */
 
-import { ChevronRight, ImagePlus } from "lucide-react";
+import { ChevronRight, ImagePlus, Star } from "lucide-react";
 
 function fmtDate(m) {
   const raw = m?.memory_date || m?.created_at;
@@ -23,7 +23,9 @@ export default function MemoryTimelinePreview({ memories = [], onMore, onPost })
   return (
     <div style={{ marginTop: 22 }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 12, padding: "0 2px" }}>
-        <div style={{ flex: 1, fontSize: 15.5, fontWeight: 800, color: "#fff" }}>我们一起走过的日子</div>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 5, fontSize: 15.5, fontWeight: 800, color: "#fff" }}>
+          我们一起走过的日子 <Star size={13} color="#FFE89A" fill="#FFE89A" />
+        </div>
         {!empty && (
           <button onClick={onMore}
             style={{ display: "flex", alignItems: "center", gap: 2, background: "none", border: "none",
@@ -48,16 +50,18 @@ export default function MemoryTimelinePreview({ memories = [], onMore, onPost })
         <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4 }}>
           {memories.map((m) => (
             <div key={m.id} onClick={onMore}
-              style={{ flexShrink: 0, width: 140, background: "#FBFAFF", borderRadius: 16, cursor: "pointer",
-                       overflow: "hidden", boxShadow: "0 6px 18px rgba(30,20,90,0.22)" }}>
+              style={{ flexShrink: 0, width: 140, background: "rgba(255,255,255,0.16)",
+                       backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+                       border: "1px solid rgba(255,255,255,0.18)", borderRadius: 18, cursor: "pointer",
+                       overflow: "hidden", boxShadow: "0 8px 24px rgba(30,20,90,0.22)" }}>
               <div style={{ height: 80, background: "#EDE6FB", overflow: "hidden" }}>
                 <img src={m.image_url} alt={m.title}
                      onError={(e) => { e.currentTarget.style.opacity = 0; }}
                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               </div>
               <div style={{ padding: "9px 11px" }}>
-                <div style={{ fontSize: 11, color: "#8C7BF2", fontWeight: 700 }}>{fmtDate(m)}</div>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#5E55A8", marginTop: 3, lineHeight: 1.35,
+                <div style={{ fontSize: 11, color: "#FFE6A8", fontWeight: 700 }}>{fmtDate(m)}</div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff", marginTop: 3, lineHeight: 1.35,
                               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.title}</div>
               </div>
             </div>

@@ -22,20 +22,20 @@ export default function PlanetHero({ planetImageUrl, petImageUrl, backgroundImag
                   padding: "6px 0 2px",
                   backgroundImage: backgroundImageUrl ? `url(${backgroundImageUrl})` : undefined,
                   backgroundSize: "cover", backgroundPosition: "center" }}>
-      <div className="ph-float" style={{ position: "relative", width: 300, height: 290,
+      <div className="ph-float" style={{ position: "relative", width: 322, height: 308,
                                          display: "flex", alignItems: "center", justifyContent: "center" }}>
         {/* 柔和光环 */}
         <span className="ph-halo" />
 
         {planetImageUrl ? (
           /* 真实星球 PNG（xingqiu.png 已含草地/房子/树/小伙伴；主宠物叠在中间草地上） */
-          <div style={{ position: "relative", width: 270, height: 270, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ position: "relative", width: 308, height: 308, display: "flex", alignItems: "center", justifyContent: "center", transform: "translateX(-20px)" }}>
             <img src={planetImageUrl} alt="爪爪星球"
-                 style={{ width: 270, height: 270, objectFit: "contain",
+                 style={{ width: 308, height: 308, objectFit: "contain",
                           filter: "drop-shadow(0 16px 36px rgba(80,90,160,0.4))" }} />
             <img src={petImageUrl} alt={petName} className="ph-pet" loading="eager" decoding="async"
-                 style={{ position: "absolute", left: "50%", top: "30%", transform: "translateX(-50%)",
-                          width: 130, height: 130, objectFit: "contain", display: "block",
+                 style={{ position: "absolute", left: "55%", top: "30%", transform: "translateX(-50%)",
+                          width: 142, height: 142, objectFit: "contain", display: "block",
                           filter: "drop-shadow(0 6px 12px rgba(40,60,30,0.3))" }} />
           </div>
         ) : (
@@ -68,7 +68,7 @@ export default function PlanetHero({ planetImageUrl, petImageUrl, backgroundImag
       <style>{`
         .ph-float { animation: ph-float 5s ease-in-out infinite; }
         @keyframes ph-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
-        .ph-halo { position:absolute; width:286px; height:286px; border-radius:50%;
+        .ph-halo { position:absolute; width:322px; height:322px; border-radius:50%;
           background:radial-gradient(circle, rgba(255,221,180,0.40), rgba(142,132,200,0.10) 55%, transparent 70%);
           animation:ph-halo 4.2s ease-in-out infinite; }
         @keyframes ph-halo { 0%,100%{transform:scale(.94); opacity:.5} 50%{transform:scale(1.1); opacity:.9} }
