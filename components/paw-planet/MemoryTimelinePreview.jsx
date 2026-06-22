@@ -55,7 +55,7 @@ export default function MemoryTimelinePreview({ memories = [], onMore, onPost })
                        border: "1px solid rgba(255,255,255,0.18)", borderRadius: 18, cursor: "pointer",
                        overflow: "hidden", boxShadow: "0 8px 24px rgba(30,20,90,0.22)" }}>
               <div style={{ height: 80, background: "#EDE6FB", overflow: "hidden" }}>
-                <img src={m.image_url} alt={m.title}
+                <img src={m.thumb_url || m.image_url} alt={m.title}
                      onError={(e) => { e.currentTarget.style.opacity = 0; }}
                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               </div>

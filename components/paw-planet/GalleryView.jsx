@@ -119,7 +119,7 @@ export default function GalleryView({ petName = "毛孩子", avatar, petId, user
               <div key={m.id} onClick={() => setDetail(m)}
                 style={{ position: "relative", borderRadius: 16, overflow: "hidden", background: "#fff", cursor: "pointer", boxShadow: "0 6px 18px rgba(25,20,80,0.22)" }}>
                 <div style={{ height: 120, background: "#EDE6FB", overflow: "hidden" }}>
-                  <PlaceholderImg src={m.image_url} alt={m.title}
+                  <PlaceholderImg src={m.thumb_url || m.image_url} alt={m.title}
                     style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                 </div>
                 <div style={{ padding: "8px 10px" }}>

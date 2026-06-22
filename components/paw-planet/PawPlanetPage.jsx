@@ -158,9 +158,9 @@ export default function PawPlanetPage({ pet, onBack }) {
   );
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 250, background: C.cream, display: "flex", justifyContent: "center" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 250, background: "#20265F", display: "flex", justifyContent: "center" }}>
       <div style={{ position: "relative", width: "100%", maxWidth: 430, height: "100%", display: "flex", flexDirection: "column",
-                    overflow: "hidden", animation: "pp-in .24s ease-out" }}>
+                    background: "#20265F", overflow: "hidden", animation: "pp-in .24s ease-out" }}>
         <div style={{ flex: 1, position: "relative", minHeight: 0, overflow: "hidden" }}>{body}</div>
         <PlanetBottomNav active={navActive} onChange={(k) => setView(k)} />
       </div>

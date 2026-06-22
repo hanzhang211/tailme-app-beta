@@ -55,7 +55,7 @@ export default function TimelineView({ avatar, memories = [], onBack }) {
                 {m.description && <div style={{ fontSize: 11.5, color: "#7E76B8", marginTop: 4, lineHeight: 1.5 }}>{m.description}</div>}
               </div>
               <div style={{ width: 64, height: 64, borderRadius: 14, flexShrink: 0, overflow: "hidden", background: "#EDE6FB" }}>
-                <img src={m.image_url || avatar} alt={m.title}
+                <img src={m.thumb_url || m.image_url || avatar} alt={m.title}
                      onError={(e) => { if (avatar && e.currentTarget.src !== avatar) e.currentTarget.src = avatar; }}
                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               </div>

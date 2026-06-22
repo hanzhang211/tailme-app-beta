@@ -69,8 +69,8 @@ export default function AddMemoryForm({ petName = "毛孩子", userId, petId, to
     if (saving) return;
     setSaving(true);
     try {
-      const imageUrl = await uploadMemoryImage(file, userId, petId);
-      const row = await addMemory({ userId, petId, title, description: desc, imageUrl, memoryDate: date || null, category });
+      const { url, thumbUrl } = await uploadMemoryImage(file, userId, petId);
+      const row = await addMemory({ userId, petId, title, description: desc, imageUrl: url, thumbUrl, memoryDate: date || null, category });
       onSaved?.(row);
       toast?.("回忆已收藏进相册啦");
       setTimeout(() => onClose?.(), 500);
