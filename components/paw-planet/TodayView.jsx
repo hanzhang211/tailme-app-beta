@@ -42,7 +42,7 @@ export default function TodayView({ petName = "毛孩子", stories = [], onBack 
                 <div style={{ fontSize: 13, color: it.title ? C.sub : C.text, lineHeight: 1.7 }}>{it.text}</div>
               </div>
               <img src={storyImage(it.type)} alt={it.title} loading="eager" decoding="async"
-                   style={{ width: "100%", aspectRatio: "1536 / 1024", objectFit: "cover", borderRadius: 14,
+                   style={{ width: "100%", aspectRatio: "1672 / 941", objectFit: "cover", borderRadius: 14,
                             marginTop: 8, display: "block" }} />
             </div>
           </div>
