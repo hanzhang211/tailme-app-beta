@@ -13,6 +13,7 @@
 
 import { useState } from "react";
 import BackButton from "@/components/icons/BackButton";
+import SceneComposite from "@/components/paw-planet/SceneComposite";
 import { PLANET_C as C } from "@/lib/pawPlanetMock";
 import { PAW_PLANET_SCENE_PLACEMENTS, PAW_PLANET_SCENE_ORDER } from "@/lib/pawPlanetScenePlacements";
 
@@ -50,30 +51,18 @@ export default function ScenePreview({ petName = "毛孩子", avatar, petType = 
 
       {/* 合成卡片 */}
       <div style={{ flex: 1, overflowY: "auto", padding: "6px 18px 22px" }}>
-        <div style={{ position: "relative", width: "100%", aspectRatio: "1672 / 941", borderRadius: 18,
-                      overflow: "hidden", background: scene.fallbackGradient,
-                      boxShadow: "0 10px 28px rgba(0,0,0,0.14)" }}>
-          {/* 背景层（缺失/失败时 onError 隐藏，露出 fallbackGradient） */}
-          <img src={scene.backgroundImage} alt="" aria-hidden="true"
-               onError={(e) => { e.currentTarget.style.display = "none"; }}
-               style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }} />
-
-          {/* 宠物主角层（按配置叠加；不变形、不裁切、居中锚点） */}
-          <img src={petSrc} alt={petName} loading="eager" decoding="async"
-               onError={(e) => { if (e.currentTarget.src.indexOf(fallbackPet) === -1) e.currentTarget.src = fallbackPet; }}
-               style={{ position: "absolute", left: p.x, top: p.y, width: p.scale, height: "auto",
-                        transform: `translate(-50%,-50%) translate(${p.translateX || 0}px,${p.translateY || 0}px)`,
-                        zIndex: p.zIndex || 2, objectFit: "contain", pointerEvents: "none",
-                        filter: "drop-shadow(0 10px 18px rgba(0,0,0,0.12))" }} />
-
-          {/* 底部基础文案区（在宠物之上，避免被挡） */}
-          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 3, padding: "26px 16px 12px",
-                        background: "linear-gradient(transparent, rgba(0,0,0,0.32))" }}>
-            <div style={{ fontSize: 17, fontWeight: 900, color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>{scene.title}</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.92)", marginTop: 2, textShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>
-              {petName} 的爪爪星球日常
+        <div style={{ boxShadow: "0 10px 28px rgba(0,0,0,0.14)", borderRadius: 18 }}>
+          <SceneComposite backgroundImage={scene.backgroundImage} fallbackGradient={scene.fallbackGradient}
+                          placement={p} petImage={petSrc} petType={petType} radius={18}>
+            {/* 底部基础文案区（在宠物之上，避免被挡） */}
+            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 3, padding: "26px 16px 12px",
+                          background: "linear-gradient(transparent, rgba(0,0,0,0.32))" }}>
+              <div style={{ fontSize: 17, fontWeight: 900, color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>{scene.title}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.92)", marginTop: 2, textShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>
+                {petName} 的爪爪星球日常
+              </div>
             </div>
-          </div>
+          </SceneComposite>
         </div>
 
         {/* 位置读数（方便调试：改 lib/pawPlanetScenePlacements.js 即可调整） */}

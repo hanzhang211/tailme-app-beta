@@ -2,16 +2,19 @@
 
 /**
  * components/paw-planet/TodayView.jsx
- * 「今天的它」——星球日常聊天式时间轴（对齐设计稿屏2）。第一版 mock。
- * props: { petName, avatar, stories, onBack }  stories 来自 lib/pawPlanetDailyStories（按日固定）
+ * 「今天的它」——星球日常聊天式时间轴（对齐设计稿屏2）。
+ * 卡片图 = 场景背景 + 当前宠物叠加（SceneComposite）。
+ * props: { petName, avatar, petType, stories, onBack }  stories 来自 lib/pawPlanetDailyStories（按日固定）
  */
 
 import { CalendarDays } from "lucide-react";
 import BackButton from "@/components/icons/BackButton";
+import SceneComposite from "@/components/paw-planet/SceneComposite";
 import { PLANET_C as C } from "@/lib/pawPlanetMock";
 import { storyImage } from "@/lib/pawPlanetDailyStories";
+import { placementForType } from "@/lib/pawPlanetScenePlacements";
 
-export default function TodayView({ petName = "毛孩子", stories = [], onBack }) {
+export default function TodayView({ petName = "毛孩子", avatar, petType = "dog", stories = [], onBack }) {
   const items = stories;
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "#F4ECE0" }}>
@@ -41,9 +44,12 @@ export default function TodayView({ petName = "毛孩子", stories = [], onBack 
                 {it.title && <div style={{ fontSize: 13.5, fontWeight: 800, color: C.text, marginBottom: 4 }}>{it.title}</div>}
                 <div style={{ fontSize: 13, color: it.title ? C.sub : C.text, lineHeight: 1.7 }}>{it.text}</div>
               </div>
-              <img src={storyImage(it.type)} alt={it.title} loading="eager" decoding="async"
-                   style={{ width: "100%", aspectRatio: "1672 / 941", objectFit: "cover", borderRadius: 14,
-                            marginTop: 8, display: "block" }} />
+              <div style={{ marginTop: 8 }}>
+                <SceneComposite backgroundImage={storyImage(it.type)}
+                                fallbackGradient={placementForType(it.type).fallbackGradient}
+                                placement={placementForType(it.type).petPlacement}
+                                petImage={avatar} petType={petType} radius={14} />
+              </div>
             </div>
           </div>
         ))}

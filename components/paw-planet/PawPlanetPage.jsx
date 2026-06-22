@@ -67,7 +67,7 @@ export default function PawPlanetPage({ pet, onBack }) {
     : ["gallery", "card", "timeline"].includes(view) ? "gallery"
     : view === "me" ? "me" : "home";
 
-  const sub = { petName, avatar, mock, daysTogether, petId: pet?.id, onBack: () => setView("home"), toast, onOpen: setView, onLetterSaved: refreshLetters };
+  const sub = { petName, avatar, petType: isCatPet(pet) ? "cat" : "dog", mock, daysTogether, petId: pet?.id, onBack: () => setView("home"), toast, onOpen: setView, onLetterSaved: refreshLetters };
 
   let body;
   if (view === "today") body = <TodayView {...sub} stories={todayStories} />;
