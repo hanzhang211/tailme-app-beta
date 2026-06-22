@@ -2,8 +2,8 @@
 
 /**
  * components/paw-planet/MailboxView.jsx
- * 「星球信箱」——信件列表 + 展开查看（含未读 badge）。第一版 mock。
- * props: { petName, mock, onBack, onOpen }
+ * 「星球信箱」——真实信件列表 + 展开查看（数据来自 Supabase memorial_letters）。
+ * props: { petName, letters, onBack, onOpen }
  */
 
 import { useState } from "react";
@@ -11,8 +11,16 @@ import { Mail, ChevronRight, PenLine } from "lucide-react";
 import BackButton from "@/components/icons/BackButton";
 import { PLANET_C as C } from "@/lib/pawPlanetMock";
 
-export default function MailboxView({ petName = "毛孩子", mock, onBack, onOpen }) {
-  const letters = mock?.letters || [];
+function fmtDate(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return String(ts);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+export default function MailboxView({ petName = "毛孩子", letters = [], onBack, onOpen }) {
+  const list = letters || [];
   const [openId, setOpenId] = useState(null);
 
   return (
@@ -26,28 +34,26 @@ export default function MailboxView({ petName = "毛孩子", mock, onBack, onOpe
         <div style={{ fontSize: 12, color: C.sub, textAlign: "center", marginBottom: 12 }}>
           每一封信，{petName}都会在爪爪星球收到哦～
         </div>
-        {letters.length === 0 ? (
+        {list.length === 0 ? (
           <div style={{ textAlign: "center", color: C.sub, marginTop: 70 }}>
             <div style={{ fontSize: 38, marginBottom: 10 }}>💌</div>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: C.text }}>还没有信件</div>
             <div style={{ fontSize: 12, marginTop: 6 }}>给它写第一封信吧</div>
           </div>
-        ) : letters.map((l) => {
+        ) : list.map((l) => {
           const expanded = openId === l.id;
           return (
             <div key={l.id} onClick={() => setOpenId(expanded ? null : l.id)}
               style={{ background: "#fff", borderRadius: 16, padding: "13px 14px", marginBottom: 10, cursor: "pointer",
                        border: `1px solid ${C.border}`, boxShadow: "0 1px 5px rgba(0,0,0,0.04)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                <span style={{ position: "relative", width: 38, height: 38, borderRadius: 12, flexShrink: 0,
+                <span style={{ width: 38, height: 38, borderRadius: 12, flexShrink: 0,
                                background: C.cream, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Mail size={18} color={C.pri} />
-                  {!l.is_read && <span style={{ position: "absolute", top: -3, right: -3, width: 9, height: 9,
-                                                 borderRadius: "50%", background: "#E5573E", border: "2px solid #fff" }} />}
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{l.title}</div>
-                  <div style={{ fontSize: 11, color: C.sub, marginTop: 2 }}>{l.created_at}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{l.title || "写给你的信"}</div>
+                  <div style={{ fontSize: 11, color: C.sub, marginTop: 2 }}>{fmtDate(l.created_at)}</div>
                 </div>
                 <ChevronRight size={17} color={C.brown} style={{ transform: expanded ? "rotate(90deg)" : "none", transition: "transform .2s" }} />
               </div>

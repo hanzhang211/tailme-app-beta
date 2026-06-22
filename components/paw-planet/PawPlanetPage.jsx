@@ -12,7 +12,7 @@
  * props: { pet, onBack }  onBack 返回纪念模式选择页。
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { ChevronDown, BookOpen } from "lucide-react";
 import { isCatPet } from "@/services/breedAvatar";
 import { formatBirthday } from "@/services/petAge";
@@ -33,7 +33,8 @@ import MailboxView from "@/components/paw-planet/MailboxView";
 import MemorialCardView from "@/components/paw-planet/MemorialCardView";
 import ScenePreview from "@/components/paw-planet/ScenePreview";
 import { PLANET_C as C, buildPlanetMock } from "@/lib/pawPlanetMock";
-import { getDailyPlanetStories, getPlanetLetters } from "@/lib/pawPlanetDailyStories";
+import { getDailyPlanetStories } from "@/lib/pawPlanetDailyStories";
+import { listMemorialLetters } from "@/services/memorialLetterService";
 
 // 与首页一致：优先 thumb 缩略图（300px 透明小图，秒加载），其次 AI 原图，再次猫狗占位
 const avatarOf = (pet) => pet?.pet_avatar_thumb_url || pet?.ai_avatar_url || (isCatPet(pet) ? "/cat.png" : "/dog.png");
@@ -45,8 +46,11 @@ export default function PawPlanetPage({ pet, onBack }) {
   const petName = pet?.name || "毛孩子";
   const avatar = avatarOf(pet);
   const mock = useMemo(() => buildPlanetMock(petName), [petName]);
-  const [letters, setLetters] = useState(() => getPlanetLetters(pet?.id)); // 第一版 localStorage，预留接 memorial_letters
-  const refreshLetters = () => setLetters(getPlanetLetters(pet?.id));
+  const [letters, setLetters] = useState([]); // 真实信件（Supabase memorial_letters）
+  const refreshLetters = useCallback(() => {
+    if (pet?.id) listMemorialLetters(pet.id).then(setLetters).catch(() => setLetters([]));
+  }, [pet?.id]);
+  useEffect(() => { refreshLetters(); }, [refreshLetters]);
   const todayStories = useMemo(() => getDailyPlanetStories({ pet, letters }), [pet?.id, letters]); // petId+日期固定；写信后下一段变「收到信」
   const enteredAt = pet?.memorial_started_at ? formatBirthday(pet.memorial_started_at) : null;
   const daysTogether = useMemo(() => {
@@ -67,7 +71,7 @@ export default function PawPlanetPage({ pet, onBack }) {
     : ["gallery", "card", "timeline"].includes(view) ? "gallery"
     : view === "me" ? "me" : "home";
 
-  const sub = { petName, avatar, petType: isCatPet(pet) ? "cat" : "dog", mock, daysTogether, petId: pet?.id, onBack: () => setView("home"), toast, onOpen: setView, onLetterSaved: refreshLetters };
+  const sub = { petName, avatar, petType: isCatPet(pet) ? "cat" : "dog", mock, daysTogether, petId: pet?.id, userId: pet?.user_id, onBack: () => setView("home"), toast, onOpen: setView, onLetterSaved: refreshLetters };
 
   let body;
   if (view === "today") body = <TodayView {...sub} stories={todayStories} />;
@@ -75,7 +79,7 @@ export default function PawPlanetPage({ pet, onBack }) {
   else if (view === "gallery") body = <GalleryView {...sub} />;
   else if (view === "timeline") body = <TimelineView {...sub} />;
   else if (view === "story") body = <StoryView {...sub} />;
-  else if (view === "mailbox") body = <MailboxView {...sub} />;
+  else if (view === "mailbox") body = <MailboxView {...sub} letters={letters} />;
   else if (view === "card") body = <MemorialCardView {...sub} onBack={() => setView("gallery")} />;
   else if (view === "scenes") body = <ScenePreview petName={petName} avatar={avatar} petType={isCatPet(pet) ? "cat" : "dog"} onBack={() => setView("home")} />;
   else if (view === "me") body = <MeView petName={petName} avatar={avatar} daysTogether={daysTogether} onLeave={onBack} />;
@@ -131,7 +135,7 @@ export default function PawPlanetPage({ pet, onBack }) {
         </div>
 
         <MemoryTimelinePreview timeline={mock.timeline} onMore={() => setView("timeline")} />
-        <PlanetMailboxPreview unread={mock.unreadLetters} petName={petName} onClick={() => setView("mailbox")} />
+        <PlanetMailboxPreview count={letters.length} petName={petName} onClick={() => setView("mailbox")} />
 
         {/* 临时入口：场景预览（8 张背景 + 宠物叠加合成预览）。如已有别的入口可让我改接/移除 */}
         <button onClick={() => setView("scenes")}

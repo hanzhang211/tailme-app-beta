@@ -10,20 +10,29 @@ import { useState } from "react";
 import { Camera } from "lucide-react";
 import BackButton from "@/components/icons/BackButton";
 import { PLANET_C as C } from "@/lib/pawPlanetMock";
-import { addPlanetLetter } from "@/lib/pawPlanetDailyStories";
+import { addMemorialLetter } from "@/services/memorialLetterService";
 
-export default function LetterView({ petName = "毛孩子", petId, onBack, toast, onLetterSaved }) {
+export default function LetterView({ petName = "毛孩子", petId, userId, onBack, toast, onLetterSaved }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const save = () => {
+  const save = async () => {
     if (!content.trim()) { toast?.("写点想对它说的话吧～"); return; }
-    // 第一版：写入 localStorage（预留接 memorial_letters）；并通知刷新，使「今天的它」下一段变收到信
-    addPlanetLetter(petId, { title, content });
-    onLetterSaved?.();
-    toast?.("已寄到星球信箱 💌");
-    setTitle(""); setContent("");
-    setTimeout(() => onBack?.(), 700);
+    if (saving) return;
+    setSaving(true);
+    try {
+      // 真实写入 Supabase memorial_letters（记录在案）；并通知刷新，使「今天的它」下一段变收到信
+      await addMemorialLetter({ userId, petId, title, content });
+      onLetterSaved?.();
+      toast?.("已寄到星球信箱 💌");
+      setTitle(""); setContent("");
+      setTimeout(() => onBack?.(), 700);
+    } catch (e) {
+      toast?.("寄送失败，请稍后重试");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -61,11 +70,12 @@ export default function LetterView({ petName = "毛孩子", petId, onBack, toast
       </div>
 
       <div style={{ padding: "10px 16px 14px", flexShrink: 0 }}>
-        <button onClick={save}
-          style={{ width: "100%", padding: "15px 0", borderRadius: 16, border: "none", cursor: "pointer",
+        <button onClick={save} disabled={saving}
+          style={{ width: "100%", padding: "15px 0", borderRadius: 16, border: "none",
+                   cursor: saving ? "default" : "pointer", opacity: saving ? 0.7 : 1,
                    background: C.pri, color: "#fff", fontSize: 15.5, fontWeight: 800,
                    boxShadow: "0 6px 18px rgba(230,134,69,0.32)" }}>
-          保存到星球信箱
+          {saving ? "寄送中..." : "保存到星球信箱"}
         </button>
       </div>
     </div>
