@@ -39,7 +39,7 @@ import PetOnboarding   from "./PetOnboarding";
 import SettingsModal   from "./SettingsModal";
 import MemorialCenter  from "@/components/memorial/MemorialCenter";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
-import { Star, Settings } from "lucide-react";
+import { Star, Settings, PawPrint } from "lucide-react";
 
 const C = {
   pri:"#E68645", tint:"#F2E5DA", bg:"#EEE9E1", text:"#1A1006",
@@ -56,21 +56,6 @@ function maskPhone(phone) {
   const s = String(phone);
   if (s.length < 7) return s;
   return s.slice(0, 3) + "****" + s.slice(-4);
-}
-
-/* 我的宠物：镂空线性爪印（橙色 line icon，与星/齿轮同为一套描边风格） */
-function PawOutlineIcon({ size = 28 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-         stroke={C.pri} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-         aria-hidden="true">
-      <ellipse cx="5.5"  cy="10"  rx="2.1" ry="2.8" transform="rotate(-20 5.5 10)" />
-      <ellipse cx="9.7"  cy="6.8" rx="2.1" ry="3"   transform="rotate(-7 9.7 6.8)" />
-      <ellipse cx="14.3" cy="6.8" rx="2.1" ry="3"   transform="rotate(7 14.3 6.8)" />
-      <ellipse cx="18.5" cy="10"  rx="2.1" ry="2.8" transform="rotate(20 18.5 10)" />
-      <path d="M6.3 15.2 C6.3 11.5 17.7 11.5 17.7 15.2 C18.7 19.8 14 22.3 12 22.3 C10 22.3 5.3 19.8 6.3 15.2 Z" />
-    </svg>
-  );
 }
 
 /* 统计区橙色小图标（纯装饰 SVG） */
@@ -668,7 +653,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
             </button>
             <MenuRow icon={<Star size={26} color={C.pri} strokeWidth={2.2} />}
               label="点赞&收藏" onClick={() => setSubView("posts")} />
-            <MenuRow icon={<PawOutlineIcon size={28} />}
+            <MenuRow icon={<PawPrint size={26} color={C.pri} strokeWidth={2.2} />}
               label="我的宠物" hint={`${pets.length} 只`} onClick={() => setSubView("pets")} />
             <MenuRow icon={
                 <span style={{ width:42, height:42, display:"inline-block", backgroundColor:C.pri,

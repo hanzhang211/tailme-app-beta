@@ -83,7 +83,7 @@ export default function SettingsModal({
             {/* 宠物 & 纪念 */}
             <Group>
               <Row icon={<PawPrint size={21} />} title="宠物管理" onClick={() => setView("pets")} />
-              <Row icon={<PlanetIcon size={22} />} title="星球纪念模式"
+              <Row icon={<PlanetIcon size={32} />} title="星球纪念模式"
                    sub="当宠物去往爪爪星球后，保留回忆与陪伴" onClick={() => onOpenMemorial?.()} />
               <Row icon={<HeartHandshake size={21} />} title="纪念内容设置" onClick={soon} last />
             </Group>
