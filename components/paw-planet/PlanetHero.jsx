@@ -34,8 +34,8 @@ export default function PlanetHero({ planetImageUrl, petImageUrl, backgroundImag
                  style={{ width: 270, height: 270, objectFit: "contain",
                           filter: "drop-shadow(0 16px 36px rgba(80,90,160,0.4))" }} />
             <img src={petImageUrl} alt={petName} className="ph-pet" loading="eager" decoding="async"
-                 style={{ position: "absolute", left: "50%", top: "26%", width: 126, height: 126,
-                          objectFit: "contain", display: "block",
+                 style={{ position: "absolute", left: "50%", top: "30%", transform: "translateX(-50%)",
+                          width: 130, height: 130, objectFit: "contain", display: "block",
                           filter: "drop-shadow(0 6px 12px rgba(40,60,30,0.3))" }} />
           </div>
         ) : (
@@ -63,12 +63,6 @@ export default function PlanetHero({ planetImageUrl, petImageUrl, backgroundImag
           </div>
         )}
 
-        {/* 想你啦 气泡 */}
-        <span style={{ position: "absolute", top: "22%", right: "2%", background: "#fff", color: C.pri,
-                       fontSize: 12, fontWeight: 800, padding: "5px 12px", borderRadius: "14px 14px 14px 4px",
-                       boxShadow: "0 4px 12px rgba(0,0,0,0.16)", zIndex: 2 }}>
-          想你啦～
-        </span>
       </div>
 
       <style>{`
