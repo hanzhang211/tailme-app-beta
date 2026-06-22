@@ -172,21 +172,22 @@ export default function PawPlanetPage({ pet, onBack }) {
 /* 极简「我的」占位页（星球内 tab） */
 function MeView({ petName, avatar, daysTogether, onLeave }) {
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center",
-                  justifyContent: "center", gap: 14, padding: "0 30px",
-                  background: "linear-gradient(180deg,#4A4885,#8E84C8)" }}>
+    <div style={{ height: "100%", position: "relative", overflow: "hidden", display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center", gap: 14, padding: "0 30px",
+                  background: "linear-gradient(180deg,#2D3163 0%,#4A4885 42%,#8E84C8 100%)" }}>
+      <FloatingStars />
       <img src={avatar} alt={petName}
-           style={{ width: 110, height: 110, objectFit: "contain", display: "block",
-                    filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }} />
-      <div style={{ fontSize: 19, fontWeight: 900, color: "#fff" }}>{petName}</div>
+           style={{ position: "relative", zIndex: 1, width: 240, height: 240, objectFit: "contain", display: "block",
+                    filter: "drop-shadow(0 12px 24px rgba(0,0,0,0.38))" }} />
+      <div style={{ position: "relative", zIndex: 1, fontSize: 22, fontWeight: 900, color: "#fff" }}>{petName}</div>
       {daysTogether != null && (
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.88)" }}>陪伴了你 {daysTogether} 天 · 现在在爪爪星球</div>
+        <div style={{ position: "relative", zIndex: 1, fontSize: 13, color: "rgba(255,255,255,0.88)" }}>陪伴了你 {daysTogether} 天 · 现在在爪爪星球</div>
       )}
-      <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.7)", textAlign: "center", lineHeight: 1.7, marginTop: 4 }}>
+      <div style={{ position: "relative", zIndex: 1, fontSize: 12.5, color: "rgba(255,255,255,0.7)", textAlign: "center", lineHeight: 1.7, marginTop: 4 }}>
         这里以后会有更多和它一起的陪伴功能～
       </div>
       <button onClick={onLeave}
-        style={{ marginTop: 10, padding: "12px 28px", borderRadius: 16, cursor: "pointer", border: "none",
+        style={{ position: "relative", zIndex: 1, marginTop: 10, padding: "12px 28px", borderRadius: 16, cursor: "pointer", border: "none",
                  background: "rgba(255,255,255,0.92)", color: "#5F5A9D", fontSize: 14, fontWeight: 800 }}>
         离开爪爪星球
       </button>
