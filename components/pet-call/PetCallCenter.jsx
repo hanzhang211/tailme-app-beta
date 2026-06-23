@@ -26,6 +26,7 @@ import { setMedDoneToday } from "@/services/petHealthService";
 import { DEFAULT_SCENES } from "@/lib/petCallTemplates";
 import { getPetCallQuickActions } from "@/lib/petCallQuickActions";
 import { playPetVoice, triggerForScene, resolveCallEmotion } from "@/lib/petCallEmotionMap";
+import { speakPetVoice, stopPetVoice } from "@/services/petVoiceClient";
 import CallSettings from "@/components/pet-call/CallSettings";
 import CallPreview from "@/components/pet-call/CallPreview";
 import IncomingCall from "@/components/pet-call/IncomingCall";
@@ -87,6 +88,9 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ── 浮层卸载：停止任何正在播放的 TTS 语音 ── */
+  useEffect(() => () => stopPetVoice(), []);
+
   /* ── 载入已存设置 + 场景开关 ── */
   useEffect(() => {
     let alive = true;
@@ -132,10 +136,25 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
     setView("preview");
   };
 
+  /* ── 接听后用火山 TTS 念开场白（真实语音陪伴）；失败仅 toast，不阻断通话 ── */
+  const speakOpening = useCallback(() => {
+    const ctx = resolveCallEmotion(activeContext, petType);
+    const text = auto?.subtitle || ctx.subtitle || "主人～我今天也有乖乖想你哦～";
+    toast("生成语音中…");
+    speakPetVoice({
+      text,
+      emotion: ctx.emotion,        // 来电原始情绪，后端归一到四档
+      petId: pet?.id,
+      scene: activeContext,
+      onState: (s) => { if (s === "playing") setNotice(null); }, // 开始播放即清除「生成中」提示
+    }).catch(() => toast("语音生成失败，请稍后再试"));
+  }, [activeContext, petType, auto, pet?.id, toast]);
+
   /* ── 来电中：接听 / 挂断 / 稍后再说 ── */
   const handleAccept = async () => {
     call.startConversation(auto ? auto.subtitle : undefined); // 自动来电用场景专属字幕开场
     playPetVoice(activeContext, petType);                     // 狗用狗叫、猫用猫叫；无文件静默
+    speakOpening();                                           // 火山 TTS 念开场白（真实语音）
     if (recordId) { try { await updateCallRecord(recordId, { status: "answered", answered_at: new Date().toISOString() }); } catch {} }
     setView("active");
   };
@@ -223,6 +242,7 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
   };
 
   const handleHangup = () => {
+    stopPetVoice();
     const dur = call.stop();
     setEndedDuration(dur);
     setView("ended");
