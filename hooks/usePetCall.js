@@ -81,6 +81,19 @@ export function usePetCall() {
     });
   }, []);
 
+  /** 替换开场白：DeepSeek 生成的开场白回来后，更新第一条宠物气泡（接听先用模板占位）。 */
+  const setOpeningLine = useCallback((text) => {
+    if (!text) return;
+    setMessages((m) => {
+      if (!m.length) return [{ from: "pet", text }];
+      const next = [...m];
+      const i = next.findIndex((x) => x.from === "pet");
+      if (i === -1) next.unshift({ from: "pet", text });
+      else next[i] = { ...next[i], text };
+      return next;
+    });
+  }, []);
+
   /** 挂断：停止计时，返回本通最终时长（秒）。 */
   const stop = useCallback(() => {
     clearInterval(timerRef.current);
@@ -95,7 +108,7 @@ export function usePetCall() {
   return {
     callType, messages, step, seconds, muted, speaker,
     setMuted, setSpeaker,
-    prepare, startConversation, reply, pushExchange, stop,
+    prepare, startConversation, reply, pushExchange, setOpeningLine, stop,
   };
 }
 

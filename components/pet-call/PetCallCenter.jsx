@@ -27,6 +27,7 @@ import { DEFAULT_SCENES } from "@/lib/petCallTemplates";
 import { getPetCallQuickActions } from "@/lib/petCallQuickActions";
 import { playPetVoice, triggerForScene, resolveCallEmotion } from "@/lib/petCallEmotionMap";
 import { speakPetVoice, stopPetVoice } from "@/services/petVoiceClient";
+import { generateCallOpening, generateCallReply, summarizeCall } from "@/services/petCallAi";
 import CallSettings from "@/components/pet-call/CallSettings";
 import CallPreview from "@/components/pet-call/CallPreview";
 import IncomingCall from "@/components/pet-call/IncomingCall";
@@ -60,11 +61,17 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
   const [saving, setSaving] = useState(false);
   const [endedDuration, setEndedDuration] = useState(0);
   const [notice, setNotice] = useState(null);
+  const [busy, setBusy] = useState(false);       // AI 生成开场白中：禁用选项按钮
+  const [selected, setSelected] = useState(false); // 本通已选过一次：单轮，禁用其余按钮
 
   const call = usePetCall();
   const startedAtRef = useRef(auto?.triggered_at || null);
   const closingRef = useRef(false); // 收尾中：防重入 + 拦截继续点按钮
   const warnedRef = useRef(false);  // 「即将结束」提示只弹一次
+  const busyRef = useRef(false);     // 与 busy 同步，供事件回调即时判断
+  const selectedRef = useRef(false); // 与 selected 同步，供事件回调即时判断
+  const interactionRef = useRef(null); // 本通互动 { callType, opening, userChoice, petReply }，结束时总结记忆用
+  const summarizedRef = useRef(false); // 防一通电话重复总结
 
   const toast = useCallback((msg) => {
     setNotice(msg);
@@ -163,13 +170,33 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
 
   /* ── 来电中：接听 / 挂断 / 稍后再说 ── */
   const handleAccept = async () => {
-    closingRef.current = false; warnedRef.current = false;    // 新通话重置上限状态
-    const opening = auto?.subtitle || resolveCallEmotion(activeContext, petType).subtitle || "主人～我今天也有乖乖想你哦～";
-    call.startConversation(auto ? auto.subtitle : undefined); // 自动来电用场景专属字幕开场
-    playPetVoice(activeContext, petType);                     // 狗用狗叫、猫用猫叫；无文件静默
-    speakLine(opening, { loading: true });                    // 火山 TTS 念开场白（真实语音）
-    if (recordId) { try { await updateCallRecord(recordId, { status: "answered", answered_at: new Date().toISOString() }); } catch {} }
+    // 新通话重置所有运行时标志（上限 / 单轮 / AI 忙 / 记忆总结）
+    closingRef.current = false; warnedRef.current = false;
+    selectedRef.current = false; setSelected(false);
+    interactionRef.current = null; summarizedRef.current = false;
+    busyRef.current = true; setBusy(true);
+
+    // 模板字幕兜底：DeepSeek 慢/失败时用它（保证有内容、能出声）
+    const fallbackOpening =
+      auto?.subtitle || resolveCallEmotion(activeContext, petType).subtitle || "主人～我今天也有乖乖想你哦～";
+
+    // 立即：进入通话页、播叫声（秒出声）、先显示兜底字幕并开始计时
+    call.startConversation(fallbackOpening);
+    playPetVoice(activeContext, petType);
     setView("active");
+    if (recordId) updateCallRecord(recordId, { status: "answered", answered_at: new Date().toISOString() }).catch(() => {});
+
+    // DeepSeek 生成开场白（带超时 + 模板兜底）→ 更新字幕 → 火山 TTS 念出
+    const opening = await generateCallOpening({
+      userId: user?.id, petId: pet?.id, pet: aiPetPayload(),
+      callType: activeContext, growthLevel: pet?.ai_level,
+      clientHour: new Date().getHours(), clientMinute: new Date().getMinutes(),
+      fallback: fallbackOpening,
+    });
+    busyRef.current = false; setBusy(false);
+    if (closingRef.current) return;        // 期间已挂断/收尾则不再处理
+    call.setOpeningLine(opening);          // 更新第一条宠物气泡为最终开场白
+    speakLine(opening, { loading: true }); // 火山 TTS 念开场白
   };
 
   const recordMissed = async (status) => {
@@ -194,72 +221,126 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
   const handleDecline = async () => { await finishMissed("declined"); toast("已挂断"); exitCall(); };
   const handleLater = async () => { await finishMissed("missed"); toast("好的，我等你有空再聊～"); exitCall(); };
 
-  /* ── 通话中：快捷按钮动作（按 call_type 动态，复用现有业务/页面）── */
-  const doConfirmMedicine = async () => {
+  /* ── 通话中：用户点选项 → DeepSeek 生成回应 + 单轮收尾（复用现有业务/页面）── */
+
+  // 给 DeepSeek 的当前宠物资料（电话与聊天共用同一份人格输入）
+  const aiPetPayload = useCallback(() => ({
+    name: pet?.name,
+    pet_type: petType,
+    breed: pet?.breed,
+    ageText: ageStr,
+    gender: pet?.gender,
+    weight: pet?.weight,
+    personality: pet?.personality,
+  }), [pet?.name, petType, pet?.breed, ageStr, pet?.gender, pet?.weight, pet?.personality]);
+
+  // 本通宠物说的第一句（开场白）——生成回应时作上下文
+  const firstPetLine = useCallback(() => {
+    const m = call.messages.find((x) => x.from === "pet");
+    return m?.text || "";
+  }, [call.messages]);
+
+  // 选项 → 收尾后跳转的页面（无则挂断）
+  const navTargetOf = (action) => ({
+    go_medicine: "health", go_health: "health",
+    go_feeding: "feeding", go_walk: "social", go_walk_nearby: "social",
+    go_card: "sharecard",
+  }[action] || null);
+
+  // 仅打卡（复用现有「完成用药 / 完成喂食」，不改其数据结构；挂断交给统一收尾）
+  const medicineCheckin = () => {
     const recId = auto?.trigger_source_id?.split("_")[1]; // med_{diseaseId}_{date} → diseaseId
-    if (recId) { try { setMedDoneToday(recId, true); } catch {} } // 复用现有「完成用药」
-    if (recordId) { try { await updateCallRecord(recordId, { status: "completed", ended_at: new Date().toISOString() }); } catch {} }
+    if (recId) { try { setMedDoneToday(recId, true); } catch {} }
     toast("已记录本次用药");
-    setTimeout(() => handleHangup(), 1300);
+  };
+  const feedingCheckin = () => {
+    const idx = auto?.trigger_source_id?.split("_")[3]; // feed_{petId}_{date}_{idx} → idx
+    if (idx != null && idx !== "") markFeedingDone(pet.id, Number(idx));
+    toast("已记录本次喂食");
   };
 
-  const doConfirmFeeding = async () => {
-    const idx = auto?.trigger_source_id?.split("_")[3]; // feed_{petId}_{date}_{idx} → idx
-    if (idx != null && idx !== "") markFeedingDone(pet.id, Number(idx)); // 复用首页同款「完成喂食」打卡
-    if (recordId) { try { await updateCallRecord(recordId, { status: "completed", ended_at: new Date().toISOString() }); } catch {} }
-    toast("已记录本次喂食");
-    setTimeout(() => handleHangup(), 1300);
-  };
+  // 电话结束时总结本通记忆（DeepSeek 提取 0-3 条 → 写入 pet_ai_memories，source='call'）。
+  // 只在用户真的互动过（选过选项）时才调用；后台进行、失败静默，绝不阻塞挂断/跳转。
+  const summarizeIfNeeded = useCallback(() => {
+    if (summarizedRef.current) return;
+    const it = interactionRef.current;
+    if (!it || !it.userChoice) return; // 没有实质互动 → 不浪费一次 DeepSeek 调用
+    summarizedRef.current = true;
+    summarizeCall({
+      userId: user?.id, petId: pet?.id, pet: aiPetPayload(),
+      callType: it.callType, opening: it.opening, userChoice: it.userChoice, petReply: it.petReply,
+    }).catch(() => {}); // route 内部已 console.error；写入失败不影响通话
+  }, [user?.id, pet?.id, aiPetPayload]);
 
   const navigateAfter = (target) => {
+    summarizeIfNeeded(); // 跳转前后台总结本通记忆（不阻塞）
     if (recordId) updateCallRecord(recordId, { status: "answered", answered_at: new Date().toISOString() }).catch(() => {});
     setTimeout(() => { if (onNavigate) onNavigate(target); else onClose?.(); }, 800); // 显示宠物回复后再跳转
   };
 
-  const finishStatus = async (status, toastMsg) => {
-    if (recordId) { try { await updateCallRecord(recordId, { status, ended_at: new Date().toISOString() }); } catch {} }
-    else { await recordMissed(status); }
-    if (toastMsg) toast(toastMsg);
-    setTimeout(() => exitCall(), 1000);
-  };
+  /* 用户点选项 → DeepSeek 生成「挂断前最后一句」→ TTS 念 → 念完 2 秒收尾（单轮，禁用其余按钮）。 */
+  const handleAction = async (btn) => {
+    if (closingRef.current || busyRef.current || selectedRef.current) return;
 
-  const saveMemory = async (done) => {
-    if (recordId) { try { await updateCallRecord(recordId, { status: done ? "completed" : "answered" }); } catch {} }
-    toast(done ? "好的，已记下啦 🐾" : "好的，我陪你慢慢来");
-    // 第一版继续对话，不强制结束（memory_followup 表状态更新留待后续接入）
-  };
+    // 「先挂了」：用户主动挂断，立即结束，不生成回应
+    if (btn.action === "end_call") {
+      selectedRef.current = true; setSelected(true);
+      if (btn.replyText) call.pushExchange(btn.replyText, null);
+      handleHangup();
+      return;
+    }
 
-  const handleAction = (btn) => {
-    if (closingRef.current) return; // 收尾中：禁止继续触发对话/TTS
-    if (btn.replyText) {
-      call.pushExchange(btn.replyText, btn.petReply || null);
-      if (btn.petReply) {
-        playPetVoice(activeContext, petType); // 宠物每说一句播放对应情绪叫声（无素材静默）
-        speakLine(btn.petReply);              // 火山 TTS 念出这句回复（语音/聊天模式共用此出口）
-      }
-    }
-    switch (btn.action) {
-      case "end_call": handleHangup(); break;
-      case "open_chat": setCallMode("chat"); break;
-      case "confirm_medicine": doConfirmMedicine(); break;
-      case "confirm_feeding": doConfirmFeeding(); break;
-      case "go_medicine":
-      case "go_health": navigateAfter("health"); break;
-      case "go_feeding": navigateAfter("feeding"); break;
-      case "go_walk":
-      case "go_walk_nearby": navigateAfter("social"); break;
-      case "go_card": navigateAfter("sharecard"); break;
-      case "snooze": finishStatus("snoozed", "已记录，稍后提醒你"); break;
-      case "dismiss": finishStatus("dismissed", null); break;
-      case "save_memory_done": saveMemory(true); break;
-      case "save_memory_pending": saveMemory(false); break;
-      case "continue":
-      default: break; // 仅推进对话，留在通话
-    }
+    selectedRef.current = true; setSelected(true); // 单轮：禁用其余按钮
+
+    // 1) 用户气泡
+    if (btn.replyText) call.pushExchange(btn.replyText, null);
+
+    // 2) 业务副作用（仅打卡，不在此挂断/跳转）
+    if (btn.action === "confirm_medicine") medicineCheckin();
+    else if (btn.action === "confirm_feeding") feedingCheckin();
+
+    // 3) DeepSeek 生成挂断前最后一句（带超时 + 用按钮原 petReply 兜底）
+    const reply = await generateCallReply({
+      userId: user?.id, petId: pet?.id, pet: aiPetPayload(),
+      callType: activeContext, opening: firstPetLine(),
+      userChoice: btn.replyText || btn.label,
+      growthLevel: pet?.ai_level,
+      clientHour: new Date().getHours(), clientMinute: new Date().getMinutes(),
+      fallback: btn.petReply || (petType === "cat" ? "好啦，我先乖乖挂电话啦，记得想我哦～喵～" : "好啦，我先乖乖挂电话啦，记得想我哦～汪～"),
+    });
+    if (closingRef.current) return; // 期间已被上限收尾
+
+    // 4) 宠物回应气泡 + 叫声 + 火山 TTS 念出
+    call.pushExchange(null, reply);
+    // 记录本通互动，供结束时总结记忆（source='call'）
+    interactionRef.current = {
+      callType: activeContext,
+      opening: firstPetLine(),
+      userChoice: btn.replyText || btn.label,
+      petReply: reply,
+    };
+    playPetVoice(activeContext, petType);
+
+    // 5) 念完（或失败）后 2 秒收尾：跳转类→去对应页；其余→挂断进结束页
+    const target = navTargetOf(btn.action);
+    const finish = () => {
+      if (closingRef.current) return;
+      closingRef.current = true; // 防与上限收尾重复
+      if (target) navigateAfter(target);
+      else handleHangup();
+    };
+    let done = false;
+    const schedule = () => { if (done) return; done = true; setTimeout(finish, 2000); };
+    const { emotion } = resolveCallEmotion(activeContext, petType);
+    speakPetVoice({ text: reply, emotion, petId: pet?.id, scene: activeContext })
+      .then(schedule)
+      .catch(() => { toast("语音生成失败，请稍后再试"); schedule(); });
+    setTimeout(() => { if (!done) { done = true; finish(); } }, 9000); // 兜底：最多 9s 必收尾
   };
 
   const handleHangup = () => {
     stopPetVoice();
+    summarizeIfNeeded(); // 后台总结本通记忆（不阻塞挂断；失败静默）
     const dur = call.stop();
     setEndedDuration(dur);
     setView("ended");
@@ -349,11 +430,14 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
       onToggleMute: () => call.setMuted((m) => !m),
       onToggleSpeaker: () => call.setSpeaker((s) => !s),
       onAction: handleAction, onEnd: handleHangup,
+      disabled: busy || selected, // 生成开场白中 / 已选过：禁用选项（单轮 + 防重复点击）
     };
     screen = callMode === "chat" ? (
       <CallChatMode {...common} messages={call.messages} onSwitchToVoice={() => setCallMode("voice")} />
     ) : (
-      <ActiveCall {...common} petLine={petLine} onSwitchToChat={() => setCallMode("chat")} />
+      // 电话不是聊天入口：右上角「聊天」改为温柔提示，引导挂断后从正常 AI 聊天进入（不在电话内进聊天）
+      <ActiveCall {...common} petLine={petLine}
+        onSwitchToChat={() => toast("挂断后可以从首页的 AI 聊天，继续和我聊哦～")} />
     );
   } else if (view === "ended") {
     screen = <CallEnded name={name} avatar={avatar} duration={endedDuration} onDone={handleDone} />;

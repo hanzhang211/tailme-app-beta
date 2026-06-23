@@ -32,7 +32,7 @@ function acActionStyle(type) {
 
 export default function ActiveCall({
   name, avatar, seconds, petLine, subtitleTone, quickActions, muted, speaker,
-  onToggleMute, onToggleSpeaker, onAction, onEnd, onSwitchToChat,
+  onToggleMute, onToggleSpeaker, onAction, onEnd, onSwitchToChat, disabled,
 }) {
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden",
@@ -88,9 +88,10 @@ export default function ActiveCall({
         {/* 快捷按钮（按 call_type 动态生成，见 lib/petCallQuickActions） */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 22, width: "100%", maxWidth: 320 }}>
           {(quickActions || []).map((a) => (
-            <button key={a.key} onClick={() => onAction(a)}
-              style={{ padding: "11px 0", borderRadius: 14, cursor: "pointer", fontSize: 14, fontWeight: 700,
+            <button key={a.key} onClick={() => onAction(a)} disabled={disabled}
+              style={{ padding: "11px 0", borderRadius: 14, cursor: disabled ? "default" : "pointer", fontSize: 14, fontWeight: 700,
                        boxShadow: "0 2px 8px rgba(150,90,30,0.1)", WebkitTapHighlightColor: "transparent",
+                       opacity: disabled ? 0.5 : 1, transition: "opacity .2s",
                        ...acActionStyle(a.type) }}>
               {a.label}
             </button>

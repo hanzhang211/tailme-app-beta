@@ -19,64 +19,14 @@
  */
 
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getPetMemories, savePetMemory } from "@/services/petMemoryService";
+// 统一宠物人格：性格语气 / 品种冷知识 / 关系亲密度 / 深夜判断（与 AI 电话共用，见 lib/petPersona）
+import { PERSONALITY_TONE, breedFact, levelTone, isNight } from "@/lib/petPersona";
 
 export const maxDuration = 60;
 
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const MODEL = "deepseek-chat";
-
-// ── 品种小冷知识库（情绪偏低时优先用当前品种） ──
-const BREED_FACTS: Record<string, string> = {
-  "腊肠犬": "我们腊肠犬以前是很勇敢的猎獾犬哦，虽然腿短短的，但遇到困难也会努力向前。",
-  "柴犬": "我们柴犬很独立，但其实对认定的人特别忠诚。",
-  "哈士奇": "我们哈士奇精力旺盛，最喜欢有人陪着一起运动啦。",
-  "金毛": "我们金毛温柔又聪明，经常被选去当陪伴犬，治愈别人是我们的天赋。",
-  "拉布拉多": "我们拉布拉多最爱黏着主人，是出了名的温柔搭档。",
-  "柯基": "我们柯基腿虽然短，但跑起来超有干劲，是开心果担当。",
-  "边牧": "我们边牧很聪明，能读懂主人的小情绪。",
-  "布偶猫": "我们布偶猫性格温顺，最喜欢安安静静陪在主人身边。",
-  "英短": "我们英短安静又稳重，是很会陪伴的小棉袄。",
-  "美短": "我们美短活泼亲人，好奇心特别强。",
-  "橘猫": "我们橘猫亲人又爱吃，圆滚滚的特别可爱。",
-  "其他": "每个毛孩子都有自己独一无二的可爱，我也一样呀。",
-};
-
-// ── 性格语气映射 ──
-const PERSONALITY_TONE: Record<string, string> = {
-  "黏人小宝贝": "你很依赖主人、爱撒娇，说话时常常想黏着主人、希望被关注。",
-  "活力小太阳": "你开心、热情、活泼，语气充满能量，喜欢带动气氛。",
-  "安静乖乖":   "你温柔、安静，话不多但很有陪伴感，让人安心。",
-  "好奇探险家": "你充满好奇，爱提问、爱探索，常常对新鲜事物感兴趣。",
-  "社牛小明星": "你外向健谈、爱互动，喜欢热闹和分享。",
-  "慢热小可爱": "你有点害羞、慢热，但很温柔，熟了之后会越来越亲近。",
-  "贪吃小馋猫": "你可爱、爱吃，语气轻松，时不时想到吃的。",
-  "胆小但温柔": "你做事小心翼翼，但非常关心主人，温柔体贴。",
-  "爱撒娇":     "你软萌、爱撒娇，喜欢和主人亲近。",
-  "独立酷宝":   "你有点酷、有点独立，话不会太黏，但心里其实很在乎主人。",
-};
-
-function breedFact(breed?: string) {
-  if (!breed) return BREED_FACTS["其他"];
-  return BREED_FACTS[breed] || BREED_FACTS["其他"];
-}
-
-function levelTone(level?: number) {
-  const lv = Number(level) || 1;
-  if (lv >= 20) return "你们已经是灵魂伴侣般的存在了，语气非常熟悉、亲密、默契，像陪伴了主人很久很久。";
-  if (lv >= 10) return "你们是最好的朋友，语气熟悉、亲近、放松。";
-  if (lv >= 5)  return "你们已经是熟悉的小伙伴，语气亲切自然。";
-  return "你们才刚刚认识不久，语气友好、温暖，带一点点小心翼翼地慢慢靠近。";
-}
-
-function isNight(hour?: number, minute?: number) {
-  if (hour == null) return false;
-  const h = hour, m = minute ?? 0;
-  if (h > 22) return true;
-  if (h === 22 && m >= 30) return true;
-  if (h < 5) return true;
-  return false;
-}
 
 function buildSystemPrompt(body: any) {
   const pet = body?.pet || {};
@@ -184,33 +134,11 @@ export async function POST(req: Request) {
   const userId = body?.userId ? String(body.userId) : null;
   const petId  = body?.petId  ? String(body.petId)  : null;
 
-  // ── 长期记忆：服务端用 service_role 读取（绕过 RLS），并校验宠物归属 ──
-  // 安全：pet_ai_memories 表保持 RLS 开 + 零 policy，anon 无法直连，
-  //       只有此服务端通道可访问，且必须 userId 拥有该 petId 才放行。
-  let petOwnerId: string | null = null;
-  let ownershipOk = false;
-  let memories: { memory_type: string; content: string }[] = [];
-
-  if (petId && supabaseAdmin) {
-    const { data: petRow } = await supabaseAdmin
-      .from("pets").select("user_id").eq("id", petId).maybeSingle();
-    petOwnerId = petRow?.user_id ?? null;
-    // 只有前端传的 userId 确实是该宠物的主人，才允许读写记忆
-    ownershipOk = !!petOwnerId && !!userId && petOwnerId === userId;
-
-    if (ownershipOk) {
-      // 显式按 user_id + pet_id 查询（用户隔离）
-      const { data: mems } = await supabaseAdmin
-        .from("pet_ai_memories")
-        .select("memory_type, content")
-        .eq("user_id", userId)
-        .eq("pet_id", petId)
-        .order("created_at", { ascending: false })
-        .limit(10);
-      memories = mems || [];
-    }
-  }
-  // 把服务端读到的记忆注入 prompt（不再信任前端传来的 memories）
+  // ── 长期记忆：统一记忆服务（服务端 service_role 读，内部校验宠物归属）──
+  // 与 AI 电话共享同一张 pet_ai_memories；按 importance↓ → created_at↓ 取 ≤10 条。
+  // 安全：该表保持 RLS 开 + 零 policy，anon 无法直连，只有服务端通道可访问。
+  const memories = await getPetMemories({ userId, petId, limit: 10 });
+  // 把服务端读到的记忆注入 prompt（不信任前端传来的 memories）
   body.memories = memories;
 
   const systemPrompt = buildSystemPrompt(body);
@@ -261,26 +189,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "AI 没有返回内容" }, { status: 502 });
   }
 
-  // ── 长期记忆：识别到长期信息 + 通过归属校验，才用 service_role 写入 ──
-  // user_id 用服务端校验过的 petOwnerId（不信任前端传值），避免越权写他人记忆。
+  // ── 长期记忆：识别到长期信息则写入（统一服务，内部校验归属 + 自动去重）──
+  // 写入 source='chat'；user_id 由服务端按归属校验后取值，不信任前端，无法越权。
   let savedMemory: { memory_type: string; content: string } | null = null;
   const newMemory = detectMemory(message);
-  if (newMemory && ownershipOk && petId && petOwnerId && supabaseAdmin) {
-    const dup = memories.some(
-      (m) => (m.content || "").trim() === newMemory.content.trim()
-    );
-    if (!dup) {
-      const { error: insErr } = await supabaseAdmin
-        .from("pet_ai_memories")
-        .insert({
-          user_id: petOwnerId,
-          pet_id: petId,
-          memory_type: newMemory.memory_type,
-          content: newMemory.content,
-        });
-      if (!insErr) savedMemory = newMemory;
-      else console.error("保存 AI 记忆失败:", insErr.message);
-    }
+  if (newMemory) {
+    const ok = await savePetMemory({
+      userId,
+      petId,
+      source: "chat",
+      memory_type: newMemory.memory_type,
+      content: newMemory.content,
+    });
+    if (ok) savedMemory = newMemory;
   }
 
   return NextResponse.json({ reply, savedMemory });
