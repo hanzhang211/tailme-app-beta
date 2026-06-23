@@ -42,6 +42,12 @@ const DEFAULT_SETTINGS = {
   repeat_rule: "daily", call_style: "coquettish", voice_type: "cute_female",
 };
 
+/* 单通来电硬上限：≥300s 或 ≥20 条消息任一满足即「拟人化收尾」结束（防无限消耗 TTS/LLM）。 */
+const MAX_DURATION = 300;   // 秒
+const MAX_MESSAGES = 20;    // 用户 + 宠物消息总数
+const WARN_DURATION = 270;  // 提前 30s 提示「即将结束」
+const WARN_MESSAGES = 18;   // 临近轮数上限提示
+
 export default function PetCallCenter({ user, pet, onClose, onNavigate, initialTrigger }) {
   const auto = initialTrigger || null;            // 自动来电触发信息（含 recordId）
   const recordId = auto?.recordId || null;
@@ -57,6 +63,8 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
 
   const call = usePetCall();
   const startedAtRef = useRef(auto?.triggered_at || null);
+  const closingRef = useRef(false); // 收尾中：防重入 + 拦截继续点按钮
+  const warnedRef = useRef(false);  // 「即将结束」提示只弹一次
 
   const toast = useCallback((msg) => {
     setNotice(msg);
@@ -132,6 +140,7 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
     setCurrentScene("miss_you");
     call.prepare("miss_you");
     startedAtRef.current = new Date().toISOString();
+    closingRef.current = false; warnedRef.current = false; // 新通话重置上限状态
     setCallMode("voice");
     setView("preview");
   };
@@ -154,6 +163,7 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
 
   /* ── 来电中：接听 / 挂断 / 稍后再说 ── */
   const handleAccept = async () => {
+    closingRef.current = false; warnedRef.current = false;    // 新通话重置上限状态
     const opening = auto?.subtitle || resolveCallEmotion(activeContext, petType).subtitle || "主人～我今天也有乖乖想你哦～";
     call.startConversation(auto ? auto.subtitle : undefined); // 自动来电用场景专属字幕开场
     playPetVoice(activeContext, petType);                     // 狗用狗叫、猫用猫叫；无文件静默
@@ -220,6 +230,7 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
   };
 
   const handleAction = (btn) => {
+    if (closingRef.current) return; // 收尾中：禁止继续触发对话/TTS
     if (btn.replyText) {
       call.pushExchange(btn.replyText, btn.petReply || null);
       if (btn.petReply) {
@@ -253,6 +264,36 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
     setEndedDuration(dur);
     setView("ended");
   };
+
+  /* ── 达到时长/轮数上限：拟人化收尾后自动结束（不硬断线）── */
+  const autoEndCall = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true; // 立即拦截后续点击
+    const closing = petType === "cat"
+      ? "我有点困啦～我们下次再聊哦 🐱"
+      : "我有点累啦～我们下次再聊哦 🐶";
+    call.pushExchange(null, closing); // 先说最后一句（仅宠物气泡）
+    const { emotion } = resolveCallEmotion(activeContext, petType);
+    let done = false;
+    const finish = () => { if (done) return; done = true; handleHangup(); }; // handleHangup 内已 stopPetVoice
+    speakPetVoice({ text: closing, emotion, petId: pet?.id, scene: activeContext })
+      .then(() => setTimeout(finish, 500))   // 念完最后一句 → 收尾进结束页
+      .catch(() => setTimeout(finish, 800)); // TTS 失败也照常收尾
+    setTimeout(finish, 8000);                // 兜底：最多 8s 必结束，绝不卡死
+  }, [petType, activeContext, pet?.id, call, handleHangup]);
+
+  /* ── 上限监听：仅通话中（active）；到警戒值提示一次、到上限拟人化收尾 ── */
+  useEffect(() => {
+    if (view !== "active" || closingRef.current) return;
+    const dur = call.seconds;
+    const msgs = call.messages.length;
+    if (dur >= MAX_DURATION || msgs >= MAX_MESSAGES) {
+      autoEndCall();
+    } else if (!warnedRef.current && (dur >= WARN_DURATION || msgs >= WARN_MESSAGES)) {
+      warnedRef.current = true;
+      toast("通话即将结束…");
+    }
+  }, [view, call.seconds, call.messages.length, autoEndCall, toast]);
 
   /* ── 结束页：完成 → 保存/更新通话记录 ── */
   const handleDone = async (mood) => {
