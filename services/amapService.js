@@ -157,11 +157,15 @@ async function searchOneREST(lat, lng, keyword, radius, page = 1) {
     const data = await res.json();
     if (data.status !== "1" || !Array.isArray(data.pois)) return [];
 
-    // 归一化：distance 转 number，location 保持字符串
-    return data.pois.map((p) => ({
-      ...p,
-      distance: parseFloat(p.distance) || 0,
-    }));
+    // 归一化：distance 转 number；高德对缺失字段返回空数组 []（如 tel/photos/biz_ext），
+    // 统一清成 ""，防止下游 .split()/.trim() 等对 [] 调用导致详情页崩溃（有数据的非空数组保留）。
+    return data.pois.map((p) => {
+      const poi = { ...p, distance: parseFloat(p.distance) || 0 };
+      for (const k of Object.keys(poi)) {
+        if (Array.isArray(poi[k]) && poi[k].length === 0) poi[k] = "";
+      }
+      return poi;
+    });
   } catch {
     return [];
   }
@@ -335,9 +339,9 @@ export function fmtDist(m) {
 }
 
 export function fmtTel(tel) {
-  if (!tel) return null;
-  const t = Array.isArray(tel) ? tel[0] : String(tel);
-  return t.split(";")[0].trim() || null;
+  const raw = Array.isArray(tel) ? tel[0] : tel;       // 高德空字段可能是 []，取首项
+  if (!raw || typeof raw !== "string") return null;    // 非字符串（含 undefined/空）一律视为无电话
+  return raw.split(";")[0].trim() || null;
 }
 
 /** 打开高德地图导航（callnative=1 优先唤起 App）*/
