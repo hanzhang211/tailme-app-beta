@@ -243,7 +243,8 @@ function LoadingScreen() {
    后端在 verify-code/login/set-password 成功时下发会话 cookie，并返回 userId；
    前端 onLogin(userId) 后仍用 localStorage(tailme_user_id)=public.users.id 衔接现有业务。
 
-   view：phone（输手机号）/ pwlogin（密码登录）/ otp（输验证码）/ setpw（创建/重设密码）
+   登录入口：输手机号 → check-phone 自动分流（有密码→密码登录；无→获取验证码，不自动发短信）
+   view：phone（输手机号/下一步）/ pwlogin（密码登录）/ getcode（获取验证码）/ otp（输验证码）/ setpw（创建/重设密码）
    flow：login（验证码登录）/ reset（忘记密码）—— 决定验证码通过后去哪
 ══════════════════════════════════════════════════════════════ */
 function PhoneLogin({ onLogin }) {
@@ -349,6 +350,21 @@ function PhoneLogin({ onLogin }) {
     } finally { setLoading(false); }
   };
 
+  /* 自动分流：输手机号 → 查该号是否有密码 → 有则去密码登录，无则去「获取验证码」页
+     （只查不发短信；验证码仍需用户手动点，保持 send-code 的 60s 频控）→ /api/auth/check-phone */
+  const checkPhone = async () => {
+    if (!isValidPhone) { setError("请输入正确的11位中国大陆手机号"); return; }
+    setLoading(true); setError(null);
+    try {
+      const { ok, data } = await postAuth("/api/auth/check-phone", { phone: phone.trim() });
+      if (!ok) { setError(data?.error || "网络错误，请重试"); return; }
+      if (data?.hasPassword) { setView("pwlogin"); setPwd(""); }
+      else { setView("getcode"); }
+    } catch {
+      setError("网络错误，请重试");
+    } finally { setLoading(false); }
+  };
+
   const PhoneField = (
     <>
       <Label>手机号</Label>
@@ -374,22 +390,34 @@ function PhoneLogin({ onLogin }) {
                     borderRadius:28, padding:"28px 24px",
                     boxShadow:"0 6px 18px rgba(0,0,0,0.08), 0 16px 40px rgba(0,0,0,0.12)" }}>
 
-        {/* ── 输手机号（验证码登录入口）── */}
+        {/* ── 输手机号（自动分流：有密码→密码登录，无→获取验证码）── */}
         {view === "phone" && (
           <>
             <div style={{ fontSize:18, fontWeight:700, color:C.text, marginBottom:4 }}>手机号登录</div>
             <div style={{ fontSize:12, color:P_SUB, marginBottom:22 }}>新用户自动注册，老用户直接进入</div>
             {PhoneField}
             <ErrBox msg={error} />
+            <button onClick={checkPhone} disabled={loading || !isValidPhone}
+                    style={btn(!loading && isValidPhone)}>
+              {loading ? "请稍候..." : "下一步"}
+            </button>
+          </>
+        )}
+
+        {/* ── 获取验证码（无密码 / 新用户：不自动发，点按钮才发，保持 60s 频控）── */}
+        {view === "getcode" && (
+          <>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+              <BackButton onClick={() => { setView("phone"); setError(null); }} size={32} />
+              <div style={{ fontSize:18, fontWeight:700, color:C.text }}>验证码登录 / 注册</div>
+            </div>
+            <div style={{ fontSize:12, color:P_SUB, marginBottom:22 }}>该手机号将通过短信验证码登录或注册</div>
+            {PhoneField}
+            <ErrBox msg={error} />
             <button onClick={() => sendOtp("login")} disabled={loading || !isValidPhone}
                     style={btn(!loading && isValidPhone)}>
               {loading ? "发送中..." : "获取验证码"}
             </button>
-            <div style={{ marginTop:16, display:"flex", justifyContent:"center" }}>
-              <button onClick={() => { setView("pwlogin"); setError(null); setPwd(""); }} style={linkStyle}>
-                使用密码登录
-              </button>
-            </div>
           </>
         )}
 
@@ -413,7 +441,7 @@ function PhoneLogin({ onLogin }) {
               {loading ? "登录中..." : "登录"}
             </button>
             <div style={{ marginTop:16, display:"flex", justifyContent:"space-between" }}>
-              <button onClick={() => { setView("phone"); setError(null); }} style={linkStyle}>验证码登录</button>
+              <button onClick={() => { setView("getcode"); setError(null); }} style={linkStyle}>验证码登录</button>
               <button onClick={() => sendOtp("reset")} disabled={loading || !isValidPhone}
                       style={{ ...linkStyle, color:(!loading && isValidPhone) ? "#E68645" : P_SUB }}>
                 忘记密码？
@@ -426,7 +454,7 @@ function PhoneLogin({ onLogin }) {
         {view === "otp" && (
           <>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-              <BackButton onClick={() => { setView(flow === "reset" ? "pwlogin" : "phone"); setCode(""); setError(null); }} size={32} />
+              <BackButton onClick={() => { setView(flow === "reset" ? "pwlogin" : "getcode"); setCode(""); setError(null); }} size={32} />
               <div style={{ fontSize:18, fontWeight:700, color:C.text }}>输入验证码</div>
             </div>
             <div style={{ fontSize:12, color:P_SUB, marginBottom:22 }}>已发送至 +86 {phone}</div>
