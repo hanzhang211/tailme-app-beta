@@ -96,9 +96,11 @@ export default function AdminPage() {
 
 /* ── Admin 手机号登录 / 切换账号 ─────────────────────────── */
 function AdminLogin({ onLoggedIn, denied, me, onSwitch }) {
-  const [step, setStep]   = useState(1); // 1=手机号 2=验证码
+  const [mode, setMode]   = useState("password"); // password=密码登录(默认) | otp=验证码登录
+  const [step, setStep]   = useState(1); // otp 模式：1=手机号 2=验证码
   const [phone, setPhone] = useState("");
   const [code, setCode]   = useState("");
+  const [pwd, setPwd]     = useState("");
   const [busy, setBusy]   = useState(false);
   const [err, setErr]     = useState("");
   const isValidPhone = /^1[3-9]\d{9}$/.test(phone.trim());
@@ -143,6 +145,22 @@ function AdminLogin({ onLoggedIn, denied, me, onSwitch }) {
     } finally { setBusy(false); }
   };
 
+  // 密码登录 → /api/auth/login；通过后由 onLoggedIn() 再校验 role === 'admin'
+  const passwordLogin = async () => {
+    setErr("");
+    if (!isValidPhone) { setErr("请输入正确的手机号"); return; }
+    if (pwd.length < 6) { setErr("密码至少 6 位"); return; }
+    setBusy(true);
+    try {
+      const { ok, data } = await postAuth("/api/auth/login", { phone: phone.trim(), password: pwd });
+      if (!ok) { setErr(data?.error || "登录失败，请重试"); return; }
+      localStorage.setItem(LS_KEY, data.userId);
+      onLoggedIn();
+    } catch {
+      setErr("登录失败，请重试");
+    } finally { setBusy(false); }
+  };
+
   const inputStyle = {
     width:"100%", borderRadius:12, padding:"11px 13px", fontSize:14, marginBottom:12,
     border:`1.5px solid ${C.border}`, background:"#fff", color:C.text, outline:"none",
@@ -169,14 +187,35 @@ function AdminLogin({ onLoggedIn, denied, me, onSwitch }) {
               账号 {me.username || me.phone} 没有管理员权限。请切换到管理员手机号登录。
             </div>
           )}
-          {step === 1 ? (
+          {mode === "password" ? (
             <>
               <div style={{ fontSize:16, fontWeight:800, color:C.text, marginBottom:14 }}>管理员登录</div>
+              <input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                placeholder="请输入手机号" inputMode="numeric" maxLength={11} style={inputStyle} />
+              <input value={pwd} onChange={(e) => { setPwd(e.target.value); setErr(""); }}
+                onKeyDown={(e) => e.key === "Enter" && passwordLogin()}
+                type="password" placeholder="请输入密码" style={inputStyle} />
+              {err && <div style={{ color:C.errT, fontSize:12.5, marginBottom:10 }}>{err}</div>}
+              <button onClick={passwordLogin}
+                disabled={!isValidPhone || pwd.length < 6 || busy}
+                style={btnStyle(isValidPhone && pwd.length >= 6 && !busy)}>{busy ? "登录中…" : "登录"}</button>
+              <button onClick={() => { setMode("otp"); setStep(1); setErr(""); }}
+                style={{ width:"100%", marginTop:12, background:"none", border:"none", color:C.pri, fontSize:12.5, fontWeight:600, cursor:"pointer" }}>
+                验证码登录
+              </button>
+            </>
+          ) : step === 1 ? (
+            <>
+              <div style={{ fontSize:16, fontWeight:800, color:C.text, marginBottom:14 }}>验证码登录</div>
               <input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
                 placeholder="请输入手机号" inputMode="numeric" maxLength={11} style={inputStyle} />
               {err && <div style={{ color:C.errT, fontSize:12.5, marginBottom:10 }}>{err}</div>}
               <button onClick={sendCode}
                 disabled={!isValidPhone || busy} style={btnStyle(isValidPhone && !busy)}>{busy ? "发送中…" : "获取验证码"}</button>
+              <button onClick={() => { setMode("password"); setErr(""); }}
+                style={{ width:"100%", marginTop:12, background:"none", border:"none", color:C.pri, fontSize:12.5, fontWeight:600, cursor:"pointer" }}>
+                密码登录
+              </button>
             </>
           ) : (
             <>
