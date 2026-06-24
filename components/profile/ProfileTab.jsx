@@ -613,7 +613,8 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
             <div style={{ display:"flex", background:"white", borderRadius:20,
                           boxShadow:"0 2px 14px rgba(0,0,0,0.05)" }}>
               {[
-                { key:"shop",   label:"商城", icon:<ShopBagIcon size={34} />,    onClick: () => setShopOpen(true) },
+                { key:"shop",   label:"商城", icon:<ShopBagIcon size={34} />, disabled:true,
+                  onClick: () => toast("商城功能即将开通") },
                 { key:"review", label:"审核", icon:<ReviewEntryIcon size={34} />, onClick: () => setReviewsOpen(true) },
                 { key:"walk",   label:"代遛", icon:<WalkEntryIcon size={34} />, disabled:true,
                   onClick: () => toast("代遛功能即将开通") },
