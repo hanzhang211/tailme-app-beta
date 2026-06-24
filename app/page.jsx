@@ -46,6 +46,7 @@ import MapIcon from "@/components/MapIcon";
 import ChatIcon from "@/components/ChatIcon";
 import { AccountingIcon, RecipeIcon, HealthIcon } from "@/components/icons/HomeModuleIcons";
 import BackButton from "@/components/icons/BackButton";
+import PetTrashIcon from "@/components/icons/PetTrashIcon";
 import {
   Sparkles, ChevronRight, PawPrint, Heart, CalendarDays, Scale, Venus, Mars,
   Utensils, Settings, Sun, Moon, MoonStar, CheckCircle, Clock, Calculator, Lightbulb,
@@ -1148,14 +1149,27 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
                       <input value={f.note} onChange={(e) => updFeed(i,"note",e.target.value)}
                         placeholder="例如：半罐猫粮" style={iStyle}/>
                     </div>
-                    <button onClick={() => { removeFeed(i); setExpandedMeal(null); }}
-                      disabled={feedings.length <= 1}
-                      style={{ display:"flex", alignItems:"center", gap:6, background:"transparent",
-                               border:"none", cursor: feedings.length > 1 ? "pointer" : "default",
-                               color: feedings.length > 1 ? "#D94040" : "#C5B9B0",
-                               fontSize:14, fontWeight:600, padding:"4px 0" }}>
-                      🗑 删除这一项
-                    </button>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", paddingTop:2 }}>
+                      {/* 删除这一项（主题橙色 + 帖子同款垃圾桶图标）*/}
+                      <button onClick={() => { removeFeed(i); setExpandedMeal(null); }}
+                        disabled={feedings.length <= 1}
+                        style={{ display:"flex", alignItems:"center", gap:6, background:"transparent",
+                                 border:"none", cursor: feedings.length > 1 ? "pointer" : "default",
+                                 color: feedings.length > 1 ? C.pri : "#C5B9B0",
+                                 fontSize:14, fontWeight:700, padding:"4px 0" }}>
+                        <PetTrashIcon size={17} color={feedings.length > 1 ? C.pri : "#C5B9B0"} />
+                        删除这一项
+                      </button>
+                      {/* 标记为完成（复用 toggleMealDone；已完成可再点取消）*/}
+                      <button onClick={() => toggleMealDone(i)}
+                        style={{ display:"flex", alignItems:"center", gap:5, padding:"9px 16px", borderRadius:999,
+                                 border:"none", cursor:"pointer", fontSize:13, fontWeight:800, transition:"all .2s",
+                                 background: doneMeals[i] ? "rgba(95,167,102,0.14)" : C.pri,
+                                 color: doneMeals[i] ? "#5FA766" : "#fff" }}>
+                        {doneMeals[i] && <CheckCircle size={14} strokeWidth={2.2} />}
+                        {doneMeals[i] ? "已完成" : "标记为完成"}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
