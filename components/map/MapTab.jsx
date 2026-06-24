@@ -20,6 +20,7 @@ import { typeInfo, riskInfo, distanceMeters } from "@/services/warningTypes";
 import { listApprovedWarnings } from "@/services/warningService";
 import { listFriendlyReports } from "@/services/friendlyService";
 import MapIcon from "@/components/MapIcon";
+import { MapPin, Navigation, Phone, X } from "lucide-react";
 import {
   FacilityTopTabs, FacilityCategoryFilter, PawIcon,
   WarningDetail, FriendlyDetail,
@@ -462,75 +463,84 @@ function PoiDetail({ poi, onClose }) {
   const [imgOk, setImgOk] = useState(!!photo);
   const showImg = photo && imgOk;
 
-  const InfoRow = ({ icon, children, last }) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 14px",
-                  borderBottom: last ? "none" : `1px solid ${C.bg}` }}>
-      <span style={{ flexShrink: 0, width: 18, textAlign: "center", fontSize: 15 }}>{icon}</span>
-      <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: C.text, lineHeight: 1.5 }}>{children}</span>
+  // 信息行：左侧圆角浅底线性 icon 容器 + 中间主信息 + 右侧辅助文字 / 轻操作
+  const InfoRow = ({ Icon, value, right, last }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 14px",
+                  borderBottom: last ? "none" : "1px solid #EFE6DA" }}>
+      <span style={{ width: 36, height: 36, borderRadius: 12, flexShrink: 0, background: "#fff",
+                     display: "flex", alignItems: "center", justifyContent: "center",
+                     boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <Icon size={18} color={C.pri} strokeWidth={2} />
+      </span>
+      <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: C.text, lineHeight: 1.45 }}>{value}</span>
+      {right}
     </div>
   );
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1500, background: "rgba(26,16,6,0.44)", display: "flex", alignItems: "flex-end" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{ position: "relative", width: "100%", background: "#fff", borderRadius: "22px 22px 0 0",
-                    boxSizing: "border-box", maxHeight: "86%", overflowY: "auto", animation: "tm-up .22s ease-out" }}>
+      <div style={{ position: "relative", width: "100%", background: "#FFFDFA", borderRadius: "26px 26px 0 0",
+                    boxSizing: "border-box", maxHeight: "88%", overflowY: "auto",
+                    boxShadow: "0 -10px 36px rgba(120,70,20,0.18)", animation: "tm-up .22s ease-out" }}>
         {/* 拖拽条 */}
-        <div style={{ width: 40, height: 4, borderRadius: 4, background: "#E0D4C8", margin: "10px auto 0" }} />
-        {/* 关闭 X（右上角浅灰圆形）*/}
-        <button onClick={onClose} aria-label="关闭"
-          style={{ position: "absolute", top: 12, right: 14, zIndex: 2, width: 30, height: 30, borderRadius: "50%",
-                   background: "rgba(255,255,255,0.92)", border: "none", outline: "none", cursor: "pointer",
-                   boxShadow: "0 2px 8px rgba(0,0,0,0.12)", fontSize: 16, color: C.sub, lineHeight: 1 }}>✕</button>
+        <div style={{ width: 44, height: 4, borderRadius: 4, background: "#E3D8C9", margin: "12px auto 2px" }} />
 
-        <div style={{ padding: "14px 16px calc(20px + env(safe-area-inset-bottom))" }}>
-          {/* 图片区 */}
-          <div style={{ width: "100%", height: 168, borderRadius: 20, overflow: "hidden", marginBottom: 14,
-                        background: C.tint, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ padding: "10px 16px calc(22px + env(safe-area-inset-bottom))" }}>
+          {/* 图片区（右上角浮一个轻盈关闭按钮）*/}
+          <div style={{ position: "relative", width: "100%", height: 190, borderRadius: 22, overflow: "hidden",
+                        marginBottom: 16, background: C.tint, display: "flex", alignItems: "center", justifyContent: "center" }}>
             {showImg
               ? <img src={photo} alt={poi.name} onError={() => setImgOk(false)}
                   style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               : <div style={{ textAlign: "center", color: C.sub }}>
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill={C.pri} style={{ opacity: 0.8 }}>
+                  <svg width="42" height="42" viewBox="0 0 24 24" fill={C.pri} style={{ opacity: 0.7 }}>
                     <ellipse cx="6.2" cy="11" rx="2" ry="2.6"/><ellipse cx="11" cy="8.4" rx="2.1" ry="2.8"/>
                     <ellipse cx="16.4" cy="9.6" rx="2" ry="2.6"/><ellipse cx="19.2" cy="13.6" rx="1.7" ry="2.2"/>
                     <path d="M12.4 13c2.4 0 4.4 1.7 4.4 3.8 0 1.7-1.5 2.5-3.2 2.5-1 0-1.4-.3-2.2-.3s-1.2.3-2.2.3c-1.7 0-3.2-.8-3.2-2.5 0-2.1 2-3.8 4.4-3.8Z"/>
                   </svg>
-                  <div style={{ fontSize: 12, marginTop: 6 }}>暂无图片</div>
+                  <div style={{ fontSize: 12, marginTop: 8 }}>暂无图片</div>
                 </div>}
+            <button onClick={onClose} aria-label="关闭"
+              style={{ position: "absolute", top: 12, right: 12, zIndex: 2, width: 32, height: 32, borderRadius: "50%",
+                       background: "rgba(255,255,255,0.92)", border: "none", outline: "none", cursor: "pointer",
+                       display: "flex", alignItems: "center", justifyContent: "center",
+                       boxShadow: "0 2px 10px rgba(0,0,0,0.16)" }}>
+              <X size={17} color={C.sub} strokeWidth={2.5} />
+            </button>
           </div>
 
-          {/* 名称 */}
-          <div style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 8, lineHeight: 1.3 }}>{poi.name}</div>
-
-          {/* 类型 tag + 距离 */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-            {type && <span style={{ fontSize: 11.5, background: C.tint, color: C.accent, padding: "4px 11px", borderRadius: 999, fontWeight: 700, maxWidth: "60%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{type}</span>}
+          {/* 标题区：店名 + 分类 capsule + 距离 */}
+          <div style={{ fontSize: 21, fontWeight: 800, color: C.text, marginBottom: 8, lineHeight: 1.25 }}>{poi.name}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+            {type && <span style={{ fontSize: 12, background: "#FBEEE1", color: C.pri, padding: "4px 12px",
+                                    borderRadius: 999, fontWeight: 700, maxWidth: "62%", overflow: "hidden",
+                                    textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{type}</span>}
             <span style={{ flex: 1 }} />
-            {dist && <span style={{ fontSize: 13.5, fontWeight: 800, color: C.pri, flexShrink: 0 }}>距您约 {dist}</span>}
+            {dist && <span style={{ fontSize: 13, fontWeight: 700, color: C.pri, flexShrink: 0 }}>距您约 {dist}</span>}
           </div>
 
-          {/* 信息卡片 */}
-          <div style={{ background: "#FBF8F3", border: `1px solid ${C.border}`, borderRadius: 16, marginBottom: 18 }}>
-            {addr && <InfoRow icon="📍">{addr}</InfoRow>}
-            {dist && <InfoRow icon="📏">距您约 {dist}</InfoRow>}
-            {tel && (
-              <InfoRow icon="📞" last>
-                <span style={{ display: "flex", alignItems: "center" }}>
-                  <span style={{ flex: 1 }}>{tel}</span>
-                  <a href={`tel:${tel}`} style={{ color: C.accent, fontWeight: 800, textDecoration: "none", fontSize: 13 }}>拨打</a>
-                </span>
-              </InfoRow>
-            )}
+          {/* 信息卡片：地址 / 距离 / 电话（竖向精致行卡片）*/}
+          <div style={{ background: "#FBF8F3", border: "1px solid #EFE6DA", borderRadius: 18, marginBottom: 20, overflow: "hidden" }}>
+            {addr && <InfoRow Icon={MapPin} value={addr} last={!dist && !tel}
+              right={<span style={{ fontSize: 11.5, color: C.sub, flexShrink: 0 }}>地址</span>} />}
+            {dist && <InfoRow Icon={Navigation} value={`距您约 ${dist}`} last={!tel}
+              right={<span style={{ fontSize: 11, fontWeight: 700, color: C.pri, background: C.tint,
+                                    padding: "3px 10px", borderRadius: 999, flexShrink: 0 }}>附近</span>} />}
+            {tel && <InfoRow Icon={Phone} value={tel} last
+              right={<a href={`tel:${tel}`} style={{ color: C.pri, fontWeight: 800, fontSize: 13,
+                                                     textDecoration: "none", flexShrink: 0, padding: "4px 10px" }}>拨打</a>} />}
           </div>
 
-          {/* 底部操作 */}
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={() => openNavigation(poi)}
-              style={{ flex: 1, height: 48, borderRadius: 14, background: C.grad, color: "#fff", fontSize: 14.5, fontWeight: 800, border: "none", cursor: "pointer" }}>🗺️ 打开高德地图导航</button>
-            <button onClick={onClose}
-              style={{ width: 48, height: 48, borderRadius: 13, background: C.light, border: `1.5px solid ${C.border}`, cursor: "pointer", fontSize: 18, color: C.sub, flexShrink: 0 }}>✕</button>
-          </div>
+          {/* 底部主按钮：整宽 + 白色「设施地图」线性 icon（与页面标题一致）*/}
+          <button onClick={() => openNavigation(poi)}
+            style={{ width: "100%", height: 54, borderRadius: 18, background: C.pri, color: "#fff",
+                     fontSize: 15, fontWeight: 800, border: "none", cursor: "pointer",
+                     display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                     boxShadow: "0 6px 18px rgba(230,134,69,0.32)" }}>
+            <MapIcon size={20} color="#fff" />
+            打开高德地图导航
+          </button>
         </div>
       </div>
     </div>
