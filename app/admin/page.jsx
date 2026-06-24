@@ -14,7 +14,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
   getAdminStats,
   getUserById,
-  getOrCreateUserByPhone,
 } from "@/services/supabaseService";
 import {
   listFlagged,
@@ -104,16 +103,43 @@ function AdminLogin({ onLoggedIn, denied, me, onSwitch }) {
   const [err, setErr]     = useState("");
   const isValidPhone = /^1[3-9]\d{9}$/.test(phone.trim());
 
-  const verify = async () => {
+  const postAuth = async (url, payload) => {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    let data = {};
+    try { data = await r.json(); } catch {}
+    return { ok: r.ok, data };
+  };
+
+  // 第一步：发送真实短信验证码 → /api/auth/send-code
+  const sendCode = async () => {
     setErr("");
-    if (code.trim() !== "123456") { setErr("验证码错误（MVP 固定测试码：123456）"); return; }
+    if (!isValidPhone) { setErr("请输入正确的手机号"); return; }
     setBusy(true);
     try {
-      const user = await getOrCreateUserByPhone(phone.trim());
-      localStorage.setItem(LS_KEY, user.id);
+      const { ok, data } = await postAuth("/api/auth/send-code", { phone: phone.trim() });
+      if (!ok) { setErr(data?.error || "短信发送失败，请稍后重试"); return; }
+      setStep(2); setCode("");
+    } catch {
+      setErr("短信发送失败，请稍后重试");
+    } finally { setBusy(false); }
+  };
+
+  // 第二步：校验验证码 → /api/auth/verify-code；通过后由 onLoggedIn() 再校验 role === 'admin'
+  const verify = async () => {
+    setErr("");
+    if (!/^\d{6}$/.test(code.trim())) { setErr("请输入 6 位验证码"); return; }
+    setBusy(true);
+    try {
+      const { ok, data } = await postAuth("/api/auth/verify-code", { phone: phone.trim(), code: code.trim() });
+      if (!ok) { setErr(data?.error || "验证码错误或已过期，请重新获取"); return; }
+      localStorage.setItem(LS_KEY, data.userId);
       onLoggedIn();
-    } catch (e) {
-      setErr(e.message || "登录失败");
+    } catch {
+      setErr("验证失败，请重试");
     } finally { setBusy(false); }
   };
 
@@ -149,13 +175,13 @@ function AdminLogin({ onLoggedIn, denied, me, onSwitch }) {
               <input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
                 placeholder="请输入手机号" inputMode="numeric" maxLength={11} style={inputStyle} />
               {err && <div style={{ color:C.errT, fontSize:12.5, marginBottom:10 }}>{err}</div>}
-              <button onClick={() => { setErr(""); isValidPhone ? setStep(2) : setErr("请输入正确的手机号"); }}
-                disabled={!isValidPhone} style={btnStyle(isValidPhone)}>获取验证码</button>
+              <button onClick={sendCode}
+                disabled={!isValidPhone || busy} style={btnStyle(isValidPhone && !busy)}>{busy ? "发送中…" : "获取验证码"}</button>
             </>
           ) : (
             <>
               <div style={{ fontSize:16, fontWeight:800, color:C.text, marginBottom:6 }}>输入验证码</div>
-              <div style={{ fontSize:12, color:C.sub, marginBottom:14 }}>已发送至 +86 {phone}（测试码 123456）</div>
+              <div style={{ fontSize:12, color:C.sub, marginBottom:14 }}>验证码已发送至 +86 {phone}</div>
               <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                 placeholder="请输入 6 位验证码" inputMode="numeric" maxLength={6} style={inputStyle} />
               {err && <div style={{ color:C.errT, fontSize:12.5, marginBottom:10 }}>{err}</div>}

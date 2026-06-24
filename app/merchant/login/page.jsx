@@ -3,7 +3,7 @@
 /**
  * /merchant/login — 商家登录 / 入驻入口
  *
- * 账号体系沿用主 app（手机号 + 验证码，MVP 固定测试码 123456）。
+ * 账号体系沿用主 app（手机号 + 真实短信验证码登录）。
  * 登录后按 role 分流：
  *   merchant → /merchant/dashboard
  *   user     → 显示「成为商家」引导 → /merchant/store（填写资质入驻）
@@ -12,11 +12,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getOrCreateUserByPhone, getUserById } from "@/services/supabaseService";
+import { getUserById } from "@/services/supabaseService";
 import { MC, Card, Btn, Input, Banner } from "@/components/merchant/ui";
 
 const LS_KEY = "tailme_user_id";
-const TEST_CODE = "123456";
 
 export default function MerchantLogin() {
   const router = useRouter();
@@ -44,22 +43,46 @@ export default function MerchantLogin() {
     setPhase("enroll");
   }
 
-  const sendCode = () => {
-    setErr("");
-    if (!isValidPhone) { setErr("请输入正确的手机号"); return; }
-    setPhase("code");
+  const postAuth = async (url, payload) => {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    let data = {};
+    try { data = await r.json(); } catch {}
+    return { ok: r.ok, data };
   };
 
-  const verify = async () => {
+  // 第一步：发送真实短信验证码 → /api/auth/send-code
+  const sendCode = async () => {
     setErr("");
-    if (code.trim() !== TEST_CODE) { setErr("验证码错误（MVP 固定测试码：123456）"); return; }
+    if (!isValidPhone) { setErr("请输入正确的手机号"); return; }
     setBusy(true);
     try {
-      const user = await getOrCreateUserByPhone(phone.trim());
-      localStorage.setItem(LS_KEY, user.id);
+      const { ok, data } = await postAuth("/api/auth/send-code", { phone: phone.trim() });
+      if (!ok) { setErr(data?.error || "短信发送失败，请稍后重试"); return; }
+      setPhase("code"); setCode("");
+    } catch {
+      setErr("短信发送失败，请稍后重试");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // 第二步：校验验证码 → /api/auth/verify-code；通过后取用户并按 role 分流
+  const verify = async () => {
+    setErr("");
+    if (!/^\d{6}$/.test(code.trim())) { setErr("请输入 6 位验证码"); return; }
+    setBusy(true);
+    try {
+      const { ok, data } = await postAuth("/api/auth/verify-code", { phone: phone.trim(), code: code.trim() });
+      if (!ok) { setErr(data?.error || "验证码错误或已过期，请重新获取"); return; }
+      localStorage.setItem(LS_KEY, data.userId);
+      const user = await getUserById(data.userId);
       routeByRole(user);
-    } catch (e) {
-      setErr(e.message || "登录失败");
+    } catch {
+      setErr("登录失败，请重试");
     } finally {
       setBusy(false);
     }
@@ -85,7 +108,7 @@ export default function MerchantLogin() {
               <Input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
                 placeholder="请输入手机号" inputMode="numeric" maxLength={11} style={{ marginBottom: 12 }} />
               {err && <div style={{ color: MC.err, fontSize: 12.5, marginBottom: 10 }}>{err}</div>}
-              <Btn full onClick={sendCode} disabled={!isValidPhone}>获取验证码</Btn>
+              <Btn full onClick={sendCode} disabled={!isValidPhone || busy}>{busy ? "发送中…" : "获取验证码"}</Btn>
               <div style={{ fontSize: 12, color: MC.sub, marginTop: 14, lineHeight: 1.6 }}>
                 与 TailMe App 同一账号。登录后若尚未入驻，可在此申请成为商家。
               </div>
@@ -95,7 +118,7 @@ export default function MerchantLogin() {
           {phase === "code" && (
             <>
               <div style={{ fontSize: 17, fontWeight: 800, color: MC.ink, marginBottom: 6 }}>输入验证码</div>
-              <div style={{ fontSize: 12.5, color: MC.sub, marginBottom: 16 }}>已发送至 +86 {phone}（测试码 123456）</div>
+              <div style={{ fontSize: 12.5, color: MC.sub, marginBottom: 16 }}>验证码已发送至 +86 {phone}</div>
               <Input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                 placeholder="请输入 6 位验证码" inputMode="numeric" maxLength={6} style={{ marginBottom: 12 }} />
               {err && <div style={{ color: MC.err, fontSize: 12.5, marginBottom: 10 }}>{err}</div>}

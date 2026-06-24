@@ -349,19 +349,6 @@ function PhoneLogin({ onLogin }) {
     } finally { setLoading(false); }
   };
 
-  /* ⚠️ 临时测试入口：免验证码直接进入 —— 上线前删除（连同 /api/auth/dev-login 路由 + 下方按钮） */
-  const devLogin = async () => {
-    if (!isValidPhone) { setError("请输入正确的11位中国大陆手机号"); return; }
-    setLoading(true); setError(null);
-    try {
-      const { ok, data } = await postAuth("/api/auth/dev-login", { phone: phone.trim() });
-      if (!ok) { setError(data?.error || "进入失败，请重试"); return; }
-      onLogin(data.userId);
-    } catch {
-      setError("进入失败，请重试");
-    } finally { setLoading(false); }
-  };
-
   const PhoneField = (
     <>
       <Label>手机号</Label>
@@ -403,15 +390,6 @@ function PhoneLogin({ onLogin }) {
                 使用密码登录
               </button>
             </div>
-
-            {/* ⚠️ 临时测试入口：免验证码直接进入 —— 上线前删除本块 + /api/auth/dev-login + devLogin() */}
-            <button onClick={devLogin} disabled={loading || !isValidPhone}
-                    style={{ marginTop:14, width:"100%", padding:"11px 0", borderRadius:16, fontSize:13,
-                             fontWeight:700, background:"transparent", color:"#8A8074",
-                             border:"1.5px dashed #C9BEAE",
-                             cursor:(!loading && isValidPhone) ? "pointer" : "default" }}>
-              免验证码直接进入（测试）
-            </button>
           </>
         )}
 
