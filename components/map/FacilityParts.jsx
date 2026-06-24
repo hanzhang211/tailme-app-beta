@@ -12,8 +12,10 @@
  */
 
 import { useState } from "react";
+import { MapPin, Ruler, FileText, Clock, User, X, PawPrint, Droplet, Utensils, DoorOpen, Sofa, ShieldAlert, ShieldCheck } from "lucide-react";
 import { fmtDist, openNavigation } from "@/services/amapService";
 import { typeInfo, riskInfo, reporterLabel, fmtAgo } from "@/services/warningTypes";
+import MapIcon from "@/components/MapIcon";
 
 const C = {
   pri: "#E68645", tint: "#F2E5DA", bg: "#EEE9E1", text: "#1A1006", sub: "#8A8074",
@@ -287,98 +289,190 @@ export function WarningUploadEntry({ onClick }) {
   );
 }
 
-/* ── 宠物警示详情（底部弹层）──────────────────────────── */
-export function WarningDetail({ report, onClose }) {
-  if (!report) return null;
-  const t = typeInfo(report.event_type);
+/* ══════════ 详情弹层共用：精致 Bottom Sheet 容器 / 信息行 / 特性胶囊 ══════════ */
+function DetailSheet({ onClose, children }) {
   return (
-    <div style={{ position: "absolute", inset: 0, zIndex: 60, background: "rgba(26,16,6,0.44)",
+    <div style={{ position: "fixed", inset: 0, zIndex: 1500, background: "rgba(26,16,6,0.40)",
                   display: "flex", alignItems: "flex-end" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{ width: "100%", background: "#fff", borderRadius: "22px 22px 0 0", padding: "0 0 40px",
-                    maxHeight: "80%", overflowY: "auto", animation: "tm-up .22s ease-out" }}>
-        <div style={{ width: 40, height: 4, borderRadius: 4, background: "#E0D4C8", margin: "14px auto 12px" }} />
-        <div style={{ padding: "0 20px" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.sub, marginBottom: 8 }}>宠物警示详情</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-            <RiskBadge level={report.risk_level} />
-            <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999,
-                           color: C.danger, background: C.dangerTint }}>{t.icon} {t.label}</span>
-            <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999,
-                           color: "#2E7D32", background: "#E6F4E1" }}>已审核</span>
-          </div>
-          <div style={{ fontSize: 19, fontWeight: 800, color: C.text, marginBottom: 12 }}>{warnTitle(report)}</div>
-          {report.images?.length > 0 && (
-            <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 14 }} className="shop-noscroll">
-              {report.images.map((u, i) => (
-                <img key={i} src={u} alt="" style={{ width: 124, height: 124, borderRadius: 14, objectFit: "cover", flexShrink: 0 }} />
-              ))}
-            </div>
-          )}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-            <Row icon="📍" text={report.address || "未提供具体地址"} />
-            {report._distance != null && <Row icon="📏" text={`距您约 ${fmtDist(report._distance)}`} />}
-            {report.description && <Row icon="📝" text={report.description} />}
-            <Row icon="🕓" text={`提交于 ${fmtAgo(report.created_at)}${report.reviewed_at ? ` · 审核于 ${fmtAgo(report.reviewed_at)}` : ""}`} />
-            <Row icon="👤" text={`由${report.anonymous ? "匿名用户" : reporterLabel(report)}上传`} />
-          </div>
-          <button onClick={onClose}
-            style={{ width: "100%", padding: "14px 0", borderRadius: 16, background: C.pri, color: "#fff",
-                     fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer" }}>我知道了</button>
+      onClick={(e) => e.target === e.currentTarget && onClose?.()}>
+      <div style={{ position: "relative", width: "100%", background: "#FFFDFA", borderRadius: "28px 28px 0 0",
+                    boxSizing: "border-box", maxHeight: "85%", overflowY: "auto",
+                    boxShadow: "0 -10px 36px rgba(120,70,20,0.18)", animation: "tm-up .22s ease-out" }}>
+        <div style={{ width: 44, height: 4, borderRadius: 4, background: "#E3D8C9", margin: "12px auto 2px" }} />
+        <button onClick={onClose} aria-label="关闭"
+          style={{ position: "absolute", top: 14, right: 14, zIndex: 2, width: 32, height: 32, borderRadius: "50%",
+                   background: "rgba(255,255,255,0.92)", border: "none", outline: "none", cursor: "pointer",
+                   display: "flex", alignItems: "center", justifyContent: "center",
+                   boxShadow: "0 2px 10px rgba(0,0,0,0.12)" }}>
+          <X size={17} color={C.sub} strokeWidth={2.5} />
+        </button>
+        <div style={{ padding: "8px 18px calc(22px + env(safe-area-inset-bottom))" }}>
+          {children}
         </div>
       </div>
     </div>
   );
 }
 
-/* ── 友好地点详情（底部弹层，含导航）─────────────────── */
-const FRIENDLY_PERKS = [
-  { key: "has_water_bowl",   label: "提供水碗",   icon: "💧" },
-  { key: "has_food_bowl",    label: "提供喂食碗", icon: "🥣" },
-  { key: "allow_pet_inside", label: "允许进店",   icon: "🚪" },
-  { key: "good_for_rest",    label: "适合休息",   icon: "🛋️" },
-];
-export function FriendlyDetail({ report, onClose, onNavigate }) {
-  if (!report) return null;
-  const perks = FRIENDLY_PERKS.filter((p) => report[p.key]);
+/* 信息行：左侧线性 icon 容器 + label + 内容 */
+function DetailRow({ Icon, label, value, last }) {
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1500, background: "rgba(26,16,6,0.44)", display: "flex", alignItems: "flex-end" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{ width: "100%", background: "#fff", borderRadius: "22px 22px 0 0", padding: "0 0 40px", maxHeight: "80%", overflowY: "auto", animation: "tm-up .22s ease-out" }}>
-        <div style={{ width: 40, height: 4, borderRadius: 4, background: "#E0D4C8", margin: "14px auto 12px" }} />
-        <div style={{ padding: "0 20px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <Chip tone="pri">🐾 宠物友好</Chip>
-          </div>
-          <div style={{ fontSize: 19, fontWeight: 800, color: C.text, marginBottom: 12 }}>{report.title || report.place_name || "宠物友好地点"}</div>
-          {report.images?.length > 0 && (
-            <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 14 }} className="shop-noscroll">
-              {report.images.map((u, i) => <img key={i} src={u} alt="" style={{ width: 124, height: 124, borderRadius: 14, objectFit: "cover", flexShrink: 0 }} />)}
-            </div>
-          )}
-          {perks.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
-              {perks.map((p) => <Chip key={p.key} tone="pri">{p.icon} {p.label}</Chip>)}
-            </div>
-          )}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-            <Row icon="📍" text={report.address || report.place_name || "未提供地址"} />
-            {report._distance != null && <Row icon="📏" text={`距您约 ${fmtDist(report._distance)}`} />}
-            {report.description && <Row icon="📝" text={report.description} />}
-            <Row icon="🕓" text={`提交于 ${fmtAgo(report.created_at)}`} />
-            <Row icon="👤" text={`由${report.anonymous ? "匿名用户" : reporterLabel(report)}上传`} />
-          </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={() => onNavigate?.(report)}
-              style={{ flex: 1, padding: "14px 0", borderRadius: 16, background: C.pri, color: "#fff", fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer" }}>
-              🗺️ 导航前往
-            </button>
-            <button onClick={onClose}
-              style={{ width: 48, height: 48, borderRadius: 13, background: "#EDE6DB", border: `1.5px solid ${C.border}`, cursor: "pointer", fontSize: 18, color: C.sub, flexShrink: 0 }}>✕</button>
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px",
+                  borderBottom: last ? "none" : "1px solid #EFE6DA" }}>
+      <span style={{ width: 34, height: 34, borderRadius: 11, flexShrink: 0, background: "#fff", marginTop: 1,
+                     display: "flex", alignItems: "center", justifyContent: "center",
+                     boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <Icon size={17} color={C.pri} strokeWidth={2} />
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 11.5, color: C.sub, marginBottom: 2, fontWeight: 600 }}>{label}</div>
+        <div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.55, wordBreak: "break-word" }}>{value}</div>
+      </div>
+    </div>
+  );
+}
+
+/* 特性胶囊：线性 icon + 文字，tone 分色（浅橙 / 浅蓝 / 浅米）*/
+function PerkCapsule({ Icon, label, tone = "soft" }) {
+  const map = {
+    pri:  { bg: "#FBEEE1", color: C.pri },
+    blue: { bg: "#E7F0F8", color: "#5A83B8" },
+    soft: { bg: "#F4EEE4", color: "#8A6F52" },
+  };
+  const s = map[tone] || map.soft;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 700,
+                   color: s.color, background: s.bg, padding: "6px 12px", borderRadius: 999 }}>
+      <Icon size={14} color={s.color} strokeWidth={2} /> {label}
+    </span>
+  );
+}
+
+/* ── 宠物警示详情（底部弹层）──────────────────────────── */
+export function WarningDetail({ report, onClose }) {
+  if (!report) return null;
+  const t = typeInfo(report.event_type);
+  const typeLabel = t?.label || "风险提醒";
+  const title     = warnTitle(report) || "宠物警示地点";
+  const addr      = report.address || "暂无地址";
+  const distText  = report._distance != null ? `距您约 ${fmtDist(report._distance)}` : "距离计算中";
+  const desc      = report.description || "暂无补充说明";
+  const timeText  = `提交于 ${fmtAgo(report.created_at)}${report.reviewed_at ? ` · 审核于 ${fmtAgo(report.reviewed_at)}` : ""}`;
+  const uploader  = report.anonymous ? "由匿名用户上传" : `由${reporterLabel(report)}上传`;
+  return (
+    <DetailSheet onClose={onClose}>
+      {/* 顶部：线性盾牌 + 宠物警示详情 */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+        <ShieldAlert size={16} color={C.danger} strokeWidth={2} />
+        <span style={{ fontSize: 13, fontWeight: 800, color: C.danger }}>宠物警示详情</span>
+      </div>
+      {/* 状态胶囊 */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        <RiskBadge level={report.risk_level} />
+        <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 11px", borderRadius: 999, color: C.pri, background: "#FBEEE1" }}>{typeLabel}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 11px", borderRadius: 999, color: "#2E7D32", background: "#E6F4E1" }}>已审核</span>
+      </div>
+      {/* 标题 */}
+      <div style={{ fontSize: 21, fontWeight: 800, color: C.text, marginBottom: 14, lineHeight: 1.3 }}>{title}</div>
+      {/* 图片（保留原逻辑，有图才显示）*/}
+      {report.images?.length > 0 && (
+        <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 14 }} className="shop-noscroll">
+          {report.images.map((u, i) => (
+            <img key={i} src={u} alt="" style={{ width: 124, height: 124, borderRadius: 14, objectFit: "cover", flexShrink: 0 }} />
+          ))}
+        </div>
+      )}
+      {/* 信息卡片 */}
+      <div style={{ background: "#FBF8F3", border: "1px solid #EFE6DA", borderRadius: 18, marginBottom: 16, overflow: "hidden" }}>
+        <DetailRow Icon={MapPin}   label="地址"     value={addr} />
+        <DetailRow Icon={Ruler}    label="距离"     value={distText} />
+        <DetailRow Icon={FileText} label="详情描述" value={desc} />
+        <DetailRow Icon={Clock}    label="时间"     value={timeText} />
+        <DetailRow Icon={User}     label="上传者"   value={uploader} last />
+      </div>
+      {/* 安全提醒卡（柔和浅红，不刺眼）*/}
+      <div style={{ display: "flex", gap: 12, background: C.dangerTint, border: "1px solid #F4CDBC",
+                    borderRadius: 16, padding: "14px", marginBottom: 18 }}>
+        <ShieldCheck size={22} color={C.danger} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: C.danger, marginBottom: 4 }}>安全提醒</div>
+          <div style={{ fontSize: 12.5, color: "#9A5235", lineHeight: 1.7 }}>
+            请避免让宠物接触可疑食物或异物，外出时牵好牵引绳，发现异常请及时远离并联系专业机构处理。
           </div>
         </div>
       </div>
-    </div>
+      {/* 我知道了 */}
+      <button onClick={onClose}
+        style={{ width: "100%", height: 52, borderRadius: 18, background: C.pri, color: "#fff",
+                 fontSize: 15, fontWeight: 800, border: "none", cursor: "pointer",
+                 boxShadow: "0 6px 18px rgba(230,134,69,0.30)" }}>我知道了</button>
+    </DetailSheet>
+  );
+}
+
+/* ── 友好地点详情（底部弹层，含导航）─────────────────── */
+const FRIENDLY_PERKS = [
+  { key: "has_water_bowl",   label: "提供水碗",   Icon: Droplet,  tone: "blue" },
+  { key: "has_food_bowl",    label: "提供喂食碗", Icon: Utensils, tone: "blue" },
+  { key: "allow_pet_inside", label: "允许进店",   Icon: DoorOpen, tone: "pri" },
+  { key: "good_for_rest",    label: "适合休息",   Icon: Sofa,     tone: "soft" },
+];
+export function FriendlyDetail({ report, onClose, onNavigate }) {
+  if (!report) return null;
+  const perks    = FRIENDLY_PERKS.filter((p) => report[p.key]);
+  const title    = report.title || report.place_name || "宠物友好地点";
+  const addr     = report.address || report.place_name || "暂无地址";
+  const distText = report._distance != null ? `距您约 ${fmtDist(report._distance)}` : "距离计算中";
+  const desc     = report.description || "暂无补充说明";
+  const timeText = `提交于 ${fmtAgo(report.created_at)}`;
+  const uploader = report.anonymous ? "由匿名用户上传" : `由${reporterLabel(report)}上传`;
+  return (
+    <DetailSheet onClose={onClose}>
+      {/* 顶部标签：线性爪印 + 宠物友好详情 */}
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
+        <PerkCapsule Icon={PawPrint} label="宠物友好详情" tone="pri" />
+      </div>
+      {/* 标题 */}
+      <div style={{ fontSize: 21, fontWeight: 800, color: C.text, marginBottom: 12, lineHeight: 1.3 }}>{title}</div>
+      {/* 图片（保留原逻辑，有图才显示）*/}
+      {report.images?.length > 0 && (
+        <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 14 }} className="shop-noscroll">
+          {report.images.map((u, i) => <img key={i} src={u} alt="" style={{ width: 124, height: 124, borderRadius: 14, objectFit: "cover", flexShrink: 0 }} />)}
+        </div>
+      )}
+      {/* 特性胶囊（基础「宠物友好」+ 各 perk）*/}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+        <PerkCapsule Icon={PawPrint} label="宠物友好" tone="pri" />
+        {perks.map((p) => <PerkCapsule key={p.key} Icon={p.Icon} label={p.label} tone={p.tone} />)}
+      </div>
+      {/* 信息卡片 */}
+      <div style={{ background: "#FBF8F3", border: "1px solid #EFE6DA", borderRadius: 18, marginBottom: 16, overflow: "hidden" }}>
+        <DetailRow Icon={MapPin}   label="地址"   value={addr} />
+        <DetailRow Icon={Ruler}    label="距离"   value={distText} />
+        <DetailRow Icon={FileText} label="描述"   value={desc} />
+        <DetailRow Icon={Clock}    label="时间"   value={timeText} />
+        <DetailRow Icon={User}     label="上传者" value={uploader} last />
+      </div>
+      {/* 友好小贴士卡（奶油橙）*/}
+      <div style={{ display: "flex", gap: 12, background: "#FFF6EC", border: "1px solid #F4DFC6",
+                    borderRadius: 16, padding: "14px", marginBottom: 18 }}>
+        <PawPrint size={22} color={C.pri} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#A8531C", marginBottom: 4 }}>友好小贴士</div>
+          <div style={{ fontSize: 12.5, color: "#9A6B40", lineHeight: 1.7 }}>
+            店内环境宽敞，建议避开用餐高峰时段，带好牵引绳和清洁用品。
+          </div>
+        </div>
+      </div>
+      {/* 导航前往（白色线性设施地图图标）*/}
+      <button onClick={() => onNavigate?.(report)}
+        style={{ width: "100%", height: 52, borderRadius: 18, background: C.pri, color: "#fff",
+                 fontSize: 15, fontWeight: 800, border: "none", cursor: "pointer",
+                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                 boxShadow: "0 6px 18px rgba(230,134,69,0.30)" }}>
+        <MapIcon size={20} color="#fff" /> 导航前往
+      </button>
+    </DetailSheet>
   );
 }
 
@@ -396,13 +490,5 @@ function Chip({ children, tone = "soft" }) {
   return (
     <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999,
                    background: s.bg, color: s.color, whiteSpace: "nowrap" }}>{children}</span>
-  );
-}
-function Row({ icon, text }) {
-  return (
-    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "#5A4A35", lineHeight: 1.55 }}>
-      <span style={{ flexShrink: 0, marginTop: 1 }}>{icon}</span>
-      <span style={{ flex: 1 }}>{text}</span>
-    </div>
   );
 }
