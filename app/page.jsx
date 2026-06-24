@@ -33,6 +33,7 @@ import RecipePage,  { prefetchRecipes } from "@/components/home/RecipePage";
 import HealthPage,  { prefetchHealth }  from "@/components/home/HealthPage";
 import PetChatPage from "@/components/home/PetChatPage";
 import AvatarGenerator from "@/components/home/AvatarGenerator";
+import PetInfoEditModal from "@/components/home/PetInfoEditModal";
 import ShareCardCenter from "@/components/share/ShareCardCenter";
 import PetCallCenter from "@/components/pet-call/PetCallCenter";
 import PetCallEntryButton from "@/components/pet-call/PetCallEntryButton";
@@ -675,6 +676,8 @@ function PetProfileComplete({ pet, onClose, onSaved }) {
 function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
   // 子页面：null | 'expenses' | 'recipes' | 'health' | 'news'
   const [subPage, setSubPage] = useState(null);
+  // 基础信息卡点击编辑：null | 'breed' | 'age' | 'weight' | 'gender'
+  const [editField, setEditField] = useState(null);
   const [monthExpense, setMonthExpense] = useState(null);
   const [todayRecipe,  setTodayRecipe]  = useState(null);
   const [avatarOpen,       setAvatarOpen]   = useState(false);
@@ -1595,16 +1598,17 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
                       borderRadius:20, padding:"14px 6px", marginBottom:12,
                       boxShadow:H_SHADOW, border:`1px solid ${H_BORDER}` }}>
           {[
-            { Icon:PawPrint,    bg:"#F7E8D8", ic:"#A86E3D", val: pet.breed || "—",  label:"品种" },
-            { Icon:CalendarDays,bg:"#F8E1C7", ic:"#E68645", val: ageLabel,          label:"年龄" },
-            { Icon:Scale,       bg:"#E4F1DF", ic:"#5FA766", val: pet.weight ? `${pet.weight} kg` : "—", label:"体重" },
-            { Icon: pet.gender === "male" ? Mars : Venus,
+            { field:"breed",  Icon:PawPrint,    bg:"#F7E8D8", ic:"#A86E3D", val: pet.breed || "—",  label:"品种" },
+            { field:"age",    Icon:CalendarDays,bg:"#F8E1C7", ic:"#E68645", val: ageLabel,          label:"年龄" },
+            { field:"weight", Icon:Scale,       bg:"#E4F1DF", ic:"#5FA766", val: pet.weight ? `${pet.weight} kg` : "—", label:"体重" },
+            { field:"gender", Icon: pet.gender === "male" ? Mars : Venus,
               bg:   pet.gender === "male" ? "#DCE9F7" : "#F8DDE4",
               ic:   pet.gender === "male" ? "#5A83B8" : "#D9567A",
               val:  pet.gender === "male" ? "男孩" : pet.gender === "female" ? "女孩" : "—", label:"性别" },
-          ].map(({ Icon, bg, ic, val, label }, i) => (
-            <div key={label} style={{ flex:1, display:"flex", alignItems:"center", gap:8,
-                                      padding:"0 8px",
+          ].map(({ field, Icon, bg, ic, val, label }, i) => (
+            <div key={label} onClick={() => setEditField(field)}
+                 style={{ flex:1, display:"flex", alignItems:"center", gap:8,
+                                      padding:"0 8px", cursor:"pointer",
                                       borderLeft: i === 0 ? "none" : `1px solid ${H_BORDER}` }}>
               <div style={{ width:38, height:38, borderRadius:"50%", background:bg, flexShrink:0,
                             display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -1620,6 +1624,13 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
             </div>
           ))}
         </div>
+
+        {/* 基础信息卡点击 → 单字段编辑弹窗（品种/年龄/体重/性别）*/}
+        {editField && (
+          <PetInfoEditModal field={editField} pet={pet}
+            onClose={() => setEditField(null)}
+            onSaved={(updated) => { onPetUpdate?.(updated); setEditField(null); }} />
+        )}
 
         {/* 3 个入口卡：记账 / 食谱 / 健康 */}
         <div style={{ display:"flex", gap:12, marginBottom:12 }}>
