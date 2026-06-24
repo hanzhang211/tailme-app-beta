@@ -4,13 +4,14 @@
  * components/pet-call/CallSettings.jsx
  *
  * 宠物来电设置 / 来电中心（场景驱动版）：
- * 宠物卡 + 来电场景开关 + 智能情绪声音说明 + 来电时间 + 重复 + 保存 / 立即体验来电。
+ * 宠物卡 + 来电场景开关 + 智能情绪声音说明 + 保存 / 立即体验来电。
  *
- * 已移除：来电风格 chip、声音选择（改为场景自动匹配情绪与叫声，见 lib/petCallEmotionMap）。
+ * 已移除：来电风格 chip、声音选择（改为场景自动匹配情绪与叫声，见 lib/petCallEmotionMap）；
+ *         来电时间 / 重复（来电按场景规则自动触发，无需用户手动设置，避免设错）。
  *
  * props: {
  *   name, avatar, hasAiAvatar, metaLine,
- *   settings, setField, scenes, onToggleScene, saving,
+ *   scenes, onToggleScene, saving,
  *   onSave, onTestCall, onOpenHistory, onClose,
  * }
  */
@@ -18,13 +19,12 @@
 import { Clock, Sparkles, Languages } from "lucide-react";
 import BackButton from "@/components/icons/BackButton";
 import CallScenes from "@/components/pet-call/CallScenes";
-import { REPEAT_RULES } from "@/lib/petCallTemplates";
 
 const C = { pri: "#E68645", text: "#2A2520", sub: "#8A8178", bg: "#EEE9E1", border: "#EFE3D5", light: "#FFF3E9" };
 
 export default function CallSettings({
   name, avatar, hasAiAvatar, metaLine,
-  settings, setField, scenes, onToggleScene, saving,
+  scenes, onToggleScene, saving,
   onSave, onTestCall, onOpenHistory, onClose,
 }) {
   return (
@@ -91,26 +91,6 @@ export default function CallSettings({
             </div>
           </div>
         </div>
-
-        {/* 时间 + 重复 */}
-        <SectionTitle>来电时间</SectionTitle>
-        <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`,
-                      boxShadow: "0 1px 4px rgba(0,0,0,0.03)", overflow: "hidden" }}>
-          <Row label="来电时间">
-            <input type="time" value={settings.call_time}
-              onChange={(e) => setField("call_time", e.target.value)}
-              style={{ border: "none", background: "none", fontSize: 14.5, fontWeight: 700, color: C.pri,
-                       textAlign: "right", outline: "none", WebkitAppearance: "none" }} />
-          </Row>
-          <div style={{ height: 1, background: C.border, margin: "0 14px" }} />
-          <Row label="重复">
-            <select value={settings.repeat_rule} onChange={(e) => setField("repeat_rule", e.target.value)}
-              style={{ border: "none", background: "none", fontSize: 14.5, fontWeight: 700, color: C.pri,
-                       textAlign: "right", outline: "none", WebkitAppearance: "none", cursor: "pointer" }}>
-              {REPEAT_RULES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-            </select>
-          </Row>
-        </div>
       </div>
 
       {/* 底部按钮 */}
@@ -134,13 +114,4 @@ export default function CallSettings({
 
 function SectionTitle({ children }) {
   return <div style={{ fontSize: 14, fontWeight: 800, color: "#2A2520", margin: "20px 0 10px" }}>{children}</div>;
-}
-
-function Row({ label, children }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px" }}>
-      <span style={{ fontSize: 14.5, fontWeight: 700, color: "#2A2520" }}>{label}</span>
-      {children}
-    </div>
-  );
 }

@@ -9,7 +9,7 @@
  *
  * 点中间通知卡 → onAnswer（进入来电中页面）。
  *
- * props: { name, avatar, callTime, onAnswer, onClose }
+ * props: { name, avatar, onAnswer, onClose }
  */
 
 import { Lock, ChevronRight } from "lucide-react";
@@ -18,9 +18,11 @@ const C = { pri: "#E68645" };
 
 const WEEK = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
 
-export default function CallPreview({ name, avatar, callTime = "20:00", onAnswer, onClose }) {
+export default function CallPreview({ name, avatar, onAnswer, onClose }) {
   const now = new Date();
   const dateStr = `${now.getMonth() + 1}月${now.getDate()}日 ${WEEK[now.getDay()]}`;
+  // 即时体验：锁屏显示当前真实时间（不再依赖已移除的「来电时间」设置）
+  const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
   return (
     <div
@@ -42,7 +44,7 @@ export default function CallPreview({ name, avatar, callTime = "20:00", onAnswer
       <div style={{ paddingTop: "max(env(safe-area-inset-top), 54px)", display: "flex",
                     flexDirection: "column", alignItems: "center", zIndex: 2 }}>
         <Lock size={20} color="rgba(122,78,30,0.7)" style={{ marginBottom: 14 }} />
-        <div style={{ fontSize: 74, fontWeight: 300, color: "#5E3C16", lineHeight: 1, letterSpacing: 1 }}>{callTime}</div>
+        <div style={{ fontSize: 74, fontWeight: 300, color: "#5E3C16", lineHeight: 1, letterSpacing: 1 }}>{timeStr}</div>
         <div style={{ fontSize: 16, color: "#7A4E1E", marginTop: 8, fontWeight: 500 }}>{dateStr}</div>
       </div>
 

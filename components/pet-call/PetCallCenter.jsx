@@ -3,11 +3,11 @@
 /**
  * components/pet-call/PetCallCenter.jsx
  *
- * 【AI 宠物来电】全屏浮层容器。view 状态机切 8 画面（非真实路由）：
- *   settings → preview → incoming → active(语音 ⇄ chat 聊天) → ended → history
+ * 【AI 宠物来电】全屏浮层容器。view 状态机切多画面（非真实路由）：
+ *   settings → pick(选择体验场景) → preview → incoming → active(语音 ⇄ chat 聊天) → ended → history
  *
  * 两种进入方式：
- *   1) 手动：首页入口点开 → 进设置页；「立即体验来电」默认演示「想你来电」场景。
+ *   1) 手动：首页入口点开 → 进设置页；「立即体验来电」→ 选择想体验的来电场景 → 体验该场景。
  *   2) 自动：petCallTriggerService 命中 → 接入点已建好 incoming 记录并传入 initialTrigger
  *      → 直接进「来电中」，用触发场景的字幕/情绪/叫声；接听/挂断/完成时 update 该记录。
  *
@@ -29,6 +29,7 @@ import { playPetVoice, triggerForScene, resolveCallEmotion } from "@/lib/petCall
 import { speakPetVoice, stopPetVoice } from "@/services/petVoiceClient";
 import { generateCallOpening, generateCallReply, summarizeCall } from "@/services/petCallAi";
 import CallSettings from "@/components/pet-call/CallSettings";
+import CallExperiencePicker from "@/components/pet-call/CallExperiencePicker";
 import CallPreview from "@/components/pet-call/CallPreview";
 import IncomingCall from "@/components/pet-call/IncomingCall";
 import ActiveCall from "@/components/pet-call/ActiveCall";
@@ -124,7 +125,6 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
     return () => { alive = false; };
   }, [pet?.id, toast]);
 
-  const setField = useCallback((field, value) => setSettings((s) => ({ ...s, [field]: value })), []);
   const onToggleScene = useCallback((id) => setScenes((p) => ({ ...p, [id]: !p[id] })), []);
 
   /* 自动来电：通话结束后关闭浮层；手动：回设置页 */
@@ -142,10 +142,15 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
     } finally { setSaving(false); }
   };
 
-  /* ── 立即体验来电（手动）→ 推送预览，默认「想你来电」── */
-  const handleTestCall = () => {
-    setCurrentScene("miss_you");
-    call.prepare("miss_you");
+  /* ── 立即体验来电（手动）→ 先进「选择体验场景」页 ── */
+  const handleTestCall = () => setView("pick");
+
+  /* ── 选好体验场景 → 准备该场景并进入预览（整通来电的字幕/情绪/叫声/AI 开场白
+     都由 currentScene 自动派生，见 activeContext）── */
+  const startExperience = (sceneId) => {
+    const scene = sceneId || "miss_you";
+    setCurrentScene(scene);
+    call.prepare(scene);
     startedAtRef.current = new Date().toISOString();
     closingRef.current = false; warnedRef.current = false; // 新通话重置上限状态
     setCallMode("voice");
@@ -403,15 +408,22 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
     screen = (
       <CallSettings
         name={name} avatar={avatar} hasAiAvatar={hasAiAvatar} metaLine={metaLine}
-        settings={settings} setField={setField} scenes={scenes} onToggleScene={onToggleScene} saving={saving}
+        scenes={scenes} onToggleScene={onToggleScene} saving={saving}
         onSave={handleSave} onTestCall={handleTestCall}
         onOpenHistory={() => setView("history")} onClose={onClose}
+      />
+    );
+  } else if (view === "pick") {
+    screen = (
+      <CallExperiencePicker
+        name={name} avatar={avatar}
+        onPick={startExperience} onBack={() => setView("settings")}
       />
     );
   } else if (view === "preview") {
     screen = (
       <CallPreview
-        name={name} avatar={avatar} callTime={settings.call_time}
+        name={name} avatar={avatar}
         onAnswer={() => setView("incoming")} onClose={() => setView("settings")}
       />
     );
