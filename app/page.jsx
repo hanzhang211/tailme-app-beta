@@ -72,6 +72,13 @@ const feedAmt = (w) => {
   return "400–550g / 次";
 };
 
+// 空闲调度：首屏画完、浏览器空闲后再跑非关键预取（不支持 requestIdleCallback 的环境用 setTimeout 兜底）
+function onIdle(fn, timeout = 2500) {
+  if (typeof window === "undefined") return;
+  if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(fn, { timeout });
+  else setTimeout(fn, 300);
+}
+
 const FEED_LABELS    = ["第一次喂食", "第二次喂食", "第三次喂食"];
 const FEED_ICONS     = ["🌅", "🌆", "🌙"];
 const FEED_UNITS     = ["g", "勺", "杯", "罐", "袋"];
@@ -729,15 +736,11 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
   const prevPet = showCarousel ? pets[(petIdx - 1 + petCount) % petCount] : null;
   const nextPet = showCarousel ? pets[(petIdx + 1) % petCount] : null;
 
-  // 预加载当前 + 相邻宠物头像，切换/打开时不闪白
+  // 只预加载当前宠物头像，避免闪白；相邻宠物头像在切换时再加载，减少开屏并发
   useEffect(() => {
-    const urls = [
-      avatarSrc,
-      prevPet?.pet_avatar_thumb_url || prevPet?.ai_avatar_url,
-      nextPet?.pet_avatar_thumb_url || nextPet?.ai_avatar_url,
-    ].filter(Boolean);
-    urls.forEach((u) => { const im = new Image(); im.src = u; });
-  }, [avatarSrc, prevPet?.id, nextPet?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!avatarSrc) return;
+    const im = new Image(); im.src = avatarSrc;
+  }, [avatarSrc]);
 
   // Swipe 手势（循环，无边界，无 rubber-band）
   const touchStartX = useRef(null);
@@ -764,10 +767,11 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
     let alive = true;
     getMonthlyTotal(user.id).then((v) => { if (alive) setMonthExpense(v); }).catch(() => {});
     getTodayRecipe().then((r) => { if (alive) setTodayRecipe(r); }).catch(() => {});
-    // 后台预取记账/食谱/健康全量数据，点进子页时秒开有内容
-    prefetchExpense(user.id);
-    prefetchRecipes();
-    if (pet?.id) prefetchHealth(pet.id, user.id);
+    // 非关键全量数据：首屏画完、空闲后再后台预取（点子页时已缓存→秒开，不抢开屏带宽）
+    // requestIdleCallback 天然把多个回调分散到不同空闲期、错峰执行；prefetch 内部有缓存判断，不会重复拉
+    onIdle(() => { if (alive) prefetchRecipes(); });
+    onIdle(() => { if (alive) prefetchExpense(user.id); });
+    onIdle(() => { if (alive && pet?.id) prefetchHealth(pet.id, user.id); });
     return () => { alive = false; };
   }, [user?.id, subPage]);   // 从子页面返回时刷新
   // 年龄显示：优先用 birthday 计算（整数岁/月/日）；老数据回退到 pet.age
@@ -1959,9 +1963,9 @@ export default function AppRoot() {
 
   const userId = user?.id ?? null;
 
-  /* 进入 App 后后台预取社群 feed，用户点「社群」时直接命中缓存（无加载） */
+  /* 进入 App 后、空闲时再后台预取社群 feed（最重，放最后跑、不抢开屏）；点社群时已缓存→秒开 */
   useEffect(() => {
-    if (screen === S.APP && userId) prefetchCommunityFeed(userId);
+    if (screen === S.APP && userId) onIdle(() => prefetchCommunityFeed(userId), 5000);
   }, [screen, userId]);
 
   /* 切换激活宠物，同步到 localStorage */
