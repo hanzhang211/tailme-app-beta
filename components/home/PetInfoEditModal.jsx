@@ -19,10 +19,10 @@ import { useState } from "react";
 import { Search } from "lucide-react";
 import { updatePet } from "@/services/supabaseService";
 import { DOG_BREEDS, CAT_BREEDS, isCatPet } from "@/services/breedAvatar";
-import { todayISO } from "@/services/petAge";
+import { todayISO, PERSONALITIES } from "@/services/petAge";
 
 const C = { bg: "#EEE9E1", pri: "#E68645", text: "#1A1006", sub: "#8A8074", border: "#7A6F62", soft: "#E5DACB" };
-const TITLES = { breed: "选择品种", age: "修改生日", weight: "修改体重", gender: "选择性别" };
+const TITLES = { breed: "选择品种", age: "修改生日", weight: "修改体重", gender: "选择性别", personality: "选择性格" };
 
 export default function PetInfoEditModal({ field, pet, onClose, onSaved }) {
   const isCat = isCatPet(pet);
@@ -34,6 +34,9 @@ export default function PetInfoEditModal({ field, pet, onClose, onSaved }) {
   const [birthday, setBirthday] = useState(pet?.birthday || "");
   const [weight, setWeight]     = useState(pet?.weight != null ? String(pet.weight) : "");
   const [gender, setGender]     = useState(pet?.gender || "");
+  const [persSel, setPersSel]   = useState(
+    pet?.personality ? pet.personality.split(/[、,，/]/).map((s) => s.trim()).filter(Boolean) : []
+  );
 
   const save = async (fields) => {
     if (saving) return;
@@ -54,6 +57,8 @@ export default function PetInfoEditModal({ field, pet, onClose, onSaved }) {
     save({ weight: w });
   };
   const saveGender = () => { if (!gender) { setError("请选择性别"); return; } save({ gender }); };
+  const togglePers = (p) => setPersSel((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]);
+  const savePersonality = () => save({ personality: persSel.join("、") || null });
 
   const filtered = breedList.filter((b) => b.includes(query.trim()));
 
@@ -143,6 +148,27 @@ export default function PetInfoEditModal({ field, pet, onClose, onSaved }) {
               })}
             </div>
             <SaveBtn onClick={saveGender} saving={saving} />
+          </>
+        )}
+
+        {/* 性格：多选 PERSONALITIES（「、」拼接存储）*/}
+        {field === "personality" && (
+          <>
+            <div style={{ fontSize: 12.5, color: C.sub, marginBottom: 12 }}>可多选，挑出最像 TA 的性格</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              {PERSONALITIES.map((p) => {
+                const on = persSel.includes(p);
+                return (
+                  <button key={p} onClick={() => { togglePers(p); setError(null); }}
+                    style={{ padding: "10px 6px", borderRadius: 12, fontSize: 12.5, fontWeight: on ? 800 : 600,
+                             background: on ? C.pri : "#fff", color: on ? "#fff" : C.text,
+                             border: `1.5px solid ${on ? C.pri : C.soft}`, cursor: "pointer", transition: "all .15s" }}>
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
+            <SaveBtn onClick={savePersonality} saving={saving} />
           </>
         )}
       </div>

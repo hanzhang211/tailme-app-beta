@@ -1485,13 +1485,16 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
                 </span>
               )}
               {pet.personality && (
-                <span style={{ background:"rgba(255,255,255,0.62)",
-                               border:"1px solid rgba(255,255,255,0.72)",
-                               borderRadius:999, padding:"5px 12px",
-                               boxShadow:"0 4px 10px rgba(0,0,0,0.04)",
-                               fontSize:12, fontWeight:600, color:"#8A7B6A" }}>
+                <button onClick={() => setEditField("personality")}
+                  style={{ background:"rgba(255,255,255,0.62)",
+                           border:"1px solid rgba(255,255,255,0.72)",
+                           borderRadius:999, padding:"5px 12px",
+                           boxShadow:"0 4px 10px rgba(0,0,0,0.04)",
+                           fontSize:12, fontWeight:600, color:"#8A7B6A",
+                           cursor:"pointer", maxWidth:200, whiteSpace:"nowrap",
+                           overflow:"hidden", textOverflow:"ellipsis", display:"inline-block" }}>
                   ✨ {pet.personality}
-                </span>
+                </button>
               )}
             </div>
           )}
