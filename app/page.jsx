@@ -783,6 +783,18 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
     slideTimers.current.push(t1);
   };
 
+  // 跟手缩放进度：当前宠物随 |p| 缩小、即将到的 ghost 随 |p| 放大（连续过渡，不突变）
+  const dragP       = showCarousel ? Math.max(-1, Math.min(1, dragX / SLIDE_OUT)) : 0;
+  const dragAbs     = Math.abs(dragP);
+  const mainScale   = 1 - dragAbs * 0.42;          // 主头像缩到 ~0.58
+  const mainOpacity = 1 - dragAbs * 0.35;
+  const prevActive  = dragP > 0 ? dragAbs : 0;     // 右滑 → 上一只(prev) 放大
+  const nextActive  = dragP < 0 ? dragAbs : 0;     // 左滑 → 下一只(next) 放大
+  const carTransition = snap ? "none"
+    : sliding ? "transform 0.28s cubic-bezier(0.33,0,0.2,1), opacity 0.28s ease"
+    : dragX === 0 ? "transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.32s ease"
+    : "none";
+
   useEffect(() => {
     if (!user?.id) return;
     let alive = true;
@@ -1353,11 +1365,11 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
                   style={{ width:84, display:"flex", justifyContent:"center", alignItems:"center",
                            flexShrink:0, flexDirection:"column", gap:4,
                            background: H_BG,
-                           opacity: 0.48,
-                           transform:"scale(0.58)", transformOrigin:"right center",
+                           opacity: 0.48 + prevActive * 0.52,
+                           transform:`scale(${0.58 + prevActive * 0.42})`, transformOrigin:"right center",
                            pointerEvents: "auto",
                            cursor: "pointer",
-                           transition:"opacity 0.3s ease" }}>
+                           transition: carTransition }}>
                   <PetAvatar pet={prevPet} size={90} bg="transparent" blendMode="multiply"
                              fallbackImg={isCatPet(prevPet) ? "/cat.png" : "/dog.png"} />
                   <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
@@ -1370,7 +1382,10 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
 
               {/* 主头像（点击进入 AI 宠物聊天占位页） */}
               <div onClick={() => setSubPage("petchat")}
-                   style={{ position:"relative", padding:"4px 10px", flexShrink:0, cursor:"pointer" }}>
+                   style={{ position:"relative", padding:"4px 10px", flexShrink:0, cursor:"pointer",
+                            transform:`scale(${mainScale})`, opacity: mainOpacity,
+                            transformOrigin:"center center", transition: carTransition,
+                            willChange:"transform" }}>
                 <div style={{ position:"relative", width:236, height:236 }}>
                   {/* 占位层：真实头像未加载完成时显示 —— 优先上次缓存头像，否则默认小狗（永不空白） */}
                   {!avatarLoaded && (
@@ -1416,11 +1431,11 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
                   style={{ width:84, display:"flex", justifyContent:"center", alignItems:"center",
                            flexShrink:0, flexDirection:"column", gap:4,
                            background: H_BG,
-                           opacity: 0.48,
-                           transform:"scale(0.58)", transformOrigin:"left center",
+                           opacity: 0.48 + nextActive * 0.52,
+                           transform:`scale(${0.58 + nextActive * 0.42})`, transformOrigin:"left center",
                            pointerEvents: "auto",
                            cursor: "pointer",
-                           transition:"opacity 0.3s ease" }}>
+                           transition: carTransition }}>
                   <PetAvatar pet={nextPet} size={90} bg="transparent" blendMode="multiply"
                              fallbackImg={isCatPet(nextPet) ? "/cat.png" : "/dog.png"} />
                   <div style={{ fontSize:10, color:H_SUB, fontWeight:600,
