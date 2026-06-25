@@ -776,11 +776,16 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
     setSliding(true);
     setDragX(dir * SLIDE_OUT);                        // 顺势滑出
     const t1 = setTimeout(() => {
-      setSnap(true);                                  // 关动画
+      setSnap(true);                                  // 关动画：把新宠物瞬间放到对侧屏外
       onSwitchPet?.(target);                          // 切换宠物
       setSliding(false);
-      setDragX(0);                                    // 新宠物瞬间居中
-      const t2 = setTimeout(() => { setSnap(false); animatingRef.current = false; }, 40);
+      setDragX(-dir * SLIDE_OUT);                      // 新内容落在对侧（反方向偏移）
+      const t2 = setTimeout(() => {
+        setSnap(false);                               // 开动画
+        setDragX(0);                                  // 新宠物从对侧滑入居中（连续，不瞬现）
+        const t3 = setTimeout(() => { animatingRef.current = false; }, 340);
+        slideTimers.current.push(t3);
+      }, 20);
       slideTimers.current.push(t2);
     }, 280);
     slideTimers.current.push(t1);
@@ -1349,7 +1354,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
             onTouchEnd={onTouchEnd}
             onTouchCancel={onTouchEnd}
             style={{ width:"100%", overflow:"hidden", touchAction: showCarousel ? "pan-y" : "auto",
-                     userSelect:"none" }}>
+                     userSelect:"none", perspective: showCarousel ? "1200px" : "none" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"center",
                           background: H_BG,
                           transform: `translateX(${dragX}px)`,
@@ -1367,7 +1372,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
                 <div style={{ width:56, display:"flex", justifyContent:"center", alignItems:"center",
                               flexShrink:0, flexDirection:"column",
                               background: H_BG, opacity:0.3,
-                              transform:"scale(0.4)", transformOrigin:"right center",
+                              transform:"scale(0.4) rotateY(45deg)", transformOrigin:"right center",
                               pointerEvents:"none", transition: carTransition }}>
                   <PetAvatar pet={prevPet2} size={84} bg="transparent" blendMode="multiply"
                              fallbackImg={isCatPet(prevPet2) ? "/cat.png" : "/dog.png"} />
@@ -1381,7 +1386,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
                            flexShrink:0, flexDirection:"column", gap:4,
                            background: H_BG,
                            opacity: 0.48 + prevActive * 0.52,
-                           transform:`scale(${0.58 + prevActive * 0.42})`, transformOrigin:"right center",
+                           transform:`scale(${0.58 + prevActive * 0.42}) rotateY(${30 * (1 - prevActive)}deg)`, transformOrigin:"right center",
                            pointerEvents: "auto",
                            cursor: "pointer",
                            transition: carTransition }}>
@@ -1398,7 +1403,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
               {/* 主头像（点击进入 AI 宠物聊天占位页） */}
               <div onClick={() => setSubPage("petchat")}
                    style={{ position:"relative", padding:"4px 10px", flexShrink:0, cursor:"pointer",
-                            transform:`scale(${mainScale})`, opacity: mainOpacity,
+                            transform:`scale(${mainScale}) rotateY(${dragP * 16}deg)`, opacity: mainOpacity,
                             transformOrigin:"center center", transition: carTransition,
                             willChange:"transform" }}>
                 <div style={{ position:"relative", width:236, height:236 }}>
@@ -1447,7 +1452,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
                            flexShrink:0, flexDirection:"column", gap:4,
                            background: H_BG,
                            opacity: 0.48 + nextActive * 0.52,
-                           transform:`scale(${0.58 + nextActive * 0.42})`, transformOrigin:"left center",
+                           transform:`scale(${0.58 + nextActive * 0.42}) rotateY(${-30 * (1 - nextActive)}deg)`, transformOrigin:"left center",
                            pointerEvents: "auto",
                            cursor: "pointer",
                            transition: carTransition }}>
@@ -1466,7 +1471,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
                 <div style={{ width:56, display:"flex", justifyContent:"center", alignItems:"center",
                               flexShrink:0, flexDirection:"column",
                               background: H_BG, opacity:0.3,
-                              transform:"scale(0.4)", transformOrigin:"left center",
+                              transform:"scale(0.4) rotateY(-45deg)", transformOrigin:"left center",
                               pointerEvents:"none", transition: carTransition }}>
                   <PetAvatar pet={nextPet2} size={84} bg="transparent" blendMode="multiply"
                              fallbackImg={isCatPet(nextPet2) ? "/cat.png" : "/dog.png"} />
