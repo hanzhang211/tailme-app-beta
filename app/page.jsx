@@ -735,6 +735,9 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
   // 环形上一只 / 下一只（即使在首/尾也回绕）
   const prevPet = showCarousel ? pets[(petIdx - 1 + petCount) % petCount] : null;
   const nextPet = showCarousel ? pets[(petIdx + 1) % petCount] : null;
+  // 两侧再各取一只作循环缓冲（环形，≥3 只才有）：拖动时不露空，对面那只能绕过来接上
+  const prevPet2 = petCount > 2 ? pets[(petIdx - 2 + petCount) % petCount] : null;
+  const nextPet2 = petCount > 2 ? pets[(petIdx + 2) % petCount] : null;
 
   // 只预加载当前宠物头像，避免闪白；相邻宠物头像在切换时再加载，减少开屏并发
   useEffect(() => {
@@ -1359,6 +1362,18 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
                                 : "none",
                           willChange:"transform" }}>
 
+              {/* 最左缓冲（环形再上一只 prevPet2，纯装饰，拖动不露空 / 循环感）*/}
+              {showCarousel && prevPet2 && (
+                <div style={{ width:56, display:"flex", justifyContent:"center", alignItems:"center",
+                              flexShrink:0, flexDirection:"column",
+                              background: H_BG, opacity:0.3,
+                              transform:"scale(0.4)", transformOrigin:"right center",
+                              pointerEvents:"none", transition: carTransition }}>
+                  <PetAvatar pet={prevPet2} size={84} bg="transparent" blendMode="multiply"
+                             fallbackImg={isCatPet(prevPet2) ? "/cat.png" : "/dog.png"} />
+                </div>
+              )}
+
               {/* 左侧 ghost（环形上一只 prevPet） */}
               {showCarousel && prevPet && (
                 <div onClick={() => onSwitchPet?.(prevPet)}
@@ -1443,6 +1458,18 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
                                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                     {nextPet.name}
                   </div>
+                </div>
+              )}
+
+              {/* 最右缓冲（环形再下一只 nextPet2，纯装饰，拖动不露空 / 循环感）*/}
+              {showCarousel && nextPet2 && (
+                <div style={{ width:56, display:"flex", justifyContent:"center", alignItems:"center",
+                              flexShrink:0, flexDirection:"column",
+                              background: H_BG, opacity:0.3,
+                              transform:"scale(0.4)", transformOrigin:"left center",
+                              pointerEvents:"none", transition: carTransition }}>
+                  <PetAvatar pet={nextPet2} size={84} bg="transparent" blendMode="multiply"
+                             fallbackImg={isCatPet(nextPet2) ? "/cat.png" : "/dog.png"} />
                 </div>
               )}
             </div>
