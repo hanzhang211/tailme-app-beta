@@ -742,11 +742,18 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
     const im = new Image(); im.src = avatarSrc;
   }, [avatarSrc]);
 
-  // Swipe 手势（循环，无边界，无 rubber-band）
+  // Swipe 手势（循环）：跟手平移 → 松手达阈值则「顺势滑出 → 切换 → 瞬间居中」
   const touchStartX = useRef(null);
-  const [dragX, setDragX] = useState(0);
+  const [dragX, setDragX]     = useState(0);
+  const [sliding, setSliding] = useState(false); // 松手后滑出动画（开 transition）
+  const [snap, setSnap]       = useState(false); // 切换后瞬间归位（关 transition，避免回弹）
+  const animatingRef = useRef(false);            // 动画锁：动画期间忽略新滑动
+  const slideTimers  = useRef([]);
+  useEffect(() => () => slideTimers.current.forEach(clearTimeout), []);
+
+  const SLIDE_OUT = 180; // 松手后顺势滑出距离(px)
   const onTouchStart = (e) => {
-    if (!showCarousel) return;
+    if (!showCarousel || animatingRef.current) return;
     touchStartX.current = e.touches[0].clientX;
   };
   const onTouchMove = (e) => {
@@ -755,11 +762,25 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
   };
   const onTouchEnd = () => {
     if (touchStartX.current === null) return;
-    const THRESHOLD = 40;
-    if (dragX <= -THRESHOLD && nextPet) onSwitchPet?.(nextPet);       // 左滑 → 下一只
-    else if (dragX >= THRESHOLD && prevPet) onSwitchPet?.(prevPet);   // 右滑 → 上一只
-    setDragX(0);
     touchStartX.current = null;
+    const THRESHOLD = 40;
+    const goNext = dragX <= -THRESHOLD && nextPet;
+    const goPrev = dragX >= THRESHOLD && prevPet;
+    if (!goNext && !goPrev) { setDragX(0); return; } // 未达阈值 → 回弹
+    const target = goNext ? nextPet : prevPet;
+    const dir    = goNext ? -1 : 1;
+    animatingRef.current = true;
+    setSliding(true);
+    setDragX(dir * SLIDE_OUT);                        // 顺势滑出
+    const t1 = setTimeout(() => {
+      setSnap(true);                                  // 关动画
+      onSwitchPet?.(target);                          // 切换宠物
+      setSliding(false);
+      setDragX(0);                                    // 新宠物瞬间居中
+      const t2 = setTimeout(() => { setSnap(false); animatingRef.current = false; }, 40);
+      slideTimers.current.push(t2);
+    }, 280);
+    slideTimers.current.push(t1);
   };
 
   useEffect(() => {
@@ -1317,9 +1338,13 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
             <div style={{ display:"flex", alignItems:"center", justifyContent:"center",
                           background: H_BG,
                           transform: `translateX(${dragX}px)`,
-                          transition: dragX === 0
-                            ? "transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)"
-                            : "none",
+                          transition: snap
+                            ? "none"
+                            : sliding
+                              ? "transform 0.28s cubic-bezier(0.33,0,0.2,1)"
+                              : dragX === 0
+                                ? "transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)"
+                                : "none",
                           willChange:"transform" }}>
 
               {/* 左侧 ghost（环形上一只 prevPet） */}
