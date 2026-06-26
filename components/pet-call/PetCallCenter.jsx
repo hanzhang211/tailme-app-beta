@@ -73,6 +73,7 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
   const selectedRef = useRef(false); // 与 selected 同步，供事件回调即时判断
   const interactionRef = useRef(null); // 本通互动 { callType, opening, userChoice, petReply }，结束时总结记忆用
   const summarizedRef = useRef(false); // 防一通电话重复总结
+  const openingRef = useRef(null);     // 预生成的开场白 Promise（浮层弹出即后台生成，接听直接用）
 
   const toast = useCallback((msg) => {
     setNotice(msg);
@@ -153,6 +154,7 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
     call.prepare(scene);
     startedAtRef.current = new Date().toISOString();
     closingRef.current = false; warnedRef.current = false; // 新通话重置上限状态
+    openingRef.current = null;   // 新体验：清掉上一次预生成的开场白，避免用到旧场景的
     setCallMode("voice");
     setView("preview");
   };
@@ -173,6 +175,21 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
     }).catch(() => toast("语音生成失败，请稍后再试"));
   }, [activeContext, petType, pet?.id, toast]);
 
+  /* ── 预生成开场白：来电浮层(preview/incoming)一弹出就后台生成，接听时直接用 ──
+     大幅缩短「点接听后等第一句」的延迟；失败回退兜底字幕，不影响通话。 */
+  useEffect(() => {
+    if (view !== "preview" && view !== "incoming") return;
+    if (openingRef.current) return;
+    const fb = auto?.subtitle || resolveCallEmotion(activeContext, petType).subtitle || "主人～我今天也有乖乖想你哦～";
+    openingRef.current = generateCallOpening({
+      userId: user?.id, petId: pet?.id, pet: aiPetPayload(),
+      callType: activeContext, growthLevel: pet?.ai_level,
+      clientHour: new Date().getHours(), clientMinute: new Date().getMinutes(),
+      fallback: fb,
+    }).then((t) => t || fb).catch(() => fb);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
   /* ── 来电中：接听 / 挂断 / 稍后再说 ── */
   const handleAccept = async () => {
     // 新通话重置所有运行时标志（上限 / 单轮 / AI 忙 / 记忆总结）
@@ -191,13 +208,14 @@ export default function PetCallCenter({ user, pet, onClose, onNavigate, initialT
     setView("active");
     if (recordId) updateCallRecord(recordId, { status: "answered", answered_at: new Date().toISOString() }).catch(() => {});
 
-    // DeepSeek 生成开场白（带超时 + 模板兜底）→ 更新字幕 → 火山 TTS 念出
-    const opening = await generateCallOpening({
+    // 开场白：优先用浮层弹出时已预生成的（接听几乎不用等）；没有则现生成（带超时+模板兜底）
+    const opening = await (openingRef.current || generateCallOpening({
       userId: user?.id, petId: pet?.id, pet: aiPetPayload(),
       callType: activeContext, growthLevel: pet?.ai_level,
       clientHour: new Date().getHours(), clientMinute: new Date().getMinutes(),
       fallback: fallbackOpening,
-    });
+    }));
+    openingRef.current = null; // 用完清，下次来电重新预生成
     busyRef.current = false; setBusy(false);
     if (closingRef.current) return;        // 期间已挂断/收尾则不再处理
     call.setOpeningLine(opening);          // 更新第一条宠物气泡为最终开场白
