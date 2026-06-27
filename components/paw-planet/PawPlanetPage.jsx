@@ -36,6 +36,7 @@ import { PLANET_C as C, buildPlanetMock } from "@/lib/pawPlanetMock";
 import { getDailyPlanetStories } from "@/lib/pawPlanetDailyStories";
 import { listMemorialLetters } from "@/services/memorialLetterService";
 import { listMemories } from "@/services/memorialMemoryService";
+import { ensureMemorialCards, listMemorialCards, cardsMapOf } from "@/services/memorialCardsService";
 
 // 与首页一致：优先 thumb 缩略图（300px 透明小图，秒加载），其次 AI 原图，再次猫狗占位
 const avatarOf = (pet) => pet?.pet_avatar_thumb_url || pet?.ai_avatar_url || (isCatPet(pet) ? "/cat.png" : "/dog.png");
@@ -59,6 +60,23 @@ export default function PawPlanetPage({ pet, onBack }) {
   }, [pet?.id]);
   // 进入首页 / 时间线时刷新（回忆相册里增删后回到首页即同步）
   useEffect(() => { if (view === "home" || view === "timeline") refreshMemories(); }, [view, refreshMemories]);
+
+  // 「今日的它」8 张 AI 纪念卡：进入星球即读缓存 + 后台补齐缺失的（每张好了实时替换为真实图）。
+  // 已全部生成则不会重复生成；开通纪念模式后首次进入这里 = 自动生成 8 张的触发点。
+  const [cardsMap, setCardsMap] = useState({});   // { cardType: imageUrl }
+  const [cardsBusy, setCardsBusy] = useState(false);
+  useEffect(() => {
+    if (!pet?.id) return;
+    let alive = true;
+    setCardsBusy(true);
+    listMemorialCards(pet.id).then((rows) => { if (alive) setCardsMap(cardsMapOf(rows)); });
+    ensureMemorialCards({
+      petId: pet.id,
+      userId: pet.user_id,
+      onCard: (ct, url) => { if (alive) setCardsMap((prev) => ({ ...prev, [ct]: url })); },
+    }).finally(() => { if (alive) setCardsBusy(false); });
+    return () => { alive = false; };
+  }, [pet?.id, pet?.user_id]);
   // 访问次数：进入这只宠物的星球纪念页 +1（localStorage 安全计数；TODO 后续接 Supabase 真实统计）
   const [visitCount, setVisitCount] = useState(0);
   useEffect(() => {
@@ -92,7 +110,7 @@ export default function PawPlanetPage({ pet, onBack }) {
   const sub = { petName, avatar, petType: isCatPet(pet) ? "cat" : "dog", mock, daysTogether, petId: pet?.id, userId: pet?.user_id, onBack: () => setView("home"), toast, onOpen: setView, onLetterSaved: refreshLetters };
 
   let body;
-  if (view === "today") body = <TodayView {...sub} stories={todayStories} />;
+  if (view === "today") body = <TodayView {...sub} stories={todayStories} cardsMap={cardsMap} cardsBusy={cardsBusy} />;
   else if (view === "letter") body = <LetterView {...sub} />;
   else if (view === "gallery") body = <GalleryView {...sub} />;
   else if (view === "timeline") body = <TimelineView {...sub} memories={memories} />;

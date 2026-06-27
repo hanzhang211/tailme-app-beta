@@ -14,11 +14,15 @@ import SceneComposite from "@/components/paw-planet/SceneComposite";
 import { PLANET_PURPLE as P, GlassCircle } from "@/components/paw-planet/PlanetDecor";
 import { storyImage } from "@/lib/pawPlanetDailyStories";
 import { placementForType } from "@/lib/pawPlanetScenePlacements";
+import { cardTypeOfStory } from "@/lib/memorialCardPrompts";
 
 // 时间节点发光色（按 slot；纯视觉，不改数据）
 const SLOT_GLOW = { morning: "#FFE89A", afternoon: "#E3A9EE", evening: "#FFE0A0" };
 
-export default function TodayView({ petName = "毛孩子", avatar, petType = "dog", stories = [], onBack }) {
+// cardsMap：{ cardType: imageUrl } —— 该宠物已生成的 AI 纪念卡（含宠物本体）。
+// 有 AI 图：整图直显、不再叠加宠物头像（避免「两只宠物」）；
+// 无 AI 图：回退现有「背景图 + 头像」合成作为临时占位（始终有内容、也是生成失败时的兜底）。
+export default function TodayView({ petName = "毛孩子", avatar, petType = "dog", stories = [], cardsMap = {}, cardsBusy = false, onBack }) {
   const items = stories;
   return (
     <div style={{ height: "100%", position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", background: P.bg }}>
@@ -55,12 +59,28 @@ export default function TodayView({ petName = "毛孩子", avatar, petType = "do
                   {it.title && <div style={{ fontSize: 14, fontWeight: 800, color: "#5E55A8", marginBottom: 4 }}>{it.title}</div>}
                   <div style={{ fontSize: 13, color: it.title ? "#7E76B8" : "#5E55A8", lineHeight: 1.7 }}>{it.text}</div>
                 </div>
-                <div style={{ marginTop: 10, borderRadius: 22, overflow: "hidden",
+                <div style={{ marginTop: 10, borderRadius: 22, overflow: "hidden", position: "relative",
                               border: "1px solid rgba(255,255,255,0.4)", boxShadow: "0 12px 40px rgba(90,70,180,0.28)" }}>
-                  <SceneComposite backgroundImage={storyImage(it.type)}
-                                  fallbackGradient={placementForType(it.type).fallbackGradient}
-                                  placement={placementForType(it.type).petPlacement}
-                                  petImage={avatar} petType={petType} radius={22} />
+                  {cardsMap[cardTypeOfStory(it.type)] ? (
+                    // AI 成品图已含这只宠物：整图直显，不叠头像
+                    <img src={cardsMap[cardTypeOfStory(it.type)]} alt=""
+                         style={{ display: "block", width: "100%", aspectRatio: "1280 / 720", objectFit: "cover" }} />
+                  ) : (
+                    // 还没生成好：沿用现有「背景图 + 宠物头像」合成（临时占位 / 兜底）
+                    <>
+                      <SceneComposite backgroundImage={storyImage(it.type)}
+                                      fallbackGradient={placementForType(it.type).fallbackGradient}
+                                      placement={placementForType(it.type).petPlacement}
+                                      petImage={avatar} petType={petType} radius={22} />
+                      {cardsBusy && (
+                        <div style={{ position: "absolute", left: 10, bottom: 10, padding: "3px 10px", borderRadius: 11,
+                                      background: "rgba(40,30,70,0.55)", backdropFilter: "blur(4px)", color: "#fff",
+                                      fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, zIndex: 5 }}>
+                          ✨ 星球绘制中…
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
