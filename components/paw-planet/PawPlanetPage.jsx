@@ -31,7 +31,6 @@ import TimelineView from "@/components/paw-planet/TimelineView";
 import StoryView from "@/components/paw-planet/StoryView";
 import MailboxView from "@/components/paw-planet/MailboxView";
 import MemorialCardView from "@/components/paw-planet/MemorialCardView";
-import ScenePreview from "@/components/paw-planet/ScenePreview";
 import { PLANET_C as C, buildPlanetMock } from "@/lib/pawPlanetMock";
 import { getDailyPlanetStories } from "@/lib/pawPlanetDailyStories";
 import { listMemorialLetters } from "@/services/memorialLetterService";
@@ -117,7 +116,6 @@ export default function PawPlanetPage({ pet, onBack }) {
   else if (view === "story") body = <StoryView {...sub} />;
   else if (view === "mailbox") body = <MailboxView {...sub} letters={letters} />;
   else if (view === "card") body = <MemorialCardView {...sub} letterCount={letters.length} visitCount={visitCount} birthday={pet?.birthday} memorialStartDate={pet?.memorial_started_at} onBack={() => setView("gallery")} />;
-  else if (view === "scenes") body = <ScenePreview petName={petName} avatar={avatar} petType={isCatPet(pet) ? "cat" : "dog"} onBack={() => setView("home")} />;
   else if (view === "me") body = <MeView petName={petName} avatar={avatar} daysTogether={daysTogether} onLeave={onBack} />;
   else body = (
     /* ════ 星球首页 ════ */
@@ -172,14 +170,6 @@ export default function PawPlanetPage({ pet, onBack }) {
 
         <MemoryTimelinePreview petName={petName} memories={memories.slice(0, 4)} onMore={() => setView("timeline")} onPost={() => setView("gallery")} />
         <PlanetMailboxPreview count={letters.length} petName={petName} onClick={() => setView("mailbox")} />
-
-        {/* 临时入口：场景预览（8 张背景 + 宠物叠加合成预览）。如已有别的入口可让我改接/移除 */}
-        <button onClick={() => setView("scenes")}
-          style={{ marginTop: 14, width: "100%", padding: "11px 0", borderRadius: 14, cursor: "pointer",
-                   background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.3)",
-                   color: "#fff", fontSize: 13, fontWeight: 700 }}>
-          🎬 场景预览（8 张场景 + 宠物叠加）
-        </button>
       </div>
 
       <style>{`.pp-bounce{animation:pp-bounce 1.8s ease-in-out infinite}@keyframes pp-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}`}</style>

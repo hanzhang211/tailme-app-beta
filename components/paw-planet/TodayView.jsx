@@ -2,27 +2,27 @@
 
 /**
  * components/paw-planet/TodayView.jsx
- * 「今天的它」——梦幻紫星空时间轴（仅视觉改造；数据/时间轴/图片渲染逻辑保持不变）。
- * 卡片图 = 场景背景 + 当前宠物叠加（SceneComposite）。
- * props: { petName, avatar, petType, stories, onBack }  stories 来自 lib/pawPlanetDailyStories（按日固定）
+ * 「今天的它」——梦幻紫星空时间轴（仅视觉改造；数据/时间轴/选图逻辑保持不变）。
+ * 卡片图整图直显（不再叠加宠物头像）：有该宠物的 AI 纪念卡用 AI 图，没有则用 public 占位图。
+ * props: { petName, stories, cardsMap, cardsBusy, onBack }  stories 来自 lib/pawPlanetDailyStories（按日固定）
  */
 
 import { CalendarDays } from "lucide-react";
 import BackButton from "@/components/icons/BackButton";
 import FloatingStars from "@/components/paw-planet/FloatingStars";
-import SceneComposite from "@/components/paw-planet/SceneComposite";
 import { PLANET_PURPLE as P, GlassCircle } from "@/components/paw-planet/PlanetDecor";
-import { storyImage } from "@/lib/pawPlanetDailyStories";
-import { placementForType } from "@/lib/pawPlanetScenePlacements";
 import { cardTypeOfStory } from "@/lib/memorialCardPrompts";
 
 // 时间节点发光色（按 slot；纯视觉，不改数据）
 const SLOT_GLOW = { morning: "#FFE89A", afternoon: "#E3A9EE", evening: "#FFE0A0" };
 
-// cardsMap：{ cardType: imageUrl } —— 该宠物已生成的 AI 纪念卡（含宠物本体）。
-// 有 AI 图：整图直显、不再叠加宠物头像（避免「两只宠物」）；
-// 无 AI 图：回退现有「背景图 + 头像」合成作为临时占位（始终有内容、也是生成失败时的兜底）。
-export default function TodayView({ petName = "毛孩子", avatar, petType = "dog", stories = [], cardsMap = {}, cardsBusy = false, onBack }) {
+// 占位图：「今天的它」从上往下 3 个时间段各一张（AI 图没生成好 / 没有时显示）。
+const LOADING_IMAGES = ["/loading1.webp", "/loading2.webp", "/loading3.webp"];
+
+// cardsMap：{ cardType: imageUrl } —— 该宠物已生成的 AI 纪念卡（图本身已含宠物）。
+// 卡片图整图直显：有 AI 图用 AI 图，没有则用 public 占位图（生成中显示「绘制中」角标）。
+// 占位图与 AI 图都设计为完整成图，不再叠加宠物头像。
+export default function TodayView({ petName = "毛孩子", stories = [], cardsMap = {}, cardsBusy = false, onBack }) {
   const items = stories;
   return (
     <div style={{ height: "100%", position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", background: P.bg }}>
@@ -38,6 +38,9 @@ export default function TodayView({ petName = "毛孩子", avatar, petType = "do
       <div style={{ position: "relative", zIndex: 1, flex: 1, overflowY: "auto", padding: "12px 18px 28px" }}>
         {items.map((it, i) => {
           const glow = SLOT_GLOW[it.slot] || "#C9BCF2";
+          const aiUrl = cardsMap[cardTypeOfStory(it.type)];
+          const cardImg = aiUrl || LOADING_IMAGES[i] || LOADING_IMAGES[0]; // 有 AI 图用 AI 图，否则用对应时段占位图
+          const generating = !aiUrl && cardsBusy;          // 还没生成好且后台正在生成 → 显示绘制中
           return (
             <div key={i} style={{ display: "flex", gap: 11, marginBottom: 20 }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
@@ -60,26 +63,18 @@ export default function TodayView({ petName = "毛孩子", avatar, petType = "do
                   <div style={{ fontSize: 13, color: it.title ? "#7E76B8" : "#5E55A8", lineHeight: 1.7 }}>{it.text}</div>
                 </div>
                 <div style={{ marginTop: 10, borderRadius: 22, overflow: "hidden", position: "relative",
-                              border: "1px solid rgba(255,255,255,0.4)", boxShadow: "0 12px 40px rgba(90,70,180,0.28)" }}>
-                  {cardsMap[cardTypeOfStory(it.type)] ? (
-                    // AI 成品图已含这只宠物：整图直显，不叠头像
-                    <img src={cardsMap[cardTypeOfStory(it.type)]} alt=""
-                         style={{ display: "block", width: "100%", aspectRatio: "1280 / 720", objectFit: "cover" }} />
-                  ) : (
-                    // 还没生成好：沿用现有「背景图 + 宠物头像」合成（临时占位 / 兜底）
-                    <>
-                      <SceneComposite backgroundImage={storyImage(it.type)}
-                                      fallbackGradient={placementForType(it.type).fallbackGradient}
-                                      placement={placementForType(it.type).petPlacement}
-                                      petImage={avatar} petType={petType} radius={22} />
-                      {cardsBusy && (
-                        <div style={{ position: "absolute", left: 10, bottom: 10, padding: "3px 10px", borderRadius: 11,
-                                      background: "rgba(40,30,70,0.55)", backdropFilter: "blur(4px)", color: "#fff",
-                                      fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, zIndex: 5 }}>
-                          ✨ 星球绘制中…
-                        </div>
-                      )}
-                    </>
+                              border: "1px solid rgba(255,255,255,0.4)", boxShadow: "0 12px 40px rgba(90,70,180,0.28)",
+                              background: "#E6DEF7", aspectRatio: "1280 / 720" }}>
+                  {/* 整图直显：AI 图 / 占位图都是完整成图，不再叠加宠物头像 */}
+                  <img src={cardImg} alt="" loading="lazy" decoding="async"
+                       onError={(e) => { e.currentTarget.style.display = "none"; }}
+                       style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} />
+                  {generating && (
+                    <div style={{ position: "absolute", left: 10, bottom: 10, padding: "3px 10px", borderRadius: 11,
+                                  background: "rgba(40,30,70,0.55)", backdropFilter: "blur(4px)", color: "#fff",
+                                  fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, zIndex: 5 }}>
+                      ✨ 星球绘制中…
+                    </div>
                   )}
                 </div>
               </div>
