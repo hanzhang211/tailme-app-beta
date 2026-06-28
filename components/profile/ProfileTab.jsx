@@ -635,7 +635,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
           {/* 菜单列表 */}
           <div style={{ padding:"16px 14px 90px", display:"flex", flexDirection:"column", gap:12 }}>
             {/* 分享卡片中心入口（温暖醒目卡） */}
-            <button onClick={() => setShareCenterOpen(true)}
+            <button onClick={() => toast("分享卡功能后期上线，敬请期待 🐾")}
               style={{ display:"flex", alignItems:"center", gap:10, width:"100%",
                        background:"linear-gradient(135deg,#FFFBF7,#FEF3EA)",
                        border:"1px solid #F4E6D8", borderRadius:20, padding:"10px 15px",
@@ -649,7 +649,7 @@ export default function ProfileTab({ user, pet, onSetActivePet, onPetUpdated, on
               </div>
               <span style={{ flexShrink:0, display:"flex", alignItems:"center", gap:2,
                              color:C.pri, fontSize:11.5, fontWeight:700, whiteSpace:"nowrap" }}>
-                分享卡片馆 ›
+                后期上线
               </span>
             </button>
             <MenuRow icon={<Star size={26} color={C.pri} strokeWidth={2.2} />}

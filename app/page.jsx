@@ -690,6 +690,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
   const [todayRecipe,  setTodayRecipe]  = useState(null);
   const [avatarOpen,       setAvatarOpen]   = useState(false);
   const [shareCardOpen,    setShareCardOpen] = useState(false);
+  const [cardTip, setCardTip] = useState(null); // 分享卡「后期上线」轻提示
   const [petCallOpen,      setPetCallOpen]   = useState(false);
   const [autoTrigger,      setAutoTrigger]   = useState(null); // 自动触发来电信息（含 recordId）
   const [avatarBroken,     setAvatarBroken] = useState(false);
@@ -912,12 +913,19 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
   }, [user?.id, pet?.id]);
 
   // 通话页快捷按钮跳转：关来电浮层 + 跳到对应现有页面（复用现有 subPage / tab / 分享卡，不新建页面）
+  // 分享卡「后期上线」提示（首页 / 来电入口共用；2.2s 自动消失）
+  const showCardTip = (m = "分享卡功能后期上线，敬请期待 🐾") => {
+    setCardTip(m);
+    clearTimeout(showCardTip._t);
+    showCardTip._t = setTimeout(() => setCardTip(null), 2200);
+  };
+
   const handleCallNavigate = (target) => {
     setPetCallOpen(false); setAutoTrigger(null);
     if (target === "health") setSubPage("health");
     else if (target === "feeding") setSubPage("feeding");
     else if (target === "petchat") setSubPage("petchat");
-    else if (target === "sharecard") setShareCardOpen(true);
+    else if (target === "sharecard") showCardTip(); // 分享卡先保留功能，点击提示后期上线
     else if (target === "social") onGoTab?.(0); // 遛弯 Tab
   };
 
@@ -1301,6 +1309,13 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
       )}
       {shareCardOpen && (
         <ShareCardCenter user={user} pet={pet} onClose={() => setShareCardOpen(false)} />
+      )}
+      {cardTip && (
+        <div style={{ position:"fixed", left:"50%", bottom:96, transform:"translateX(-50%)", zIndex:400,
+                      maxWidth:300, padding:"10px 18px", borderRadius:14, fontSize:13, fontWeight:600,
+                      textAlign:"center", background:"#E68645", color:"#fff", boxShadow:"0 4px 16px rgba(0,0,0,0.2)" }}>
+          {cardTip}
+        </div>
       )}
       {petCallOpen && (
         <PetCallCenter user={user} pet={pet} initialTrigger={autoTrigger}
@@ -1751,7 +1766,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
         </div>
 
         {/* 今日陪伴卡入口 → 分享卡片中心 */}
-        <button onClick={() => setShareCardOpen(true)}
+        <button onClick={() => showCardTip()}
           style={{ display:"flex", alignItems:"center", gap:10, width:"100%",
                    background:"linear-gradient(135deg,#FFFBF7,#FEF3EA)",
                    border:"1px solid #F4E6D8", borderRadius:20, padding:"10px 14px",
@@ -1769,7 +1784,7 @@ function HomeTab({ user, pet, pets = [], onPetUpdate, onSwitchPet, onGoTab }) {
           <span style={{ flexShrink:0, display:"flex", alignItems:"center", gap:2,
                          background:C.pri, color:"#fff", borderRadius:999, padding:"8px 13px",
                          fontSize:13, fontWeight:800, whiteSpace:"nowrap" }}>
-            立即生成 ›
+            后期上线
           </span>
         </button>
 
